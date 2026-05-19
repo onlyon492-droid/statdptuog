@@ -45,6 +45,8 @@ const userSchema = new mongoose.Schema({
     batch: { type: String, default: '' }, // e.g. '2022-2026'
     designation: { type: String, default: '' }, // e.g. 'Professor', 'Lecturer'
     publicationsCount: { type: Number, default: 0 },
+    education: { type: String, default: '' }, // e.g. 'Ph.D', 'Post-Doc'
+    jobStatus: { type: String, default: '' }, // e.g. 'Active', 'Visiting'
     
     // Privacy settings fields
     phoneVisible: { type: Boolean, default: false },
@@ -175,7 +177,7 @@ app.use('/api', async (req, res, next) => {
 // ── USERS ─────────────────────────────────────────────────────────────────────
 app.post('/api/register', async (req, res) => {
     try {
-        const { username, password, name, role, phone, program, batch, designation, publicationsCount } = req.body;
+        const { username, password, name, role, phone, program, batch, designation, publicationsCount, education, jobStatus } = req.body;
         if (!username || !password || !name || !role) return res.status(400).json({ error: 'Missing fields' });
 
         const normalizedUsername = username.toLowerCase().trim();
@@ -200,6 +202,8 @@ app.post('/api/register', async (req, res) => {
             batch: batch || '',
             designation: designation || '',
             publicationsCount: Number(publicationsCount) || 0,
+            education: education || '',
+            jobStatus: jobStatus || '',
             phoneVisible: false,
             allowComments: 'everyone',
             allowDownloads: true,
@@ -245,7 +249,7 @@ app.get('/api/users', async (req, res) => {
 
 app.put('/api/users/:username/profile', async (req, res) => {
     try {
-        const { name, phone, password, profilePic, program, batch, phoneVisible, allowComments, allowDownloads, showAppreciations, phonePrivacy, profileStealth, statusPrivacy, connectionPolicy, tagline, designation, publicationsCount } = req.body;
+        const { name, phone, password, profilePic, program, batch, phoneVisible, allowComments, allowDownloads, showAppreciations, phonePrivacy, profileStealth, statusPrivacy, connectionPolicy, tagline, designation, publicationsCount, education, jobStatus } = req.body;
         const user = await User.findOne({ username: req.params.username.toLowerCase().trim() });
         if (!user) return res.status(404).json({ error: 'User not found' });
         
@@ -257,6 +261,8 @@ app.put('/api/users/:username/profile', async (req, res) => {
         if (batch !== undefined) user.batch = batch;
         if (designation !== undefined) user.designation = designation;
         if (publicationsCount !== undefined) user.publicationsCount = Number(publicationsCount) || 0;
+        if (education !== undefined) user.education = education;
+        if (jobStatus !== undefined) user.jobStatus = jobStatus;
         
         if (phoneVisible !== undefined) user.phoneVisible = phoneVisible;
         if (allowComments !== undefined) user.allowComments = allowComments;

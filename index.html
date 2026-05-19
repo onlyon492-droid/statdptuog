@@ -83,6 +83,8 @@
                             <option value="" disabled selected>Select Program...</option>
                             <option value="BS Statistics">BS Statistics</option>
                             <option value="BS Data Analytics">BS Data Analytics</option>
+                            <option value="M.Phil Statistics">M.Phil Statistics</option>
+                            <option value="Ph.D Statistics">Ph.D Statistics</option>
                         </select>
                         <div class="edu-row" style="margin-bottom: 10px;">
                             <input type="text" id="reg-area" class="edu-input" placeholder="City/Area (e.g. Gujrat)" style="margin-bottom: 0;">
@@ -121,7 +123,23 @@
                                 <option value="Assistant Professor">Assistant Professor</option>
                                 <option value="Lecturer">Lecturer</option>
                             </select>
-                            <input type="number" id="reg-publications" class="edu-input" placeholder="Publications Count (e.g. 15)" min="0" style="margin-bottom: 0; flex: 1;">
+                            <input type="number" id="reg-publications" class="edu-input" placeholder="Publications (Optional)" min="0" style="margin-bottom: 0; flex: 1;">
+                        </div>
+                        <div class="edu-row" style="margin-bottom: 0;">
+                            <select id="reg-faculty-education" class="edu-select" style="margin-bottom: 0; flex: 1;">
+                                <option value="" disabled selected>Select Education...</option>
+                                <option value="BS / Master">BS / Master</option>
+                                <option value="M.Phil">M.Phil</option>
+                                <option value="Ph.D">Ph.D</option>
+                                <option value="Post-Doc">Post-Doc</option>
+                            </select>
+                            <select id="reg-faculty-status" class="edu-select" style="margin-bottom: 0; flex: 1;">
+                                <option value="" disabled selected>Select Job Status...</option>
+                                <option value="Active">Active</option>
+                                <option value="On Leave">On Leave</option>
+                                <option value="Visiting">Visiting</option>
+                                <option value="Retired">Retired</option>
+                            </select>
                         </div>
                     </div>
                     <input type="text" id="reg-tagline" class="edu-input" placeholder="Academic Tagline (e.g. 🚀 Learning Statistics)" style="margin-bottom:12px;">
@@ -433,6 +451,9 @@
                             <div class="charts-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem;">
                                 <div class="analytics-card" style="background: var(--bg-surface); padding: 16px; border-radius: 12px; border: 1px solid var(--border-color);"><canvas id="facultyDesignationChart" height="260"></canvas></div>
                                 <div class="analytics-card" style="background: var(--bg-surface); padding: 16px; border-radius: 12px; border: 1px solid var(--border-color);"><canvas id="facultyPublicationsChart" height="260"></canvas></div>
+                                <div class="analytics-card" style="background: var(--bg-surface); padding: 16px; border-radius: 12px; border: 1px solid var(--border-color);"><canvas id="facultyGenderChart" height="260"></canvas></div>
+                                <div class="analytics-card" style="background: var(--bg-surface); padding: 16px; border-radius: 12px; border: 1px solid var(--border-color);"><canvas id="facultyEducationChart" height="260"></canvas></div>
+                                <div class="analytics-card" style="background: var(--bg-surface); padding: 16px; border-radius: 12px; border: 1px solid var(--border-color);"><canvas id="facultyJobStatusChart" height="260"></canvas></div>
                             </div>
                         </div>
                     </div>
@@ -615,6 +636,8 @@
                             <option value="" disabled>Select Program...</option>
                             <option value="BS Statistics">BS Statistics</option>
                             <option value="BS Data Analytics">BS Data Analytics</option>
+                            <option value="M.Phil Statistics">M.Phil Statistics</option>
+                            <option value="Ph.D Statistics">Ph.D Statistics</option>
                         </select>
                         <label style="font-size:0.85rem; font-weight:600; color:#4b5563; margin-bottom:5px; display:block;">Academic Batch</label>
                         <div style="display: flex; gap: 8px; align-items: center;">
@@ -636,7 +659,24 @@
                             <option value="Assistant Professor">Assistant Professor</option>
                             <option value="Lecturer">Lecturer</option>
                         </select>
-                        <label style="font-size:0.85rem; font-weight:600; color:#4b5563; margin-bottom:5px; display:block;">Research Publications Count</label>
+                        
+                        <label style="font-size:0.85rem; font-weight:600; color:#4b5563; margin-bottom:5px; display:block;">Faculty Education Level</label>
+                        <select id="edit-faculty-education" class="edu-select" style="margin-bottom: 12px;">
+                            <option value="BS / Master">BS / Master</option>
+                            <option value="M.Phil">M.Phil</option>
+                            <option value="Ph.D">Ph.D</option>
+                            <option value="Post-Doc">Post-Doc</option>
+                        </select>
+
+                        <label style="font-size:0.85rem; font-weight:600; color:#4b5563; margin-bottom:5px; display:block;">Faculty Job Status</label>
+                        <select id="edit-faculty-status" class="edu-select" style="margin-bottom: 12px;">
+                            <option value="Active">Active</option>
+                            <option value="On Leave">On Leave</option>
+                            <option value="Visiting">Visiting</option>
+                            <option value="Retired">Retired</option>
+                        </select>
+
+                        <label style="font-size:0.85rem; font-weight:600; color:#4b5563; margin-bottom:5px; display:block;">Research Publications Count (Optional)</label>
                         <input type="number" id="edit-publications" class="edu-input" placeholder="Publications Count (e.g. 15)" min="0" style="margin-bottom: 12px;">
                     </div>
 

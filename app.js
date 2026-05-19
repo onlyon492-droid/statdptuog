@@ -524,6 +524,8 @@ document.getElementById('signup-form').addEventListener('submit', async (e) => {
     
     const designation = role === 'Faculty' ? document.getElementById('reg-designation').value : '';
     const publicationsCount = role === 'Faculty' ? (parseInt(document.getElementById('reg-publications').value) || 0) : 0;
+    const education = role === 'Faculty' ? document.getElementById('reg-faculty-education').value : '';
+    const jobStatus = role === 'Faculty' ? document.getElementById('reg-faculty-status').value : '';
     
     const btn = e.target.querySelector('button[type=submit]');
     btn.textContent = 'Registering...'; btn.disabled = true;
@@ -542,7 +544,9 @@ document.getElementById('signup-form').addEventListener('submit', async (e) => {
             age,
             semester,
             designation,
-            publicationsCount
+            publicationsCount,
+            education,
+            jobStatus
         });
         showToast('Registration successful! Please login.');
         document.getElementById('signup-modal').classList.remove('active');
@@ -664,6 +668,8 @@ document.getElementById('open-edit-profile').addEventListener('click', () => {
         editFacultyFields.style.display = 'block';
         document.getElementById('edit-designation').value = currentUser.designation || 'Lecturer';
         document.getElementById('edit-publications').value = currentUser.publicationsCount || 0;
+        document.getElementById('edit-faculty-education').value = currentUser.education || 'BS / Master';
+        document.getElementById('edit-faculty-status').value = currentUser.jobStatus || 'Active';
     }
     
     document.getElementById('edit-profile-modal').classList.add('active');
@@ -688,6 +694,8 @@ document.getElementById('edit-profile-form').addEventListener('submit', async (e
     } else {
         body.designation = document.getElementById('edit-designation').value;
         body.publicationsCount = parseInt(document.getElementById('edit-publications').value) || 0;
+        body.education = document.getElementById('edit-faculty-education').value;
+        body.jobStatus = document.getElementById('edit-faculty-status').value;
     }
     
     try {
@@ -698,6 +706,8 @@ document.getElementById('edit-profile-form').addEventListener('submit', async (e
         currentUser.tagline = data.user.tagline;
         currentUser.designation = data.user.designation;
         currentUser.publicationsCount = data.user.publicationsCount;
+        currentUser.education = data.user.education;
+        currentUser.jobStatus = data.user.jobStatus;
         localStorage.setItem('uog_session', JSON.stringify(currentUser)); // Keep session fresh
         
         document.getElementById('side-name').textContent = currentUser.name;
@@ -2603,8 +2613,11 @@ async function renderAnalytics() {
     container.innerHTML = `
         <div class="analytics-card" style="background: var(--bg-surface); padding: 16px; border-radius: 12px; border: 1px solid var(--border-color);"><canvas id="genderChart" height="260"></canvas></div>
         <div class="analytics-card" style="background: var(--bg-surface); padding: 16px; border-radius: 12px; border: 1px solid var(--border-color);"><canvas id="programChart" height="260"></canvas></div>
+        <div class="analytics-card" style="background: var(--bg-surface); padding: 16px; border-radius: 12px; border: 1px solid var(--border-color);"><canvas id="degreeChart" height="260"></canvas></div>
+        <div class="analytics-card" style="background: var(--bg-surface); padding: 16px; border-radius: 12px; border: 1px solid var(--border-color);"><canvas id="semesterChart" height="260"></canvas></div>
         <div class="analytics-card" style="background: var(--bg-surface); padding: 16px; border-radius: 12px; border: 1px solid var(--border-color);"><canvas id="ageChart" height="260"></canvas></div>
         <div class="analytics-card" style="background: var(--bg-surface); padding: 16px; border-radius: 12px; border: 1px solid var(--border-color);"><canvas id="areaChart" height="260"></canvas></div>
+        <div class="analytics-card" style="background: var(--bg-surface); padding: 16px; border-radius: 12px; border: 1px solid var(--border-color);"><canvas id="roleChart" height="260"></canvas></div>
     `;
 
     // Reset Chart.js instances if they exist (prevents canvas hover glitches)
@@ -2618,10 +2631,13 @@ async function renderAnalytics() {
     window.activeCharts = {};
 
     // 1. Overview data holders
-    const genders = { Male: 0, Female: 0, Other: 0 };
+    const studentGenders = { Male: 0, Female: 0, Other: 0 };
     const programs = { 'BS Statistics': 0, 'BS Data Analytics': 0, 'M.Phil Statistics': 0, 'Ph.D Statistics': 0 };
+    const degrees = { 'BS': 0, 'M.Phil': 0, 'Ph.D': 0 };
+    const studentSemesters = { '1st': 0, '2nd': 0, '3rd': 0, '4th': 0, '5th': 0, '6th': 0, '7th': 0, '8th': 0, 'Graduated': 0 };
     const ages = { '< 20': 0, '20-22': 0, '23-25': 0, '> 25': 0 };
     const areas = {};
+    const roleDistribution = { 'Students': 0, 'Faculty': 0 };
 
     // 2. Program-specific holders (populated exclusively by DB)
     const statsBatches = {};
@@ -2632,31 +2648,50 @@ async function renderAnalytics() {
     
     const facultyDesignations = { 'Professor': 0, 'Associate Professor': 0, 'Assistant Professor': 0, 'Lecturer': 0 };
     const facultyPublications = { 'Professor': 0, 'Associate Professor': 0, 'Assistant Professor': 0, 'Lecturer': 0 };
+    const facultyGenders = { Male: 0, Female: 0, Other: 0 };
+    const facultyEducations = { 'BS / Master': 0, 'M.Phil': 0, 'Ph.D': 0, 'Post-Doc': 0 };
+    const facultyJobStatus = { 'Active': 0, 'On Leave': 0, 'Visiting': 0, 'Retired': 0 };
 
     // Update with DB user values
     users.forEach(u => {
-        // Demographics
-        if (u.gender) {
-            if (genders[u.gender] !== undefined) genders[u.gender]++;
-            else genders['Other']++;
-        }
-        if (u.age) {
-            const a = parseInt(u.age);
-            if (a < 20) ages['< 20']++;
-            else if (a <= 22) ages['20-22']++;
-            else if (a <= 25) ages['23-25']++;
-            else ages['> 25']++;
-        }
-        if (u.area) {
-            const areaKey = u.area.trim().split(',')[0].trim();
-            areas[areaKey] = (areas[areaKey] || 0) + 1;
-        }
-
-        // Program and Batch specific tracking
         if (u.role === 'Student') {
+            roleDistribution['Students']++;
+            if (u.gender) {
+                if (studentGenders[u.gender] !== undefined) studentGenders[u.gender]++;
+                else studentGenders['Other']++;
+            }
+            if (u.age) {
+                const a = parseInt(u.age);
+                if (a < 20) ages['< 20']++;
+                else if (a <= 22) ages['20-22']++;
+                else if (a <= 25) ages['23-25']++;
+                else ages['> 25']++;
+            }
+            if (u.area) {
+                const areaKey = u.area.trim().split(',')[0].trim();
+                areas[areaKey] = (areas[areaKey] || 0) + 1;
+            }
+
             const prog = u.program || 'BS Statistics';
             if (programs[prog] !== undefined) {
                 programs[prog]++;
+            }
+
+            // Degree mapping
+            if (prog.includes('BS')) degrees['BS']++;
+            else if (prog.includes('M.Phil')) degrees['M.Phil']++;
+            else if (prog.includes('Ph.D')) degrees['Ph.D']++;
+
+            // Semester mapping
+            if (u.semester) {
+                let semKey = u.semester;
+                if (semKey === 'Graduated') {
+                    studentSemesters['Graduated']++;
+                } else {
+                    const num = parseInt(semKey);
+                    const labelMap = { 1:'1st', 2:'2nd', 3:'3rd', 4:'4th', 5:'5th', 6:'6th', 7:'7th', 8:'8th' };
+                    if (labelMap[num]) studentSemesters[labelMap[num]]++;
+                }
             }
 
             if (prog === 'BS Statistics') {
@@ -2673,17 +2708,38 @@ async function renderAnalytics() {
                 }
             }
         } else if (u.role === 'Faculty') {
+            roleDistribution['Faculty']++;
+            if (u.gender) {
+                if (facultyGenders[u.gender] !== undefined) facultyGenders[u.gender]++;
+                else facultyGenders['Other']++;
+            }
+            
             const desig = u.designation || 'Lecturer';
             if (facultyDesignations[desig] !== undefined) {
                 facultyDesignations[desig]++;
             } else {
                 facultyDesignations[desig] = 1;
             }
+            
             const pubs = parseInt(u.publicationsCount) || 0;
             if (facultyPublications[desig] !== undefined) {
                 facultyPublications[desig] += pubs;
             } else {
                 facultyPublications[desig] = pubs;
+            }
+
+            const edu = u.education || 'Ph.D';
+            if (facultyEducations[edu] !== undefined) {
+                facultyEducations[edu]++;
+            } else {
+                facultyEducations[edu] = 1;
+            }
+
+            const status = u.jobStatus || 'Active';
+            if (facultyJobStatus[status] !== undefined) {
+                facultyJobStatus[status]++;
+            } else {
+                facultyJobStatus[status] = 1;
             }
         }
     });
@@ -2729,10 +2785,10 @@ async function renderAnalytics() {
     window.activeCharts['gender'] = new Chart(document.getElementById('genderChart'), {
         type: 'pie',
         data: {
-            labels: Object.keys(genders),
-            datasets: [{ data: Object.values(genders), backgroundColor: ['#0f4c81','#f58220','#8b5cf6'], borderWidth: 2, borderColor: '#fff' }]
+            labels: Object.keys(studentGenders),
+            datasets: [{ data: Object.values(studentGenders), backgroundColor: ['#0f4c81','#f58220','#8b5cf6'], borderWidth: 2, borderColor: '#fff' }]
         },
-        options: { ...chartDefaults, plugins: { ...chartDefaults.plugins, title: { ...chartDefaults.plugins.title, text: '👥 Gender Distribution' } } }
+        options: { ...chartDefaults, plugins: { ...chartDefaults.plugins, title: { ...chartDefaults.plugins.title, text: '👥 Student Gender Distribution' } } }
     });
 
     // 2. Program — Doughnut
@@ -2742,10 +2798,34 @@ async function renderAnalytics() {
             labels: Object.keys(programs),
             datasets: [{ data: Object.values(programs), backgroundColor: ['#0f4c81','#f58220','#10b981','#8b5cf6'], borderWidth: 2, borderColor: '#fff' }]
         },
-        options: { ...chartDefaults, plugins: { ...chartDefaults.plugins, title: { ...chartDefaults.plugins.title, text: '🎓 Program Enrollment' } } }
+        options: { ...chartDefaults, plugins: { ...chartDefaults.plugins, title: { ...chartDefaults.plugins.title, text: '🎓 Student Program Enrollment' } } }
     });
 
-    // 3. Age — Line
+    // 3. Degree Level — Doughnut (BS, M.Phil, Ph.D)
+    window.activeCharts['degree'] = new Chart(document.getElementById('degreeChart'), {
+        type: 'doughnut',
+        data: {
+            labels: Object.keys(degrees),
+            datasets: [{ data: Object.values(degrees), backgroundColor: ['#2563eb','#7c3aed','#db2777'], borderWidth: 2, borderColor: '#fff' }]
+        },
+        options: { ...chartDefaults, plugins: { ...chartDefaults.plugins, title: { ...chartDefaults.plugins.title, text: '📜 Degree Levels (BS, M.Phil, Ph.D)' } } }
+    });
+
+    // 4. Semester — Bar
+    window.activeCharts['semester'] = new Chart(document.getElementById('semesterChart'), {
+        type: 'bar',
+        data: {
+            labels: Object.keys(studentSemesters),
+            datasets: [{ label: 'Students', data: Object.values(studentSemesters), backgroundColor: 'rgba(37,99,235,0.85)', borderRadius: 6 }]
+        },
+        options: {
+            ...chartDefaults,
+            plugins: { ...chartDefaults.plugins, title: { ...chartDefaults.plugins.title, text: '📚 General Semester Distribution' } },
+            scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+        }
+    });
+
+    // 5. Age — Line
     window.activeCharts['age'] = new Chart(document.getElementById('ageChart'), {
         type: 'line',
         data: {
@@ -2759,7 +2839,7 @@ async function renderAnalytics() {
         }
     });
 
-    // 4. Area — Horizontal Bar
+    // 6. Area — Horizontal Bar
     window.activeCharts['area'] = new Chart(document.getElementById('areaChart'), {
         type: 'bar',
         data: {
@@ -2774,11 +2854,21 @@ async function renderAnalytics() {
         }
     });
 
+    // 7. Role Distribution (Extra) — Pie
+    window.activeCharts['role'] = new Chart(document.getElementById('roleChart'), {
+        type: 'pie',
+        data: {
+            labels: Object.keys(roleDistribution),
+            datasets: [{ data: Object.values(roleDistribution), backgroundColor: ['#10b981','#f58220'], borderWidth: 2, borderColor: '#fff' }]
+        },
+        options: { ...chartDefaults, plugins: { ...chartDefaults.plugins, title: { ...chartDefaults.plugins.title, text: '🎭 Overall Role Distribution' } } }
+    });
+
     // ──────────────────────────────────────────
     // BS STATISTICS CHARTS
     // ──────────────────────────────────────────
 
-    // 5. Stats Batch — Vertical Bar
+    // Stats Batch — Vertical Bar
     window.activeCharts['statsBatch'] = new Chart(document.getElementById('statsBatchChart'), {
         type: 'bar',
         data: {
@@ -2792,7 +2882,7 @@ async function renderAnalytics() {
         }
     });
 
-    // 6. Stats Semester — Doughnut
+    // Stats Semester — Doughnut
     window.activeCharts['statsSemester'] = new Chart(document.getElementById('statsSemesterChart'), {
         type: 'doughnut',
         data: {
@@ -2806,7 +2896,7 @@ async function renderAnalytics() {
     // BS DATA ANALYTICS CHARTS
     // ──────────────────────────────────────────
 
-    // 7. Analytics Batch — Vertical Bar
+    // Analytics Batch — Vertical Bar
     window.activeCharts['analyticsBatch'] = new Chart(document.getElementById('analyticsBatchChart'), {
         type: 'bar',
         data: {
@@ -2820,7 +2910,7 @@ async function renderAnalytics() {
         }
     });
 
-    // 8. Analytics Semester — Doughnut
+    // Analytics Semester — Doughnut
     window.activeCharts['analyticsSemester'] = new Chart(document.getElementById('analyticsSemesterChart'), {
         type: 'doughnut',
         data: {
@@ -2834,7 +2924,7 @@ async function renderAnalytics() {
     // FACULTY CHARTS
     // ──────────────────────────────────────────
 
-    // 9. Faculty Designation — Horizontal Bar
+    // Faculty Designation — Horizontal Bar
     window.activeCharts['facultyDesignation'] = new Chart(document.getElementById('facultyDesignationChart'), {
         type: 'bar',
         data: {
@@ -2849,7 +2939,7 @@ async function renderAnalytics() {
         }
     });
 
-    // 10. Faculty Publications — Pie
+    // Faculty Publications — Pie
     window.activeCharts['facultyPublications'] = new Chart(document.getElementById('facultyPublicationsChart'), {
         type: 'pie',
         data: {
@@ -2857,6 +2947,40 @@ async function renderAnalytics() {
             datasets: [{ data: Object.values(facultyPublications), backgroundColor: ['#0f4c81','#f58220','#10b981','#8b5cf6'], borderWidth: 2, borderColor: '#fff' }]
         },
         options: { ...chartDefaults, plugins: { ...chartDefaults.plugins, title: { ...chartDefaults.plugins.title, text: '📝 Research Publications by Rank' } } }
+    });
+
+    // Faculty Gender — Pie
+    window.activeCharts['facultyGender'] = new Chart(document.getElementById('facultyGenderChart'), {
+        type: 'pie',
+        data: {
+            labels: Object.keys(facultyGenders),
+            datasets: [{ data: Object.values(facultyGenders), backgroundColor: ['#0f4c81','#f58220','#8b5cf6'], borderWidth: 2, borderColor: '#fff' }]
+        },
+        options: { ...chartDefaults, plugins: { ...chartDefaults.plugins, title: { ...chartDefaults.plugins.title, text: '👥 Faculty Gender Distribution' } } }
+    });
+
+    // Faculty Education — Doughnut
+    window.activeCharts['facultyEducation'] = new Chart(document.getElementById('facultyEducationChart'), {
+        type: 'doughnut',
+        data: {
+            labels: Object.keys(facultyEducations),
+            datasets: [{ data: Object.values(facultyEducations), backgroundColor: ['#10b981','#0f4c81','#f58220','#8b5cf6'], borderWidth: 2, borderColor: '#fff' }]
+        },
+        options: { ...chartDefaults, plugins: { ...chartDefaults.plugins, title: { ...chartDefaults.plugins.title, text: '🎓 Faculty Education Levels' } } }
+    });
+
+    // Faculty Job Status — Bar
+    window.activeCharts['facultyJobStatus'] = new Chart(document.getElementById('facultyJobStatusChart'), {
+        type: 'bar',
+        data: {
+            labels: Object.keys(facultyJobStatus),
+            datasets: [{ label: 'Faculty Count', data: Object.values(facultyJobStatus), backgroundColor: 'rgba(245,130,32,0.85)', borderRadius: 6 }]
+        },
+        options: {
+            ...chartDefaults,
+            plugins: { ...chartDefaults.plugins, title: { ...chartDefaults.plugins.title, text: '💼 Faculty Job Status' } },
+            scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+        }
     });
 }
 
