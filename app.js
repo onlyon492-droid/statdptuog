@@ -260,6 +260,15 @@ if (!localStorage.getItem('uog_software')) localStorage.setItem('uog_software', 
 let currentUser = null;
 let heartbeatInterval = null;
 
+// ─── SESSION PERSISTENCE ─────────────────────────────────────────────────────
+// Restore session from localStorage if exists (so refresh doesn't log out)
+try {
+    const savedSession = localStorage.getItem('uog_session');
+    if (savedSession) {
+        currentUser = JSON.parse(savedSession);
+    }
+} catch(e) { currentUser = null; }
+
 function startHeartbeatLoop() {
     if (!currentUser) return;
     // Send immediate heartbeat
@@ -393,6 +402,7 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
             password: document.getElementById('login-password').value
         });
         currentUser = data.user;
+        localStorage.setItem('uog_session', JSON.stringify(currentUser)); // Save session
         initApp();
         document.getElementById('auth-view').classList.remove('active');
         document.getElementById('workspace-view').classList.add('active');
@@ -404,6 +414,7 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
 document.getElementById('sign-out-btn').addEventListener('click', () => {
     stopHeartbeatLoop();
     currentUser = null;
+    localStorage.removeItem('uog_session'); // Clear saved session on logout
     document.getElementById('workspace-view').classList.remove('active');
     document.getElementById('auth-view').classList.add('active');
     document.getElementById('login-form').reset();
@@ -443,6 +454,7 @@ document.getElementById('profile-pic-input').addEventListener('change', (e) => {
         try {
             await dbPut(`users/${currentUser.username}/profile`, { profilePic: ev.target.result });
             currentUser.profilePic = ev.target.result;
+            localStorage.setItem('uog_session', JSON.stringify(currentUser)); // Keep session fresh
             ['nav-avatar','side-avatar','post-avatar','compose-avatar'].forEach(id => renderAvatar(document.getElementById(id), currentUser));
             showToast('Profile picture updated!');
         } catch (err) { showToast(err.message, true); }
@@ -497,6 +509,7 @@ document.getElementById('edit-profile-form').addEventListener('submit', async (e
         currentUser.program = data.user.program;
         currentUser.batch = data.user.batch;
         currentUser.tagline = data.user.tagline;
+        localStorage.setItem('uog_session', JSON.stringify(currentUser)); // Keep session fresh
         
         document.getElementById('side-name').textContent = currentUser.name;
         document.getElementById('nav-name').textContent = currentUser.name.split(' ')[0];
@@ -1952,3 +1965,177 @@ if (themeToggleBtn) {
 
 // Call on load
 initTheme();
+
+// ─── AUTO RESTORE SESSION ON PAGE LOAD ───────────────────────────────────────
+(function autoRestoreSession() {
+    if (currentUser) {
+        // Re-fetch fresh user data from storage to get latest info
+        const users = JSON.parse(localStorage.getItem('uog_users') || '[]');
+        const freshUser = users.find(u => u.username === currentUser.username);
+        if (freshUser) {
+            const { password, ...safeUser } = freshUser;
+            currentUser = safeUser;
+            localStorage.setItem('uog_session', JSON.stringify(currentUser));
+            initApp();
+            document.getElementById('auth-view').classList.remove('active');
+            document.getElementById('workspace-view').classList.add('active');
+        } else {
+            // User not found (maybe data cleared), force login
+            localStorage.removeItem('uog_session');
+            currentUser = null;
+        }
+    }
+})();
+
+// ─── RENDER ANALYTICS ────────────────────────────────────────────────────────
+async function renderAnalytics() {
+    const users = await dbGet('users');
+    const container = document.querySelector('#analytics-container .charts-grid');
+    if (!container) return;
+
+    // Destroy old charts if any (prevents Chart.js duplicate canvas error)
+    container.innerHTML = `
+        <div class="analytics-card"><canvas id="genderChart" height="260"></canvas></div>
+        <div class="analytics-card"><canvas id="programChart" height="260"></canvas></div>
+        <div class="analytics-card"><canvas id="batchChart" height="260"></canvas></div>
+        <div class="analytics-card"><canvas id="semesterChart" height="260"></canvas></div>
+        <div class="analytics-card"><canvas id="ageChart" height="260"></canvas></div>
+        <div class="analytics-card"><canvas id="areaChart" height="260"></canvas></div>
+    `;
+
+    // Process data
+    const genders = { Male: 0, Female: 0, Other: 0 };
+    const programs = {};
+    const batches = {};
+    const semesters = {};
+    const ages = { '< 20': 0, '20-22': 0, '23-25': 0, '> 25': 0 };
+    const areas = {};
+
+    users.forEach(u => {
+        // Gender (all users)
+        if (u.gender) {
+            if (genders[u.gender] !== undefined) genders[u.gender]++;
+            else genders['Other']++;
+        }
+        // Student-specific fields
+        if (u.role === 'Student') {
+            if (u.program) programs[u.program] = (programs[u.program] || 0) + 1;
+            if (u.batch)   batches[u.batch]   = (batches[u.batch]   || 0) + 1;
+            if (u.semester) {
+                const key = `Sem ${u.semester}`;
+                semesters[key] = (semesters[key] || 0) + 1;
+            }
+            if (u.age) {
+                const a = parseInt(u.age);
+                if (a < 20)      ages['< 20']++;
+                else if (a <= 22) ages['20-22']++;
+                else if (a <= 25) ages['23-25']++;
+                else              ages['> 25']++;
+            }
+            if (u.area) {
+                const areaKey = u.area.trim().split(',')[0].trim();
+                areas[areaKey] = (areas[areaKey] || 0) + 1;
+            }
+        }
+    });
+
+    // Sort batches
+    const sortedBatchKeys = Object.keys(batches).sort();
+    const sortedBatchVals = sortedBatchKeys.map(k => batches[k]);
+
+    // Sort semesters
+    const sortedSemKeys = Object.keys(semesters).sort((a,b) => {
+        const na = parseInt(a.replace('Sem ','')), nb = parseInt(b.replace('Sem ',''));
+        return na - nb;
+    });
+    const sortedSemVals = sortedSemKeys.map(k => semesters[k]);
+
+    // Top 8 areas
+    const topAreas = Object.entries(areas).sort((a,b) => b[1]-a[1]).slice(0,8);
+
+    const chartDefaults = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { position: 'bottom', labels: { font: { family: 'Outfit', size: 12 }, padding: 16 } },
+            title: { display: true, font: { family: 'Outfit', size: 15, weight: '600' }, color: '#0f4c81', padding: { bottom: 16 } }
+        }
+    };
+
+    // 1. Gender — Pie
+    new Chart(document.getElementById('genderChart'), {
+        type: 'pie',
+        data: {
+            labels: Object.keys(genders),
+            datasets: [{ data: Object.values(genders), backgroundColor: ['#3b82f6','#ec4899','#8b5cf6'], borderWidth: 2, borderColor: '#fff' }]
+        },
+        options: { ...chartDefaults, plugins: { ...chartDefaults.plugins, title: { ...chartDefaults.plugins.title, text: '👥 Gender Distribution' } } }
+    });
+
+    // 2. Program — Doughnut
+    new Chart(document.getElementById('programChart'), {
+        type: 'doughnut',
+        data: {
+            labels: Object.keys(programs),
+            datasets: [{ data: Object.values(programs), backgroundColor: ['#10b981','#f59e0b','#6366f1','#f43f5e'], borderWidth: 2, borderColor: '#fff' }]
+        },
+        options: { ...chartDefaults, plugins: { ...chartDefaults.plugins, title: { ...chartDefaults.plugins.title, text: '🎓 Program Enrollment' } } }
+    });
+
+    // 3. Batch — Bar
+    new Chart(document.getElementById('batchChart'), {
+        type: 'bar',
+        data: {
+            labels: sortedBatchKeys,
+            datasets: [{ label: 'Students', data: sortedBatchVals, backgroundColor: 'rgba(14,165,233,0.75)', borderRadius: 8, borderSkipped: false }]
+        },
+        options: {
+            ...chartDefaults,
+            plugins: { ...chartDefaults.plugins, title: { ...chartDefaults.plugins.title, text: '📅 Students per Batch' } },
+            scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+        }
+    });
+
+    // 4. Semester — Bar
+    new Chart(document.getElementById('semesterChart'), {
+        type: 'bar',
+        data: {
+            labels: sortedSemKeys,
+            datasets: [{ label: 'Students', data: sortedSemVals, backgroundColor: 'rgba(139,92,246,0.75)', borderRadius: 8, borderSkipped: false }]
+        },
+        options: {
+            ...chartDefaults,
+            plugins: { ...chartDefaults.plugins, title: { ...chartDefaults.plugins.title, text: '📚 Semester Wise Students' } },
+            scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+        }
+    });
+
+    // 5. Age — Line
+    new Chart(document.getElementById('ageChart'), {
+        type: 'line',
+        data: {
+            labels: Object.keys(ages),
+            datasets: [{ label: 'Students', data: Object.values(ages), borderColor: '#f43f5e', backgroundColor: 'rgba(244,63,94,0.15)', fill: true, tension: 0.4, pointRadius: 5, pointBackgroundColor: '#f43f5e' }]
+        },
+        options: {
+            ...chartDefaults,
+            plugins: { ...chartDefaults.plugins, title: { ...chartDefaults.plugins.title, text: '🎂 Age Demographics' } },
+            scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+        }
+    });
+
+    // 6. Area — Horizontal Bar
+    new Chart(document.getElementById('areaChart'), {
+        type: 'bar',
+        data: {
+            labels: topAreas.map(e => e[0]),
+            datasets: [{ label: 'Students', data: topAreas.map(e => e[1]), backgroundColor: 'rgba(20,184,166,0.75)', borderRadius: 8, borderSkipped: false }]
+        },
+        options: {
+            indexAxis: 'y',
+            ...chartDefaults,
+            plugins: { ...chartDefaults.plugins, title: { ...chartDefaults.plugins.title, text: '🏙️ Top Cities / Areas' } },
+            scales: { x: { beginAtZero: true, ticks: { stepSize: 1 } } }
+        }
+    });
+}
