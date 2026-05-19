@@ -34,20 +34,66 @@ async function dbPost(endpoint, body) {
         return d;
     }
     // localStorage fallback for each endpoint
+    if (endpoint.includes('/react')) {
+        const postId = endpoint.split('/')[1];
+        const posts = JSON.parse(localStorage.getItem('uog_posts') || '[]');
+        const idx = posts.findIndex(p => String(p.id) === String(postId));
+        if (idx !== -1) {
+            if (!posts[idx].reactions) posts[idx].reactions = [];
+            const existingIdx = posts[idx].reactions.findIndex(r => r.username === body.username);
+            if (existingIdx !== -1) {
+                const currentReaction = posts[idx].reactions[existingIdx].type;
+                if (currentReaction === body.reactionType) {
+                    posts[idx].reactions.splice(existingIdx, 1);
+                } else {
+                    posts[idx].reactions[existingIdx].type = body.reactionType;
+                }
+            } else {
+                posts[idx].reactions.push({ username: body.username, type: body.reactionType });
+            }
+            posts[idx].likes = posts[idx].reactions.map(r => r.username);
+            localStorage.setItem('uog_posts', JSON.stringify(posts));
+            return { reactions: posts[idx].reactions, likes: posts[idx].likes };
+        }
+    }
     if (endpoint.includes('/like')) {
         const postId = endpoint.split('/')[1];
         const posts = JSON.parse(localStorage.getItem('uog_posts') || '[]');
         const idx = posts.findIndex(p => String(p.id) === String(postId));
         if (idx !== -1) {
-            if (!posts[idx].likes) posts[idx].likes = [];
-            const usernameIdx = posts[idx].likes.indexOf(body.username);
-            if (usernameIdx !== -1) {
-                posts[idx].likes.splice(usernameIdx, 1);
+            if (!posts[idx].reactions) posts[idx].reactions = [];
+            const existingIdx = posts[idx].reactions.findIndex(r => r.username === body.username);
+            if (existingIdx !== -1) {
+                posts[idx].reactions.splice(existingIdx, 1);
             } else {
-                posts[idx].likes.push(body.username);
+                posts[idx].reactions.push({ username: body.username, type: 'like' });
             }
+            posts[idx].likes = posts[idx].reactions.map(r => r.username);
             localStorage.setItem('uog_posts', JSON.stringify(posts));
-            return { likes: posts[idx].likes };
+            return { reactions: posts[idx].reactions, likes: posts[idx].likes };
+        }
+    }
+    if (endpoint.startsWith('users/') && endpoint.endsWith('/connect')) {
+        const username = endpoint.split('/')[1];
+        const targetUsername = body.targetUsername.toLowerCase();
+        const users = JSON.parse(localStorage.getItem('uog_users') || '[]');
+        const userIdx = users.findIndex(u => u.username === username);
+        const targetIdx = users.findIndex(u => u.username === targetUsername);
+        if (userIdx !== -1 && targetIdx !== -1) {
+            if (!users[userIdx].connections) users[userIdx].connections = [];
+            if (!users[targetIdx].connections) users[targetIdx].connections = [];
+            
+            const idx = users[userIdx].connections.indexOf(targetUsername);
+            if (idx !== -1) {
+                users[userIdx].connections.splice(idx, 1);
+                const targetConnIdx = users[targetIdx].connections.indexOf(username);
+                if (targetConnIdx !== -1) users[targetIdx].connections.splice(targetConnIdx, 1);
+            } else {
+                users[userIdx].connections.push(targetUsername);
+                users[targetIdx].connections.push(username);
+            }
+            localStorage.setItem('uog_users', JSON.stringify(users));
+            return { connections: users[userIdx].connections };
         }
     }
     if (endpoint.includes('/comment')) {
@@ -418,6 +464,11 @@ async function updateStats() {
     noticeList.innerHTML = notices.length === 0
         ? `<li style="text-align:center;color:#6b7280;font-size:0.85rem;padding:15px;">No recent notices.</li>`
         : notices.slice(0, 3).map(n => `<li><span class="notice-date">${n.date}</span><p>${n.text.substring(0,65)}${n.text.length > 65 ? '...' : ''}</p></li>`).join('');
+
+    // Trigger sidebar badge counts update
+    if (window.updateSidebarBadges) {
+        window.updateSidebarBadges();
+    }
 }
 
 // ─── NAVIGATION ───────────────────────────────────────────────────────────────
@@ -609,22 +660,65 @@ async function renderPosts(filterView) {
         });
 
         const mediaHtml = imagesHtml + filesHtml;
-        const likesArr = post.likes || [];
         const commentsArr = post.comments || [];
-        const isLiked = likesArr.includes(currentUser.username);
+        const reactions = post.reactions || [];
+        const myReaction = reactions.find(r => r.username === currentUser.username);
+        const hasReacted = !!myReaction;
+        
+        const emojiMap = {
+            like: '👍',
+            love: '❤️',
+            celebrate: '👏',
+            insight: '💡',
+            respect: '🎓'
+        };
+        const currentReactionEmoji = hasReacted ? emojiMap[myReaction.type] : '<i class="fa-solid fa-thumbs-up"></i>';
+        const reactionLabel = hasReacted ? myReaction.type.charAt(0).toUpperCase() + myReaction.type.slice(1) : 'Appreciate';
         const isBookmarked = getBookmarks().includes(String(post.id));
 
         // Simulated reach views based on ID and metrics
-        const mockViews = Math.floor((post.id % 880) + 24) + (likesArr.length * 4) + (commentsArr.length * 6);
+        const mockViews = Math.floor((post.id % 880) + 24) + (reactions.length * 4) + (commentsArr.length * 6);
 
         // Appreciation counts respects privacy setting of the author
-        let likesCountText = '';
         const authorShowLikes = postUser && postUser.showAppreciations !== false;
-        if (!authorShowLikes && !isOwner) {
-            likesCountText = `<i class="fas fa-eye-slash" style="font-size:0.75rem;margin-right:2px;"></i> Appreciations Private`;
-        } else {
-            likesCountText = `${likesArr.length} Appreciation${likesArr.length !== 1 ? 's' : ''}${(!authorShowLikes && isOwner) ? ' (Private to others)' : ''}`;
+        
+        let reactionsDisplayHtml = '';
+        if (reactions.length > 0) {
+            const uniqueReactionTypes = [...new Set(reactions.map(r => r.type))];
+            const bubblesHtml = uniqueReactionTypes.map(t => `<span class="reaction-bubble-icon" title="${t.charAt(0).toUpperCase() + t.slice(1)}">${emojiMap[t] || '👍'}</span>`).join('');
+            
+            let countLabel = '';
+            if (!authorShowLikes && !isOwner) {
+                countLabel = 'Appreciations Private';
+            } else {
+                countLabel = `${reactions.length} reaction${reactions.length !== 1 ? 's' : ''}`;
+            }
+            
+            reactionsDisplayHtml = `
+                <div class="post-reactions-display">
+                    <div class="reaction-bubbles">
+                        ${bubblesHtml}
+                    </div>
+                    <span style="margin-left: 8px; font-weight: 500;">${countLabel}</span>
+                </div>
+            `;
         }
+
+        const appreciationBtnHtml = `
+            <div class="appreciation-wrapper">
+                <button class="interaction-btn ${hasReacted ? 'liked' : ''}" onclick="window.handleLikeClick('${post.id}')">
+                    <span>${currentReactionEmoji}</span>
+                    <span class="likes-count">${reactionLabel}</span>
+                </button>
+                <div class="reactions-popup">
+                    <button class="react-emoji-btn" title="Like" onclick="window.reactToPost('${post.id}', 'like')">👍</button>
+                    <button class="react-emoji-btn" title="Love" onclick="window.reactToPost('${post.id}', 'love')">❤️</button>
+                    <button class="react-emoji-btn" title="Celebrate" onclick="window.reactToPost('${post.id}', 'celebrate')">👏</button>
+                    <button class="react-emoji-btn" title="Insightful" onclick="window.reactToPost('${post.id}', 'insight')">💡</button>
+                    <button class="react-emoji-btn" title="Respect" onclick="window.reactToPost('${post.id}', 'respect')">🎓</button>
+                </div>
+            </div>
+        `;
 
         let commentInputHtml = '';
         if (isOwner) {
@@ -679,12 +773,11 @@ async function renderPosts(filterView) {
             <div class="post-text">${post.text}</div>
             ${mediaHtml}
             
+            ${reactionsDisplayHtml}
+            
             <!-- Sleek Interaction Bar -->
             <div class="post-interaction-bar">
-                <button class="interaction-btn ${isLiked ? 'liked' : ''}" onclick="handleLikeClick('${post.id}')">
-                    <i class="fa-solid fa-thumbs-up"></i>
-                    <span class="likes-count">${likesCountText}</span>
-                </button>
+                ${appreciationBtnHtml}
                 <button class="interaction-btn" onclick="toggleCommentsSection('${post.id}')">
                     <i class="fa-solid fa-comment"></i>
                     <span>${commentsArr.length} Comment${commentsArr.length !== 1 ? 's' : ''}</span>
@@ -857,6 +950,19 @@ async function renderDirectory() {
                 <span style="font-weight: 400;">Phone Private</span>
                </div>`;
         
+        let connectBtnHtml = '';
+        if (u.username !== currentUser.username) {
+            const userConnections = currentUser.connections || [];
+            const isConnected = userConnections.includes(u.username);
+            connectBtnHtml = `
+                <button class="connect-btn ${isConnected ? 'connected' : ''}" 
+                        ${isConnected ? 'disabled' : ''} 
+                        onclick="window.toggleConnection('${u.username}', this)">
+                    ${isConnected ? '<i class="fas fa-check"></i> Connected' : '<i class="fas fa-user-plus"></i> Connect'}
+                </button>
+            `;
+        }
+
         const card = document.createElement('div');
         card.className = `student-card ${extraCardClass}`;
         card.innerHTML = `
@@ -865,6 +971,7 @@ async function renderDirectory() {
             <div style="margin-bottom: 8px;">${badgeHtml}</div>
             <span style="font-size:0.8rem;background:rgba(15,76,129,0.05);color:var(--uog-blue);padding:4px 10px;border-radius:20px;border:1px solid rgba(15,76,129,0.1);font-family:monospace;font-weight:600;">${u.username}</span>
             ${phoneHtml}
+            ${connectBtnHtml}
         `;
         listContainer.appendChild(card);
     });
@@ -945,12 +1052,71 @@ uploadForm.addEventListener('submit', async (e) => {
 // ─── GLOBAL SOCIAL TRIGGERS ──────────────────────────────────────────────────
 
 window.handleLikeClick = async function(postId) {
+    // Treat classic click as toggling 'like' reaction
+    await window.reactToPost(postId, 'like');
+};
+
+window.reactToPost = async function(postId, reactionType) {
     try {
-        const data = await dbPost(`posts/${postId}/like`, { username: currentUser.username });
-        // Refresh active view to show updated like count smoothly
+        const data = await dbPost(`posts/${postId}/react`, { username: currentUser.username, reactionType });
+        // Refresh active view to show updated reaction counts smoothly
         switchView(currentView);
+        updateStats();
     } catch (err) {
-        showToast('Could not save appreciation.', true);
+        showToast('Could not save reaction: ' + err.message, true);
+    }
+};
+
+window.toggleConnection = async function(targetUsername, btnEl) {
+    if (btnEl.classList.contains('connected')) return;
+    
+    try {
+        btnEl.disabled = true;
+        btnEl.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Connecting...`;
+        
+        const res = await dbPost(`users/${currentUser.username}/connect`, { targetUsername });
+        currentUser.connections = res.connections;
+        
+        // Dynamic success animation state transitions
+        btnEl.classList.add('connected');
+        btnEl.disabled = true;
+        btnEl.innerHTML = `<i class="fas fa-check"></i> Connected`;
+        
+        showToast(`Connected with @${targetUsername}!`);
+    } catch (err) {
+        showToast('Could not establish connection: ' + err.message, true);
+        btnEl.disabled = false;
+        btnEl.innerHTML = `<i class="fas fa-user-plus"></i> Connect`;
+    }
+};
+
+window.updateSidebarBadges = async function() {
+    try {
+        const [posts, sw] = await Promise.all([dbGet('posts'), dbGet('software')]);
+        const savedCount = getBookmarks().length;
+        const swCount = sw.length;
+        const recordCount = posts.filter(p => p.category && p.category.includes('Record')).length;
+        
+        const badgeRecords = document.getElementById('badge-records');
+        const badgeSoftware = document.getElementById('badge-software');
+        const badgeSaved = document.getElementById('badge-saved');
+        
+        const setBadge = (el, val) => {
+            if (!el) return;
+            const prev = parseInt(el.textContent) || 0;
+            if (prev !== val) {
+                el.textContent = val;
+                el.classList.remove('pulse-badge');
+                void el.offsetWidth; // Trigger reflow to restart animation
+                el.classList.add('pulse-badge');
+            }
+        };
+        
+        setBadge(badgeRecords, recordCount);
+        setBadge(badgeSoftware, swCount);
+        setBadge(badgeSaved, savedCount);
+    } catch (err) {
+        console.error('Error updating sidebar badges:', err);
     }
 };
 
@@ -1400,6 +1566,11 @@ window.toggleBookmark = function(postId) {
     // If we are currently on the saved view, re-render it smoothly
     if (currentView === 'saved') {
         renderPosts('saved');
+    }
+    
+    // Pulse and update sidebar badges instantly!
+    if (window.updateSidebarBadges) {
+        window.updateSidebarBadges();
     }
 };
 

@@ -985,5 +985,234 @@ input:checked + .slider:before {
     font-weight: 600;
 }
 
+/* ─── PREMIUM COMMUNITY BOOST WAVE 2 ────────────────────────────────────────── */
 
+/* Floating Glassmorphic Bubbles on Login */
+.auth-bg {
+    position: relative;
+    overflow: hidden;
+}
+.floating-glass-bubble {
+    position: absolute;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(15, 76, 129, 0.12) 0%, rgba(245, 130, 32, 0.05) 70%, rgba(255, 255, 255, 0) 100%);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    box-shadow: inset 0 0 20px rgba(255,255,255,0.25), 0 8px 32px rgba(0,0,0,0.05);
+    pointer-events: none;
+    z-index: 1;
+    animation: floatBubble 25s infinite ease-in-out;
+}
+.bubble-1 {
+    width: 300px;
+    height: 300px;
+    top: -50px;
+    left: -100px;
+    animation-duration: 20s;
+}
+.bubble-2 {
+    width: 450px;
+    height: 450px;
+    bottom: -150px;
+    right: -100px;
+    animation-duration: 28s;
+    animation-delay: -5s;
+}
+.bubble-3 {
+    width: 200px;
+    height: 200px;
+    top: 40%;
+    right: 10%;
+    animation-duration: 16s;
+    animation-delay: -2s;
+}
+.bubble-4 {
+    width: 150px;
+    height: 150px;
+    bottom: 20%;
+    left: 20%;
+    animation-duration: 22s;
+    animation-delay: -8s;
+}
+@keyframes floatBubble {
+    0%, 100% { transform: translateY(0) rotate(0deg) scale(1); }
+    50% { transform: translateY(-40px) rotate(180deg) scale(1.08); }
+}
+.edu-login-container {
+    position: relative;
+    z-index: 10;
+}
 
+/* Multi-Reactions Hover Popup */
+.appreciation-wrapper {
+    position: relative;
+    display: inline-block;
+}
+.reactions-popup {
+    position: absolute;
+    bottom: 42px;
+    left: 0;
+    background: rgba(255, 255, 255, 0.88);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    border-radius: 30px;
+    padding: 6px 14px;
+    display: flex;
+    gap: 12px;
+    box-shadow: 0 10px 32px rgba(15, 76, 129, 0.16), inset 0 1px 0 rgba(255,255,255,0.4);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(12px) scale(0.85);
+    transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    z-index: 100;
+}
+.appreciation-wrapper:hover .reactions-popup {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0) scale(1);
+}
+.react-emoji-btn {
+    background: transparent;
+    border: none;
+    font-size: 1.45rem;
+    cursor: pointer;
+    transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    padding: 2px;
+}
+.react-emoji-btn:hover {
+    transform: scale(1.35) translateY(-6px);
+}
+
+/* Custom reactions counts display grid */
+.post-reactions-display {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.75rem;
+    border-bottom: 1px solid rgba(15, 76, 129, 0.05);
+    padding-bottom: 0.6rem;
+}
+.reaction-bubbles {
+    display: inline-flex;
+    align-items: center;
+}
+.reaction-bubble-icon {
+    font-size: 0.95rem;
+    margin-right: -5px;
+    border: 1.5px solid var(--bg-surface);
+    border-radius: 50%;
+    background: white;
+    width: 21px;
+    height: 21px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: var(--shadow-sm);
+    z-index: 2;
+}
+
+/* Connect button inside directory card */
+.connect-btn {
+    width: 100%;
+    margin-top: 10px;
+    background: transparent;
+    color: var(--uog-blue);
+    border: 1px solid rgba(15, 76, 129, 0.3);
+    padding: 8px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+.connect-btn:hover {
+    background: var(--uog-blue);
+    color: white;
+    border-color: var(--uog-blue);
+    box-shadow: 0 4px 12px rgba(15, 76, 129, 0.15);
+}
+.connect-btn.connected {
+    background: rgba(16, 185, 129, 0.08);
+    color: var(--success);
+    border-color: rgba(16, 185, 129, 0.3);
+    cursor: default;
+    box-shadow: none;
+}
+
+/* Sidebar Badges styling */
+.sidebar-list li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.sidebar-badge {
+    background: rgba(245, 130, 32, 0.12);
+    color: var(--uog-orange);
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 12px;
+    border: 1px solid rgba(245, 130, 32, 0.25);
+    transition: all 0.3s ease;
+}
+.sidebar-list li.active-item .sidebar-badge {
+    background: rgba(15, 76, 129, 0.15);
+    color: var(--uog-blue);
+    border-color: rgba(15, 76, 129, 0.3);
+}
+.sidebar-badge.pulse-badge {
+    animation: badgePulse 0.4s ease-out;
+}
+@keyframes badgePulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.3); background: var(--uog-orange); color: white; }
+    100% { transform: scale(1); }
+}
+
+/* Composer Elevated actions button states */
+.create-bottom {
+    justify-content: space-between;
+}
+.create-action {
+    flex: 1;
+    justify-content: center;
+    background: #f9fafb;
+    border: 1px solid var(--border-color);
+    margin: 0 4px;
+    border-radius: 10px;
+    padding: 10px;
+    font-weight: 600;
+    font-size: 0.85rem;
+    transition: all 0.25s ease;
+}
+.create-action i {
+    font-size: 1.05rem;
+}
+.create-action#open-compose-text:hover {
+    background: rgba(15, 76, 129, 0.05);
+    color: var(--uog-blue);
+    border-color: rgba(15, 76, 129, 0.2);
+    box-shadow: 0 4px 10px rgba(15, 76, 129, 0.08);
+    transform: translateY(-2px);
+}
+.create-action#open-compose-doc:hover {
+    background: rgba(16, 185, 129, 0.05);
+    color: var(--success);
+    border-color: rgba(16, 185, 129, 0.2);
+    box-shadow: 0 4px 10px rgba(16, 185, 129, 0.08);
+    transform: translateY(-2px);
+}
+.create-action#open-compose-sw:hover {
+    background: rgba(245, 130, 32, 0.05);
+    color: var(--uog-orange);
+    border-color: rgba(245, 130, 32, 0.2);
+    box-shadow: 0 4px 10px rgba(245, 130, 32, 0.08);
+    transform: translateY(-2px);
+}

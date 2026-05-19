@@ -14,6 +14,11 @@
     <div id="app">
         <!-- Educational Login View -->
         <div id="auth-view" class="view active auth-bg">
+            <div class="floating-glass-bubble bubble-1"></div>
+            <div class="floating-glass-bubble bubble-2"></div>
+            <div class="floating-glass-bubble bubble-3"></div>
+            <div class="floating-glass-bubble bubble-4"></div>
+            
             <div class="edu-login-container">
                 <div class="edu-left">
                     <img src="https://uog.edu.pk/assets/images/logo.png" alt="UOG Logo" class="uog-logo" onerror="this.src='https://via.placeholder.com/80?text=UOG'">
@@ -137,13 +142,13 @@
                         <button class="edit-profile-btn" id="open-edit-profile"><i class="fas fa-user-edit"></i> Edit Profile</button>
                     </div>
                     <ul class="sidebar-list">
-                        <li class="active-item" data-target="feed"><i class="fas fa-chalkboard"></i> Department Feed</li>
-                        <li data-target="records"><i class="fas fa-archive"></i> Academic Records</li>
-                        <li data-target="software"><i class="fas fa-laptop-code"></i> Software Repository</li>
-                        <li data-target="students"><i class="fas fa-user-graduate"></i> Alumni Directory</li>
-                        <li id="faculty-link"><i class="fas fa-chalkboard-teacher"></i> Faculty Profiles <i class="fas fa-external-link-alt" style="font-size: 10px; margin-left: auto;"></i></li>
-                        <li data-target="saved"><i class="fas fa-bookmark"></i> Saved Items</li>
-                        <li data-target="privacy" style="margin-top: 20px;"><i class="fas fa-user-shield"></i> Privacy Settings</li>
+                        <li class="active-item" data-target="feed"><i class="fas fa-chalkboard"></i> <span>Department Feed</span></li>
+                        <li data-target="records"><i class="fas fa-archive"></i> <span>Academic Records</span> <span class="sidebar-badge" id="badge-records">0</span></li>
+                        <li data-target="software"><i class="fas fa-laptop-code"></i> <span>Software Repository</span> <span class="sidebar-badge" id="badge-software">0</span></li>
+                        <li data-target="students"><i class="fas fa-user-graduate"></i> <span>Alumni Directory</span></li>
+                        <li id="faculty-link"><i class="fas fa-chalkboard-teacher"></i> <span>Faculty Profiles</span> <i class="fas fa-external-link-alt" style="font-size: 10px; margin-left: auto;"></i></li>
+                        <li data-target="saved"><i class="fas fa-bookmark"></i> <span>Saved Items</span> <span class="sidebar-badge" id="badge-saved">0</span></li>
+                        <li data-target="privacy" style="margin-top: 20px;"><i class="fas fa-user-shield"></i> <span>Privacy Settings</span></li>
                     </ul>
                 </aside>
 

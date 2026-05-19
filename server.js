@@ -48,7 +48,8 @@ const userSchema = new mongoose.Schema({
     phoneVisible: { type: Boolean, default: false },
     allowComments: { type: String, default: 'everyone' }, // 'everyone', 'faculty', 'none'
     allowDownloads: { type: Boolean, default: true },
-    showAppreciations: { type: Boolean, default: true }
+    showAppreciations: { type: Boolean, default: true },
+    connections: { type: [String], default: [] }
 });
 const User = mongoose.model('User', userSchema);
 
@@ -81,6 +82,15 @@ const postSchema = new mongoose.Schema({
         }
     ],
     likes: { type: [String], default: [] },
+    reactions: {
+        type: [
+            {
+                username: String,
+                type: { type: String } // 'like', 'love', 'celebrate', 'insight', 'respect'
+            }
+        ],
+        default: []
+    },
     comments: { type: [commentSchema], default: [] }
 });
 const Post = mongoose.model('Post', postSchema);
@@ -348,6 +358,77 @@ app.post('/api/posts/:id/like', async (req, res) => {
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: 'Error toggling like' });
+    }
+});
+
+app.post('/api/posts/:id/react', async (req, res) => {
+    try {
+        const { username, reactionType } = req.body; // 'like', 'love', 'celebrate', 'insight', 'respect'
+        if (!username || !reactionType) return res.status(400).json({ error: 'Missing username or reactionType' });
+        
+        const post = await Post.findOne({ id: Number(req.params.id) });
+        if (!post) return res.status(404).json({ error: 'Post not found' });
+        
+        if (!post.reactions) post.reactions = [];
+        
+        const existingIdx = post.reactions.findIndex(r => r.username === username);
+        if (existingIdx !== -1) {
+            const currentReaction = post.reactions[existingIdx].type;
+            if (currentReaction === reactionType) {
+                // If same reaction, remove it (unreact)
+                post.reactions.splice(existingIdx, 1);
+            } else {
+                // If different reaction, update it
+                post.reactions[existingIdx].type = reactionType;
+            }
+        } else {
+            // Add new reaction
+            post.reactions.push({ username, type: reactionType });
+        }
+        
+        // Sync legacy likes array so backwards compatibility doesn't break
+        post.likes = post.reactions.map(r => r.username);
+        
+        await post.save();
+        res.json({ reactions: post.reactions, likes: post.likes });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Error toggling reaction' });
+    }
+});
+
+app.post('/api/users/:username/connect', async (req, res) => {
+    try {
+        const { targetUsername } = req.body;
+        if (!targetUsername) return res.status(400).json({ error: 'Missing targetUsername' });
+        
+        const user = await User.findOne({ username: req.params.username.toLowerCase() });
+        const target = await User.findOne({ username: targetUsername.toLowerCase() });
+        
+        if (!user || !target) return res.status(404).json({ error: 'User not found' });
+        
+        if (!user.connections) user.connections = [];
+        if (!target.connections) target.connections = [];
+        
+        const idx = user.connections.indexOf(targetUsername);
+        if (idx !== -1) {
+            // Disconnect
+            user.connections.splice(idx, 1);
+            const targetIdx = target.connections.indexOf(user.username);
+            if (targetIdx !== -1) target.connections.splice(targetIdx, 1);
+        } else {
+            // Connect
+            user.connections.push(targetUsername);
+            target.connections.push(user.username);
+        }
+        
+        await user.save();
+        await target.save();
+        
+        res.json({ connections: user.connections });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Error toggling connection' });
     }
 });
 
