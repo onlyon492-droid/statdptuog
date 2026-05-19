@@ -264,6 +264,11 @@ app.post('/api/software', async (req, res) => {
 });
 
 // ── Start Server ──────────────────────────────────────────────────────────────
-app.listen(PORT, () => {
-    console.log(`\n✅ UOG Stats Portal running at: http://localhost:${PORT}\n`);
-});
+if (require.main === module) {
+    app.listen(PORT, () => {
+        console.log(`\n✅ UOG Stats Portal running at: http://localhost:${PORT}\n`);
+    });
+}
+
+module.exports = app;
+
