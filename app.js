@@ -72,7 +72,15 @@ async function dbPost(endpoint, body) {
         const users = JSON.parse(localStorage.getItem('uog_users') || '[]');
         if (users.find(u => u.username === body.username.toLowerCase()))
             throw new Error('Account already exists');
-        const u = { ...body, username: body.username.toLowerCase(), profilePic: '' };
+        const u = { 
+            phoneVisible: false,
+            allowComments: 'everyone',
+            allowDownloads: true,
+            showAppreciations: true,
+            ...body, 
+            username: body.username.toLowerCase(), 
+            profilePic: '' 
+        };
         users.push(u);
         localStorage.setItem('uog_users', JSON.stringify(users));
         return { user: safeUser(u) };
@@ -140,6 +148,13 @@ async function dbPut(endpoint, body) {
             if (body.profilePic !== undefined) users[idx].profilePic = body.profilePic;
             if (body.program !== undefined) users[idx].program = body.program;
             if (body.batch !== undefined) users[idx].batch = body.batch;
+            
+            // Offline support for privacy parameters
+            if (body.phoneVisible !== undefined) users[idx].phoneVisible = body.phoneVisible;
+            if (body.allowComments !== undefined) users[idx].allowComments = body.allowComments;
+            if (body.allowDownloads !== undefined) users[idx].allowDownloads = body.allowDownloads;
+            if (body.showAppreciations !== undefined) users[idx].showAppreciations = body.showAppreciations;
+            
             localStorage.setItem('uog_users', JSON.stringify(users));
             return { user: safeUser(users[idx]) };
         }
@@ -157,6 +172,13 @@ async function dbDelete(endpoint, body) {
         const id = endpoint.split('/')[1];
         const posts = JSON.parse(localStorage.getItem('uog_posts') || '[]');
         localStorage.setItem('uog_posts', JSON.stringify(posts.filter(p => String(p.id) !== String(id))));
+    }
+    // Offline support for user bulk post deletion
+    if (endpoint.startsWith('users/') && endpoint.endsWith('/posts')) {
+        const username = endpoint.split('/')[1];
+        const posts = JSON.parse(localStorage.getItem('uog_posts') || '[]');
+        localStorage.setItem('uog_posts', JSON.stringify(posts.filter(p => p.author !== username)));
+        return { message: 'All posts deleted successfully' };
     }
 }
 
@@ -443,18 +465,70 @@ function switchView(view) {
         viewDesc.textContent  = 'A secure directory of all registered members.';
         listContainer.className = 'directory-grid';
         renderDirectory();
+    } else if (view === 'saved') {
+        composeCard.style.display = 'none';
+        viewTitle.textContent = 'Saved Items';
+        viewDesc.textContent  = 'Your bookmarked updates and academic documents.';
+        listContainer.className = '';
+        renderPosts('saved');
+    } else if (view === 'privacy') {
+        composeCard.style.display = 'none';
+        viewTitle.textContent = 'Privacy Settings';
+        viewDesc.textContent  = 'Boost your post-related privacy features and visibility controls.';
+        listContainer.className = '';
+        renderPrivacyDashboard();
     }
 }
 
 // ─── RENDER POSTS ─────────────────────────────────────────────────────────────
 async function renderPosts(filterView) {
     const [posts, users] = await Promise.all([dbGet('posts'), dbGet('users')]);
-    const filtered = posts.filter(p => p.category && (filterView === 'feed' ? p.category.includes('Update') : p.category.includes('Record')));
+    
+    // 1. Filter Posts
+    let filtered = [];
+    if (filterView === 'saved') {
+        const savedIds = getBookmarks();
+        filtered = posts.filter(p => savedIds.includes(String(p.id)));
+    } else {
+        filtered = posts.filter(p => p.category && (filterView === 'feed' ? p.category.includes('Update') : p.category.includes('Record')));
+    }
+    
     listContainer.innerHTML = '';
+    
+    // Inject Sort Bar for Feed and Records
+    if (filterView === 'feed' || filterView === 'records') {
+        const sortBar = document.createElement('div');
+        sortBar.className = 'feed-sort-bar';
+        sortBar.innerHTML = `
+            <span><i class="fas fa-sliders-h"></i> Sort Department Feed</span>
+            <button class="sort-btn ${window.feedSortOrder !== 'trending' ? 'active' : ''}" onclick="window.changeFeedSort('latest', '${filterView}')">
+                <i class="fas fa-clock"></i> Latest
+            </button>
+            <button class="sort-btn ${window.feedSortOrder === 'trending' ? 'active' : ''}" onclick="window.changeFeedSort('trending', '${filterView}')">
+                <i class="fas fa-fire"></i> Trending
+            </button>
+        `;
+        listContainer.appendChild(sortBar);
+    }
+    
     if (filtered.length === 0) {
-        listContainer.innerHTML = `<div style="padding:2rem;text-align:center;color:#6b7280;border:1px dashed #e5e7eb;border-radius:8px;">No posts here yet. Be the first!</div>`;
+        listContainer.innerHTML += `<div style="padding:2rem;text-align:center;color:#6b7280;border:1px dashed #e5e7eb;border-radius:8px;width:100%;">No posts here yet. Be the first!</div>`;
         return;
     }
+    
+    // 2. Sort Posts
+    window.feedSortOrder = window.feedSortOrder || 'latest';
+    if (window.feedSortOrder === 'trending') {
+        filtered.sort((a, b) => {
+            const scoreA = (a.likes || []).length + (a.comments || []).length;
+            const scoreB = (b.likes || []).length + (b.comments || []).length;
+            return scoreB - scoreA;
+        });
+    } else {
+        filtered.sort((a, b) => Number(b.id) - Number(a.id));
+    }
+    
+    // 3. Render Post Cards
     filtered.forEach(post => {
         const isOwner = post.author === currentUser.username;
         const postUser = users.find(u => u.username === post.author);
@@ -462,16 +536,128 @@ async function renderPosts(filterView) {
             ? `<img src="${postUser.profilePic}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" alt="">`
             : (post.name || '?').charAt(0).toUpperCase();
 
-        let imagesHtml = '', filesHtml = '';
-        (post.files || []).forEach(f => {
-            if (f.type === 'image') imagesHtml += `<img src="${f.data}">`;
-            else if (f.type === 'video') filesHtml += `<div class="file-attachment video"><i class="fas fa-file-video"></i><div class="file-details"><div class="file-name">${f.name}</div><div class="file-meta">Video</div></div></div>`;
-            else filesHtml += `<div class="file-attachment doc"><i class="fas fa-file-pdf"></i><div class="file-details"><div class="file-name">${f.name}</div><div class="file-meta">Document</div></div></div>`;
+        const allowComments = postUser && postUser.allowComments ? postUser.allowComments : 'everyone';
+        const allowDownloads = postUser && postUser.allowDownloads !== false; // default true
+        const showAppreciations = postUser && showAppreciations !== false; // default true
+
+        // Filter and categorize media attachments
+        const images = (post.files || []).filter(f => f.type === 'image');
+        const nonImages = (post.files || []).filter(f => f.type !== 'image');
+
+        let imagesHtml = '';
+        if (images.length > 0) {
+            if (!allowDownloads && !isOwner) {
+                imagesHtml = `
+                    <div class="locked-image-container" onclick="showToast('This attachment is locked by the author\\'s privacy settings.', true)" style="cursor:not-allowed;">
+                        <img src="${images[0].data}">
+                        <div class="locked-image-overlay">
+                            <i class="fas fa-lock" style="font-size:1.8rem;margin-bottom:8px;color:#ef4444;"></i>
+                            <span>Attachments Protected (${images.length} Image${images.length !== 1 ? 's' : ''})</span>
+                        </div>
+                    </div>
+                `;
+            } else {
+                const count = images.length;
+                let gridClass = 'grid-1';
+                if (count === 2) gridClass = 'grid-2';
+                else if (count === 3) gridClass = 'grid-3';
+                else if (count === 4) gridClass = 'grid-4';
+                else if (count > 4) gridClass = 'grid-more';
+                
+                imagesHtml = `<div class="post-images-grid ${gridClass}">`;
+                if (count <= 4) {
+                    images.forEach(img => {
+                        imagesHtml += `<img src="${img.data}" onclick="window.openLightbox('${img.data}', '${(post.text || '').substring(0, 50).replace(/'/g, "\\'") + '...'}')" title="Click to expand">`;
+                    });
+                } else {
+                    for (let i = 0; i < 3; i++) {
+                        imagesHtml += `<img src="${images[i].data}" onclick="window.openLightbox('${images[i].data}', '${(post.text || '').substring(0, 50).replace(/'/g, "\\'") + '...'}')" title="Click to expand">`;
+                    }
+                    imagesHtml += `
+                        <div class="more-images-overlay" onclick="window.openLightbox('${images[3].data}', '${(post.text || '').substring(0, 50).replace(/'/g, "\\'") + '...'}')">
+                            <img src="${images[3].data}">
+                            <div class="more-images-label">+${count - 3}</div>
+                        </div>
+                    `;
+                }
+                imagesHtml += `</div>`;
+            }
+        }
+
+        let filesHtml = '';
+        nonImages.forEach(f => {
+            let fileClickHtml = '';
+            let lockBadge = '';
+            if (!allowDownloads && !isOwner) {
+                fileClickHtml = `onclick="showToast('This attachment is locked by the author\\'s privacy settings.', true)" style="cursor:not-allowed; opacity:0.75;"`;
+                lockBadge = `<span style="color:#ef4444;font-size:0.72rem;font-weight:600;"><i class="fas fa-lock"></i> Protected</span>`;
+            } else {
+                fileClickHtml = `onclick="window.downloadAttachment('${post.id}', '${f.name}')" style="cursor:pointer;"`;
+                lockBadge = `<span style="color:#10b981;font-size:0.72rem;font-weight:600;"><i class="fas fa-arrow-down"></i> Click to Download</span>`;
+            }
+            
+            const fileIcon = f.type === 'video' ? 'fa-file-video' : 'fa-file-pdf';
+            filesHtml += `
+                <div class="file-attachment ${f.type === 'video' ? 'video' : 'doc'}" ${fileClickHtml}>
+                    <i class="fas ${(!allowDownloads && !isOwner) ? 'fa-lock' : fileIcon}"></i>
+                    <div class="file-details">
+                        <div class="file-name">${f.name}</div>
+                        <div class="file-meta">${f.type === 'video' ? 'Video' : 'Document'} • ${lockBadge}</div>
+                    </div>
+                </div>
+            `;
         });
-        const mediaHtml = (imagesHtml ? `<div class="post-images">${imagesHtml}</div>` : '') + filesHtml;
+
+        const mediaHtml = imagesHtml + filesHtml;
         const likesArr = post.likes || [];
         const commentsArr = post.comments || [];
         const isLiked = likesArr.includes(currentUser.username);
+        const isBookmarked = getBookmarks().includes(String(post.id));
+
+        // Simulated reach views based on ID and metrics
+        const mockViews = Math.floor((post.id % 880) + 24) + (likesArr.length * 4) + (commentsArr.length * 6);
+
+        // Appreciation counts respects privacy setting of the author
+        let likesCountText = '';
+        const authorShowLikes = postUser && postUser.showAppreciations !== false;
+        if (!authorShowLikes && !isOwner) {
+            likesCountText = `<i class="fas fa-eye-slash" style="font-size:0.75rem;margin-right:2px;"></i> Appreciations Private`;
+        } else {
+            likesCountText = `${likesArr.length} Appreciation${likesArr.length !== 1 ? 's' : ''}${(!authorShowLikes && isOwner) ? ' (Private to others)' : ''}`;
+        }
+
+        let commentInputHtml = '';
+        if (isOwner) {
+            commentInputHtml = `
+                <div class="comment-input-area">
+                    <input type="text" placeholder="Write a comment..." class="comment-input-box" id="comments-input-${post.id}" onkeydown="handleCommentKeydown(event, '${post.id}')">
+                    <button class="comment-submit-btn" onclick="submitComment('${post.id}')">
+                        <i class="fa-solid fa-paper-plane"></i>
+                    </button>
+                </div>
+            `;
+        } else if (allowComments === 'none') {
+            commentInputHtml = `
+                <div style="padding:12px;text-align:center;color:#ef4444;font-size:0.8rem;background:rgba(239,68,68,0.05);border-radius:8px;border:1px dashed rgba(239,68,68,0.15);margin-top:10px;">
+                    <i class="fas fa-comment-slash" style="margin-right:6px;"></i> Commenting is disabled for this post.
+                </div>
+            `;
+        } else if (allowComments === 'faculty' && currentUser.role !== 'Faculty') {
+            commentInputHtml = `
+                <div style="padding:12px;text-align:center;color:#f58220;font-size:0.8rem;background:rgba(245,130,32,0.05);border-radius:8px;border:1px dashed rgba(245,130,32,0.15);margin-top:10px;">
+                    <i class="fas fa-lock" style="margin-right:6px;"></i> Only faculty members can comment on this post.
+                </div>
+            `;
+        } else {
+            commentInputHtml = `
+                <div class="comment-input-area">
+                    <input type="text" placeholder="Write an academic comment..." class="comment-input-box" id="comments-input-${post.id}" onkeydown="handleCommentKeydown(event, '${post.id}')">
+                    <button class="comment-submit-btn" onclick="submitComment('${post.id}')">
+                        <i class="fa-solid fa-paper-plane"></i>
+                    </button>
+                </div>
+            `;
+        }
 
         const card = document.createElement('div');
         card.className = 'edu-card post';
@@ -481,7 +667,7 @@ async function renderPosts(filterView) {
                     <div class="avatar-small">${avatarHtml}</div>
                     <div>
                         <div class="post-name">${post.name}</div>
-                        <div class="post-meta">${post.date} • <i class="fas fa-shield-alt" style="font-size:0.7rem;"></i> Dept. Only</div>
+                        <div class="post-meta">${post.date} • <i class="fas fa-eye" style="font-size:0.75rem;margin-left:2px;"></i> ${mockViews} Views</div>
                     </div>
                 </div>
                 <div style="display:flex;align-items:center;gap:8px;">
@@ -497,11 +683,19 @@ async function renderPosts(filterView) {
             <div class="post-interaction-bar">
                 <button class="interaction-btn ${isLiked ? 'liked' : ''}" onclick="handleLikeClick('${post.id}')">
                     <i class="fa-solid fa-thumbs-up"></i>
-                    <span class="likes-count">${likesArr.length} Appreciation${likesArr.length !== 1 ? 's' : ''}</span>
+                    <span class="likes-count">${likesCountText}</span>
                 </button>
                 <button class="interaction-btn" onclick="toggleCommentsSection('${post.id}')">
                     <i class="fa-solid fa-comment"></i>
                     <span>${commentsArr.length} Comment${commentsArr.length !== 1 ? 's' : ''}</span>
+                </button>
+                <button class="interaction-btn ${isBookmarked ? 'bookmarked' : ''}" onclick="window.toggleBookmark('${post.id}')">
+                    <i class="${isBookmarked ? 'fa-solid' : 'fa-regular'} fa-bookmark"></i>
+                    <span>${isBookmarked ? 'Saved' : 'Save'}</span>
+                </button>
+                <button class="interaction-btn" onclick="window.sharePost('${post.id}')">
+                    <i class="fa-solid fa-share-nodes"></i>
+                    <span>Share</span>
                 </button>
             </div>
             
@@ -520,17 +714,18 @@ async function renderPosts(filterView) {
                             </div>
                         `).join('')}
                 </div>
-                <div class="comment-input-area">
-                    <input type="text" placeholder="Write an academic comment..." class="comment-input-box" id="comments-input-${post.id}" onkeydown="handleCommentKeydown(event, '${post.id}')">
-                    <button class="comment-submit-btn" onclick="submitComment('${post.id}')">
-                        <i class="fa-solid fa-paper-plane"></i>
-                    </button>
-                </div>
+                ${commentInputHtml}
             </div>
         `;
         listContainer.appendChild(card);
     });
 }
+
+window.feedSortOrder = 'latest';
+window.changeFeedSort = function(order, view) {
+    window.feedSortOrder = order;
+    renderPosts(view);
+};
 
 // ─── EDIT / DELETE POST ───────────────────────────────────────────────────────
 async function openEditPost(postId) {
@@ -649,6 +844,18 @@ async function renderDirectory() {
             }
             extraCardClass = isAnalytics ? 'analytics-card' : 'stat-card';
         }
+
+        // Determine phone visibility according to privacy preferences
+        const isPhoneVisible = u.phoneVisible === true || u.username === currentUser.username || currentUser.role === 'Faculty';
+        const phoneHtml = isPhoneVisible
+            ? `<div class="member-phone" style="margin-top:12px; font-size:0.82rem; color:var(--text-secondary); display:flex; align-items:center; justify-content:center; gap:6px; background:rgba(15,76,129,0.03); padding:6px 12px; border-radius:8px; border:1px dashed rgba(15,76,129,0.15);">
+                <i class="fas fa-phone-alt" style="color:var(--uog-blue);font-size:0.75rem;"></i>
+                <span style="font-weight: 500; font-family: sans-serif;">${u.phone || 'No phone listed'}</span>
+               </div>`
+            : `<div class="member-phone private" style="margin-top:12px; font-size:0.82rem; color:#9ca3af; display:flex; align-items:center; justify-content:center; gap:6px; background:rgba(0,0,0,0.02); padding:6px 12px; border-radius:8px; border:1px dashed rgba(0,0,0,0.06); font-style:italic;">
+                <i class="fas fa-eye-slash" style="font-size:0.75rem;"></i>
+                <span style="font-weight: 400;">Phone Private</span>
+               </div>`;
         
         const card = document.createElement('div');
         card.className = `student-card ${extraCardClass}`;
@@ -657,6 +864,7 @@ async function renderDirectory() {
             <h3 style="margin-bottom: 4px;">${u.name}</h3>
             <div style="margin-bottom: 8px;">${badgeHtml}</div>
             <span style="font-size:0.8rem;background:rgba(15,76,129,0.05);color:var(--uog-blue);padding:4px 10px;border-radius:20px;border:1px solid rgba(15,76,129,0.1);font-family:monospace;font-weight:600;">${u.username}</span>
+            ${phoneHtml}
         `;
         listContainer.appendChild(card);
     });
@@ -766,6 +974,23 @@ window.submitComment = async function(postId) {
     if (!text) return;
     
     try {
+        // Retrieve post and check commenting permissions first
+        const posts = await dbGet('posts');
+        const post = posts.find(p => String(p.id) === String(postId));
+        if (post) {
+            const users = await dbGet('users');
+            const postUser = users.find(u => u.username === post.author);
+            const allowComments = postUser && postUser.allowComments ? postUser.allowComments : 'everyone';
+            
+            if (allowComments === 'none') {
+                showToast('Commenting is disabled for this post.', true);
+                return;
+            } else if (allowComments === 'faculty' && currentUser.role !== 'Faculty') {
+                showToast('Only faculty members can comment on this post.', true);
+                return;
+            }
+        }
+
         input.disabled = true;
         const comments = await dbPost(`posts/${postId}/comment`, {
             author: currentUser.username,
@@ -991,4 +1216,223 @@ function initDirectoryFilters() {
 // Bootstrapping at load time
 loadBatches();
 initDirectoryFilters();
+
+// ─── PRIVACY DASHBOARD & SOCIAL INTEGRATION HELPERS ───────────────────────────
+function getBookmarks() {
+    if (!currentUser) return [];
+    return JSON.parse(localStorage.getItem(`uog_bookmarks_${currentUser.username}`) || '[]');
+}
+function saveBookmarks(bookmarks) {
+    if (!currentUser) return;
+    localStorage.setItem(`uog_bookmarks_${currentUser.username}`, JSON.stringify(bookmarks));
+}
+
+window.renderPrivacyDashboard = function() {
+    listContainer.innerHTML = '';
+    
+    // Fallback if some properties are undefined
+    const phoneVisible = currentUser.phoneVisible === true;
+    const allowComments = currentUser.allowComments || 'everyone';
+    const allowDownloads = currentUser.allowDownloads !== false; // default true
+    const showAppreciations = currentUser.showAppreciations !== false; // default true
+    
+    const dash = document.createElement('div');
+    dash.className = 'privacy-dashboard';
+    dash.innerHTML = `
+        <!-- Card 1: Phone Visibility -->
+        <div class="privacy-card">
+            <div class="privacy-header">
+                <div class="privacy-icon uog-blue-text"><i class="fas fa-phone-alt"></i></div>
+                <div>
+                    <h3>Directory Phone Visibility</h3>
+                    <p>Control whether student members can view your phone number in the Alumni & Student Directory. Faculty members can always view contact details for departmental coordination.</p>
+                </div>
+            </div>
+            <div class="privacy-control toggle-control">
+                <span>Show phone number in directory</span>
+                <label class="switch">
+                    <input type="checkbox" id="privacy-phone-toggle" ${phoneVisible ? 'checked' : ''} onchange="window.updatePrivacySetting('phoneVisible', this.checked)">
+                    <span class="slider"></span>
+                </label>
+            </div>
+        </div>
+
+        <!-- Card 2: Commenting Privacy -->
+        <div class="privacy-card">
+            <div class="privacy-header">
+                <div class="privacy-icon uog-orange-text"><i class="fas fa-comments"></i></div>
+                <div>
+                    <h3>Post Commenting Policy</h3>
+                    <p>Select who is authorized to comment on the updates, files, and academic resources you upload to the department feed.</p>
+                </div>
+            </div>
+            <div class="privacy-control" style="flex-direction: column; align-items: stretch; gap: 12px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; width: 100%;">
+                    <span>Who can comment on your posts</span>
+                    <select id="privacy-comments-select" class="edu-select" style="width: auto; margin-bottom: 0; padding: 6px 12px;" onchange="window.updatePrivacySetting('allowComments', this.value)">
+                        <option value="everyone" ${allowComments === 'everyone' ? 'selected' : ''}>Everyone (All Members)</option>
+                        <option value="faculty" ${allowComments === 'faculty' ? 'selected' : ''}>Only Faculty Members</option>
+                        <option value="none" ${allowComments === 'none' ? 'selected' : ''}>Disable Commenting Completely</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 3: File View & Download Locks -->
+        <div class="privacy-card">
+            <div class="privacy-header">
+                <div class="privacy-icon blue-text"><i class="fas fa-file-download"></i></div>
+                <div>
+                    <h3>Attachment Protection</h3>
+                    <p>Restrict downloading and viewing of documents, figures, slides, and videos attached to your posts. When enabled, non-authors will see a lock state and cannot access attachment files.</p>
+                </div>
+            </div>
+            <div class="privacy-control toggle-control">
+                <span>Allow others to view/download attachments</span>
+                <label class="switch">
+                    <input type="checkbox" id="privacy-downloads-toggle" ${allowDownloads ? 'checked' : ''} onchange="window.updatePrivacySetting('allowDownloads', this.checked)">
+                    <span class="slider"></span>
+                </label>
+            </div>
+        </div>
+
+        <!-- Card 4: Appreciation Visibility -->
+        <div class="privacy-card">
+            <div class="privacy-header">
+                <div class="privacy-icon purple-text"><i class="fas fa-thumbs-up"></i></div>
+                <div>
+                    <h3>Appreciations Visibility</h3>
+                    <p>Choose whether to show the total number of likes (appreciations) your posts receive. When turned off, others will see "Appreciations Private", but you can still view your post stats.</p>
+                </div>
+            </div>
+            <div class="privacy-control toggle-control">
+                <span>Show total appreciation count to others</span>
+                <label class="switch">
+                    <input type="checkbox" id="privacy-likes-toggle" ${showAppreciations ? 'checked' : ''} onchange="window.updatePrivacySetting('showAppreciations', this.checked)">
+                    <span class="slider"></span>
+                </label>
+            </div>
+        </div>
+
+        <!-- Card 5: Danger Zone -->
+        <div class="privacy-card danger-panel">
+            <div class="privacy-header">
+                <div class="privacy-icon red-text"><i class="fas fa-exclamation-triangle"></i></div>
+                <div>
+                    <h3 class="red-text">Danger Zone</h3>
+                    <p>Permanently remove all your data from the portal. This action is irreversible. All of your updates, announcements, slides, and attachment files will be deleted from the system.</p>
+                </div>
+            </div>
+            <div class="privacy-control" style="background: rgba(254, 242, 242, 0.6); border-color: rgba(239, 68, 68, 0.1); width: 100%;">
+                <span style="font-weight: 600; color: #b91c1c;">Delete all my departmental posts</span>
+                <button class="edu-btn-post btn-danger" id="delete-all-posts-btn" onclick="window.bulkDeleteUserPosts()" style="padding: 8px 16px; margin: 0; font-size: 0.85rem;">
+                    <i class="fas fa-trash-alt" style="margin-right: 6px;"></i> Delete All My Posts
+                </button>
+            </div>
+        </div>
+    `;
+    listContainer.appendChild(dash);
+};
+
+window.updatePrivacySetting = async function(key, value) {
+    try {
+        const body = {};
+        body[key] = value;
+        const res = await dbPut(`users/${currentUser.username}/profile`, body);
+        if (res && res.user) {
+            currentUser = { ...currentUser, ...res.user };
+            showToast('Privacy setting updated successfully!');
+        }
+    } catch (err) {
+        showToast('Failed to update settings: ' + err.message, true);
+    }
+};
+
+window.bulkDeleteUserPosts = async function() {
+    if (!confirm('Warning: Are you sure you want to permanently delete ALL your posts? This action cannot be undone.')) {
+        return;
+    }
+    
+    const deleteBtn = document.getElementById('delete-all-posts-btn');
+    const originalText = deleteBtn.innerHTML;
+    deleteBtn.disabled = true;
+    deleteBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting...';
+    
+    try {
+        await dbDelete(`users/${currentUser.username}/posts`);
+        showToast('All your posts have been deleted successfully.');
+        setTimeout(() => {
+            switchView('privacy');
+            updateStats();
+        }, 1000);
+    } catch (err) {
+        showToast('Failed to delete posts: ' + err.message, true);
+    } finally {
+        deleteBtn.disabled = false;
+        deleteBtn.innerHTML = originalText;
+    }
+};
+
+window.toggleBookmark = function(postId) {
+    const bookmarks = getBookmarks();
+    const idx = bookmarks.indexOf(String(postId));
+    if (idx !== -1) {
+        bookmarks.splice(idx, 1);
+        showToast('Post removed from Saved Items.');
+    } else {
+        bookmarks.push(String(postId));
+        showToast('Post added to Saved Items!');
+    }
+    saveBookmarks(bookmarks);
+    
+    // Smoothly update UI bookmark buttons
+    const btn = document.querySelector(`[onclick="window.toggleBookmark('${postId}')"]`);
+    if (btn) {
+        if (idx !== -1) {
+            btn.classList.remove('bookmarked');
+            btn.innerHTML = `<i class="fa-regular fa-bookmark"></i> Save`;
+        } else {
+            btn.classList.add('bookmarked');
+            btn.innerHTML = `<i class="fa-solid fa-bookmark"></i> Saved`;
+        }
+    }
+    
+    // If we are currently on the saved view, re-render it smoothly
+    if (currentView === 'saved') {
+        renderPosts('saved');
+    }
+};
+
+window.sharePost = function(postId) {
+    // Generate simulated deep link
+    const link = `${window.location.origin}/post/${postId}`;
+    navigator.clipboard.writeText(link).then(() => {
+        showToast('Post direct link copied to clipboard!');
+    }).catch(() => {
+        showToast('Failed to copy link.', true);
+    });
+};
+
+window.openLightbox = function(imgSrc, captionText) {
+    const modal = document.getElementById('lightbox-modal');
+    const img = document.getElementById('lightbox-img');
+    const caption = document.getElementById('lightbox-caption');
+    if (!modal || !img) return;
+    
+    img.src = imgSrc;
+    caption.textContent = captionText || 'Image Preview';
+    modal.style.display = 'flex';
+    setTimeout(() => {
+        modal.classList.add('active');
+    }, 10);
+};
+
+window.closeLightbox = function() {
+    const modal = document.getElementById('lightbox-modal');
+    if (!modal) return;
+    modal.classList.remove('active');
+    setTimeout(() => {
+        modal.style.display = 'none';
+    }, 300);
+};
 

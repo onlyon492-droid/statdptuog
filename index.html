@@ -142,7 +142,8 @@
                         <li data-target="software"><i class="fas fa-laptop-code"></i> Software Repository</li>
                         <li data-target="students"><i class="fas fa-user-graduate"></i> Alumni Directory</li>
                         <li id="faculty-link"><i class="fas fa-chalkboard-teacher"></i> Faculty Profiles <i class="fas fa-external-link-alt" style="font-size: 10px; margin-left: auto;"></i></li>
-                        <li style="margin-top: 20px; color: #6b7280;"><i class="fas fa-user-shield"></i> Privacy Settings</li>
+                        <li data-target="saved"><i class="fas fa-bookmark"></i> Saved Items</li>
+                        <li data-target="privacy" style="margin-top: 20px;"><i class="fas fa-user-shield"></i> Privacy Settings</li>
                     </ul>
                 </aside>
 
@@ -339,6 +340,15 @@
                     <input type="text" id="new-batch-name" class="edu-input" placeholder="e.g. 2024-2028" required pattern="\d{4}-\d{4}">
                     <button type="submit" class="edu-btn-post" style="margin-top:12px;">Add Session</button>
                 </form>
+            </div>
+        </div>
+
+        <!-- Fullscreen Zoom Lightbox Modal -->
+        <div id="lightbox-modal" class="lightbox-modal" style="display:none;" onclick="window.closeLightbox()">
+            <span class="lightbox-close" onclick="window.closeLightbox()">&times;</span>
+            <div class="lightbox-container">
+                <img class="lightbox-content" id="lightbox-img" onclick="event.stopPropagation()">
+                <div id="lightbox-caption"></div>
             </div>
         </div>
 

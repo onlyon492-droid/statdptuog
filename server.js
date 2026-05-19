@@ -42,7 +42,13 @@ const userSchema = new mongoose.Schema({
     phone: { type: String, default: '' },
     profilePic: { type: String, default: '' }, // holds base64
     program: { type: String, default: '' }, // e.g. 'BS Statistics', 'BS Data Analytics'
-    batch: { type: String, default: '' } // e.g. '2022-2026'
+    batch: { type: String, default: '' }, // e.g. '2022-2026'
+    
+    // Privacy settings fields
+    phoneVisible: { type: Boolean, default: false },
+    allowComments: { type: String, default: 'everyone' }, // 'everyone', 'faculty', 'none'
+    allowDownloads: { type: Boolean, default: true },
+    showAppreciations: { type: Boolean, default: true }
 });
 const User = mongoose.model('User', userSchema);
 
@@ -146,7 +152,11 @@ app.post('/api/register', async (req, res) => {
             phone: phone || '',
             profilePic: '',
             program: program || '',
-            batch: batch || ''
+            batch: batch || '',
+            phoneVisible: false,
+            allowComments: 'everyone',
+            allowDownloads: true,
+            showAppreciations: true
         });
         await user.save();
         res.json({ message: 'Registered successfully', user: safeUser(user.toObject()) });
@@ -182,7 +192,7 @@ app.get('/api/users', async (req, res) => {
 
 app.put('/api/users/:username/profile', async (req, res) => {
     try {
-        const { name, phone, password, profilePic, program, batch } = req.body;
+        const { name, phone, password, profilePic, program, batch, phoneVisible, allowComments, allowDownloads, showAppreciations } = req.body;
         const user = await User.findOne({ username: req.params.username.toLowerCase().trim() });
         if (!user) return res.status(404).json({ error: 'User not found' });
         
@@ -193,11 +203,27 @@ app.put('/api/users/:username/profile', async (req, res) => {
         if (program !== undefined) user.program = program;
         if (batch !== undefined) user.batch = batch;
         
+        if (phoneVisible !== undefined) user.phoneVisible = phoneVisible;
+        if (allowComments !== undefined) user.allowComments = allowComments;
+        if (allowDownloads !== undefined) user.allowDownloads = allowDownloads;
+        if (showAppreciations !== undefined) user.showAppreciations = showAppreciations;
+        
         await user.save();
         res.json({ message: 'Profile updated', user: safeUser(user.toObject()) });
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: 'Error updating profile' });
+    }
+});
+
+app.delete('/api/users/:username/posts', async (req, res) => {
+    try {
+        const username = req.params.username.toLowerCase().trim();
+        await Post.deleteMany({ author: username });
+        res.json({ message: 'All posts deleted successfully' });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Error deleting posts' });
     }
 });
 
@@ -332,6 +358,16 @@ app.post('/api/posts/:id/comment', async (req, res) => {
         
         const post = await Post.findOne({ id: Number(req.params.id) });
         if (!post) return res.status(404).json({ error: 'Post not found' });
+
+        // Retrieve post author's privacy controls to check commenting bounds
+        const postAuthorUser = await User.findOne({ username: post.author });
+        const postAllowComments = postAuthorUser && postAuthorUser.allowComments ? postAuthorUser.allowComments : 'everyone';
+
+        if (postAllowComments === 'none') {
+            return res.status(403).json({ error: 'Commenting is disabled for this post' });
+        } else if (postAllowComments === 'faculty' && role !== 'Faculty') {
+            return res.status(403).json({ error: 'Only faculty members can comment on this post' });
+        }
         
         if (!post.comments) post.comments = [];
         
