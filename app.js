@@ -2536,8 +2536,81 @@ if (themeToggleBtn) {
     themeToggleBtn.addEventListener('click', toggleTheme);
 }
 
+// ─── LAYOUT SWITCHER LOGIC ───────────────────────────────────────────────────
+function updateLayoutToggleUI() {
+    const isMobileMode = document.body.classList.contains('forced-mobile-mode') || 
+                         (window.innerWidth <= 768 && !document.body.classList.contains('forced-desktop-mode'));
+    
+    const desktopBtn = document.getElementById('layout-toggle-btn');
+    const mobileBtn = document.getElementById('mobile-layout-toggle-btn');
+    
+    if (desktopBtn) {
+        desktopBtn.innerHTML = isMobileMode ? '<i class="fas fa-desktop" style="color: var(--uog-blue);"></i>' : '<i class="fas fa-mobile-alt" style="color: var(--uog-blue);"></i>';
+        desktopBtn.title = isMobileMode ? 'Switch to Desktop Layout' : 'Switch to Mobile Layout';
+    }
+    if (mobileBtn) {
+        mobileBtn.innerHTML = isMobileMode ? '<i class="fas fa-desktop"></i>' : '<i class="fas fa-mobile-alt"></i>';
+        mobileBtn.title = isMobileMode ? 'Switch to Desktop Layout' : 'Switch to Mobile Layout';
+    }
+}
+
+function toggleLayoutMode() {
+    const isDesktopScreen = window.innerWidth > 768;
+    if (isDesktopScreen) {
+        if (document.body.classList.contains('forced-mobile-mode')) {
+            document.body.classList.remove('forced-mobile-mode');
+            localStorage.setItem('layout_mode', 'default');
+        } else {
+            document.body.classList.add('forced-mobile-mode');
+            document.body.classList.remove('forced-desktop-mode');
+            localStorage.setItem('layout_mode', 'forced-mobile');
+        }
+    } else {
+        if (document.body.classList.contains('forced-desktop-mode')) {
+            document.body.classList.remove('forced-desktop-mode');
+            localStorage.setItem('layout_mode', 'default');
+        } else {
+            document.body.classList.add('forced-desktop-mode');
+            document.body.classList.remove('forced-mobile-mode');
+            localStorage.setItem('layout_mode', 'forced-desktop');
+        }
+    }
+    updateLayoutToggleUI();
+    
+    // Resize charts to fit new container dimensions
+    setTimeout(() => {
+        if (window.activeCharts) {
+            Object.values(window.activeCharts).forEach(chart => {
+                if (chart) chart.resize();
+            });
+        }
+    }, 300);
+}
+
+function initLayoutMode() {
+    const savedMode = localStorage.getItem('layout_mode');
+    const isDesktopScreen = window.innerWidth > 768;
+    
+    if (savedMode === 'forced-mobile' && isDesktopScreen) {
+        document.body.classList.add('forced-mobile-mode');
+    } else if (savedMode === 'forced-desktop' && !isDesktopScreen) {
+        document.body.classList.add('forced-desktop-mode');
+    }
+    updateLayoutToggleUI();
+    
+    const dBtn = document.getElementById('layout-toggle-btn');
+    const mBtn = document.getElementById('mobile-layout-toggle-btn');
+    if (dBtn) dBtn.addEventListener('click', toggleLayoutMode);
+    if (mBtn) mBtn.addEventListener('click', toggleLayoutMode);
+    
+    window.addEventListener('resize', () => {
+        updateLayoutToggleUI();
+    });
+}
+
 // Call on load
 initTheme();
+initLayoutMode();
 
 // ─── AUTO RESTORE SESSION ON PAGE LOAD ───────────────────────────────────────
 (async function autoRestoreSession() {

@@ -1156,10 +1156,11 @@ input:checked + .slider:before {
 /* Sidebar Badges styling */
 .sidebar-list li {
     display: flex;
-    justify-content: space-between;
     align-items: center;
+    gap: 12px;
 }
 .sidebar-badge {
+    margin-left: auto;
     background: rgba(245, 130, 32, 0.12);
     color: var(--uog-orange);
     font-size: 0.7rem;
@@ -2488,4 +2489,180 @@ body, nav, aside, main, div, input, select, textarea, button, p, span, h1, h2, h
 .kpi-card:hover {
     transform: translateY(-2px);
     box-shadow: var(--shadow-hover);
+}
+
+/* Thin premium scrollbars for sidebars */
+.edu-sidebar-left {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(15, 76, 129, 0.15) transparent;
+}
+.edu-sidebar-left::-webkit-scrollbar {
+    width: 5px;
+}
+.edu-sidebar-left::-webkit-scrollbar-thumb {
+    background: rgba(15, 76, 129, 0.15);
+    border-radius: 4px;
+}
+.edu-sidebar-left::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+/* ──────────────────────────────────────────
+   FORCED LAYOUT MODES (DESKTOP / MOBILE SIMULATION)
+   ────────────────────────────────────────── */
+
+/* 1. Simulation of Mobile Mode on Desktop Screen */
+@media (min-width: 769px) {
+    body.forced-mobile-mode {
+        background: radial-gradient(circle at top right, rgba(15, 76, 129, 0.45), rgba(245, 130, 32, 0.25)), #0b0f19 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        min-height: 100vh !important;
+        height: 100vh !important;
+        overflow: hidden !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+    
+    body.forced-mobile-mode #workspace-view {
+        width: 412px !important;
+        height: 840px !important;
+        max-height: 95vh !important;
+        border-radius: 40px !important;
+        border: 12px solid rgba(255, 255, 255, 0.18) !important;
+        outline: 4px solid #1e293b !important;
+        box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8), inset 0 0 20px rgba(255, 255, 255, 0.15) !important;
+        overflow: hidden !important;
+        position: relative !important;
+        background: #f0f2f5 !important;
+        display: block !important;
+        animation: phoneIntro 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    
+    body.forced-mobile-mode #workspace-view::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 140px;
+        height: 24px;
+        background: #1e293b;
+        border-radius: 0 0 16px 16px;
+        z-index: 500;
+        pointer-events: none;
+    }
+}
+
+/* Force Mobile styles when .forced-mobile-mode is active */
+body.forced-mobile-mode .edu-navbar { display: none !important; }
+body.forced-mobile-mode .edu-sidebar-left { display: none !important; }
+body.forced-mobile-mode .edu-sidebar-right { display: none !important; }
+body.forced-mobile-mode .mobile-topbar { display: flex !important; }
+body.forced-mobile-mode .mobile-bottom-nav { display: flex !important; }
+
+body.forced-mobile-mode .edu-body {
+    flex-direction: column !important;
+    padding: 0 !important;
+    gap: 0 !important;
+    height: calc(100% - 114px) !important;
+    overflow-y: auto !important;
+    padding-bottom: 20px !important;
+}
+
+body.forced-mobile-mode .edu-main {
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+    padding: 12px !important;
+    border-radius: 0 !important;
+    border: none !important;
+}
+
+body.forced-mobile-mode .directory-grid {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 10px !important;
+}
+
+body.forced-mobile-mode .software-grid {
+    grid-template-columns: 1fr !important;
+}
+
+body.forced-mobile-mode .charts-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+}
+
+body.forced-mobile-mode .analytics-card {
+    min-height: 260px !important;
+    border-radius: 14px !important;
+    padding: 1rem !important;
+}
+
+body.forced-mobile-mode .post {
+    border-radius: 16px !important;
+    padding: 14px !important;
+    margin-bottom: 10px !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06) !important;
+}
+
+body.forced-mobile-mode .create-post-card {
+    border-radius: 16px !important;
+    padding: 12px !important;
+    margin-bottom: 12px !important;
+}
+
+body.forced-mobile-mode .mobile-overlay {
+    position: absolute !important;
+    z-index: 300 !important;
+}
+
+body.forced-mobile-mode .mobile-drawer {
+    position: absolute !important;
+    z-index: 400 !important;
+}
+
+body.forced-mobile-mode .mobile-search-bar {
+    position: absolute !important;
+    left: 0;
+    right: 0;
+    z-index: 150 !important;
+}
+
+/* 2. Simulation of Desktop Mode on Mobile Screen */
+@media (max-width: 768px) {
+    body.forced-desktop-mode {
+        height: 100vh !important;
+        overflow: auto !important;
+        background: #f3f4f6 !important;
+    }
+    
+    body.forced-desktop-mode #workspace-view {
+        display: block !important;
+        width: 1280px !important;
+        min-width: 1280px !important;
+        height: calc(100vh * (1280 / 100vw)) !important;
+        transform: scale(calc(100vw / 1280)) !important;
+        transform-origin: top left !important;
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
+        overflow-x: hidden !important;
+        overflow-y: auto !important;
+    }
+    
+    body.forced-desktop-mode .edu-navbar { display: flex !important; }
+    body.forced-desktop-mode .edu-sidebar-left { display: block !important; }
+    body.forced-desktop-mode .edu-sidebar-right { display: block !important; }
+    body.forced-desktop-mode .mobile-topbar { display: none !important; }
+    body.forced-desktop-mode .mobile-bottom-nav { display: none !important; }
+    
+    body.forced-desktop-mode .edu-body {
+        flex-direction: row !important;
+        padding: 1.5rem !important;
+        gap: 1.5rem !important;
+        height: auto !important;
+        overflow: visible !important;
+    }
 }
