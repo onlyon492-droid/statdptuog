@@ -8,16 +8,30 @@ const app  = express();
 const PORT = process.env.PORT || 3000;
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/uog_stats_portal';
 
-// ── Connect to MongoDB ────────────────────────────────────────────────────────
-mongoose.connect(MONGODB_URI)
-    .then(() => console.log(`\n✅ Connected to MongoDB successfully! [URI: ${MONGODB_URI.startsWith('mongodb://127.0.0.1') ? 'Local Database' : 'Cloud Database'}]\n`))
-    .catch(err => {
-        console.error('\n❌ MongoDB Connection Error:');
-        console.error(err.message);
-        console.log('\n💡 Tip: To run locally, make sure MongoDB is installed & running.');
-        console.log('👉 To run on the Internet, please create a .env file in the project folder and add your Cloud Database URL like this:');
-        console.log('   MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/dbname\n');
-    });
+// ── Connect to MongoDB (Serverless Caching Pattern) ──────────────────────────
+let cachedConnectionPromise = null;
+
+function connectToDatabase() {
+    if (mongoose.connection.readyState === 1) {
+        return Promise.resolve();
+    }
+    if (!cachedConnectionPromise) {
+        console.log('Initiating MongoDB connection...');
+        cachedConnectionPromise = mongoose.connect(MONGODB_URI)
+            .then(() => {
+                console.log(`\n✅ Connected to MongoDB successfully! [URI: ${MONGODB_URI.startsWith('mongodb://127.0.0.1') ? 'Local Database' : 'Cloud Database'}]\n`);
+            })
+            .catch(err => {
+                cachedConnectionPromise = null; // Reset on failure so next request can retry
+                console.error('\n❌ MongoDB Connection Error:', err.message);
+                throw err;
+            });
+    }
+    return cachedConnectionPromise;
+}
+
+// Trigger initial connection in background
+connectToDatabase().catch(() => {});
 
 // ── Schemas & Models ──────────────────────────────────────────────────────────
 const userSchema = new mongoose.Schema({
@@ -78,13 +92,15 @@ app.use(express.json({ limit: '10mb' }));      // allow base64 image uploads
 app.use(express.static(__dirname));            // serve index.html, styles.css, app.js
 
 // Check MongoDB connection state before processing any API requests
-app.use('/api', (req, res, next) => {
-    if (mongoose.connection.readyState !== 1) {
+app.use('/api', async (req, res, next) => {
+    try {
+        await connectToDatabase();
+        next();
+    } catch (err) {
         return res.status(503).json({
-            error: "Database connection is not established. If running locally, make sure MongoDB is installed & running. If hosting on the Internet, please configure MONGODB_URI in your environment."
+            error: `Database connection error: ${err.message}. If running locally, make sure MongoDB is running. If hosting on the Internet, verify your MONGODB_URI variable in Vercel and check MongoDB Atlas Network Access (Allow IP 0.0.0.0/0).`
         });
     }
-    next();
 });
 
 
