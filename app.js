@@ -21,6 +21,13 @@ async function dbGet(key) {
         }
         return batches.map(b => ({ name: b }));
     }
+    if (key === 'stories') {
+        const stories = JSON.parse(localStorage.getItem('uog_stories') || '[]');
+        const oneDayAgo = Date.now() - 24 * 3600 * 1000;
+        const freshStories = stories.filter(s => s.timestamp >= oneDayAgo);
+        localStorage.setItem('uog_stories', JSON.stringify(freshStories));
+        return freshStories;
+    }
     return JSON.parse(localStorage.getItem(`uog_${key}`) || '[]');
 }
 async function dbPost(endpoint, body) {
@@ -118,6 +125,21 @@ async function dbPost(endpoint, body) {
             localStorage.setItem('uog_posts', JSON.stringify(posts));
             return posts[idx].comments;
         }
+    }
+    if (endpoint === 'stories') {
+        const stories = JSON.parse(localStorage.getItem('uog_stories') || '[]');
+        const filtered = stories.filter(s => s.username !== body.username);
+        const story = {
+            id: body.id || 'user-' + Date.now(),
+            username: body.username,
+            name: body.name,
+            profilePic: body.profilePic || '',
+            text: body.text,
+            timestamp: body.timestamp || Date.now()
+        };
+        filtered.push(story);
+        localStorage.setItem('uog_stories', JSON.stringify(filtered));
+        return story;
     }
     if (endpoint === 'register') {
         const users = JSON.parse(localStorage.getItem('uog_users') || '[]');
@@ -2704,11 +2726,11 @@ async function renderAnalytics() {
     window.activeCharts = {};
 
     // 1. Overview data holders
-    const studentGenders = { Male: 0, Female: 0, Other: 0 };
-    const programs = { 'BS Statistics': 0, 'BS Data Analytics': 0, 'M.Phil Statistics': 0, 'Ph.D Statistics': 0 };
-    const degrees = { 'BS': 0, 'M.Phil': 0, 'Ph.D': 0 };
-    const studentSemesters = { '1st': 0, '2nd': 0, '3rd': 0, '4th': 0, '5th': 0, '6th': 0, '7th': 0, '8th': 0, 'Graduated': 0 };
-    const ages = { '< 20': 0, '20-22': 0, '23-25': 0, '> 25': 0 };
+    const studentGenders = {};
+    const programs = {};
+    const degrees = {};
+    const studentSemesters = {};
+    const ages = {};
     const areas = {};
     const roleDistribution = { 'Students': 0, 'Faculty': 0 };
 
@@ -2719,51 +2741,53 @@ async function renderAnalytics() {
     const analyticsBatches = {};
     const analyticsSemesters = {};
     
-    const facultyDesignations = { 'Professor': 0, 'Associate Professor': 0, 'Assistant Professor': 0, 'Lecturer': 0 };
-    const facultyPublications = { 'Professor': 0, 'Associate Professor': 0, 'Assistant Professor': 0, 'Lecturer': 0 };
-    const facultyGenders = { Male: 0, Female: 0, Other: 0 };
-    const facultyEducations = { 'BS / Master': 0, 'M.Phil': 0, 'Ph.D': 0, 'Post-Doc': 0 };
-    const facultyJobStatus = { 'Active': 0, 'On Leave': 0, 'Visiting': 0, 'Retired': 0 };
+    const facultyDesignations = {};
+    const facultyPublications = {};
+    const facultyGenders = {};
+    const facultyEducations = {};
+    const facultyJobStatus = {};
 
     // Update with DB user values
     users.forEach(u => {
         if (u.role === 'Student') {
             roleDistribution['Students']++;
             if (u.gender) {
-                if (studentGenders[u.gender] !== undefined) studentGenders[u.gender]++;
-                else studentGenders['Other']++;
+                studentGenders[u.gender] = (studentGenders[u.gender] || 0) + 1;
+            } else {
+                studentGenders['Other'] = (studentGenders['Other'] || 0) + 1;
             }
             if (u.age) {
                 const a = parseInt(u.age);
-                if (a < 20) ages['< 20']++;
-                else if (a <= 22) ages['20-22']++;
-                else if (a <= 25) ages['23-25']++;
-                else ages['> 25']++;
+                if (a < 20) ages['< 20'] = (ages['< 20'] || 0) + 1;
+                else if (a <= 22) ages['20-22'] = (ages['20-22'] || 0) + 1;
+                else if (a <= 25) ages['23-25'] = (ages['23-25'] || 0) + 1;
+                else ages['> 25'] = (ages['> 25'] || 0) + 1;
             }
             if (u.area) {
                 const areaKey = u.area.trim().split(',')[0].trim();
-                areas[areaKey] = (areas[areaKey] || 0) + 1;
+                if (areaKey) areas[areaKey] = (areas[areaKey] || 0) + 1;
             }
 
-            const prog = u.program || 'BS Statistics';
-            if (programs[prog] !== undefined) {
-                programs[prog]++;
-            }
+            const prog = u.program || 'Other';
+            programs[prog] = (programs[prog] || 0) + 1;
 
             // Degree mapping
-            if (prog.includes('BS')) degrees['BS']++;
-            else if (prog.includes('M.Phil')) degrees['M.Phil']++;
-            else if (prog.includes('Ph.D')) degrees['Ph.D']++;
+            let degree = 'Other';
+            if (prog.includes('BS')) degree = 'BS';
+            else if (prog.includes('M.Phil') || prog.includes('MS')) degree = 'M.Phil / MS';
+            else if (prog.includes('Ph.D')) degree = 'Ph.D';
+            degrees[degree] = (degrees[degree] || 0) + 1;
 
             // Semester mapping
             if (u.semester) {
                 let semKey = u.semester;
                 if (semKey === 'Graduated') {
-                    studentSemesters['Graduated']++;
+                    studentSemesters['Graduated'] = (studentSemesters['Graduated'] || 0) + 1;
                 } else {
                     const num = parseInt(semKey);
                     const labelMap = { 1:'1st', 2:'2nd', 3:'3rd', 4:'4th', 5:'5th', 6:'6th', 7:'7th', 8:'8th' };
-                    if (labelMap[num]) studentSemesters[labelMap[num]]++;
+                    const label = labelMap[num] || `${semKey}th`;
+                    studentSemesters[label] = (studentSemesters[label] || 0) + 1;
                 }
             }
 
@@ -2783,37 +2807,22 @@ async function renderAnalytics() {
         } else if (u.role === 'Faculty') {
             roleDistribution['Faculty']++;
             if (u.gender) {
-                if (facultyGenders[u.gender] !== undefined) facultyGenders[u.gender]++;
-                else facultyGenders['Other']++;
+                facultyGenders[u.gender] = (facultyGenders[u.gender] || 0) + 1;
+            } else {
+                facultyGenders['Other'] = (facultyGenders['Other'] || 0) + 1;
             }
             
             const desig = u.designation || 'Lecturer';
-            if (facultyDesignations[desig] !== undefined) {
-                facultyDesignations[desig]++;
-            } else {
-                facultyDesignations[desig] = 1;
-            }
+            facultyDesignations[desig] = (facultyDesignations[desig] || 0) + 1;
             
             const pubs = parseInt(u.publicationsCount) || 0;
-            if (facultyPublications[desig] !== undefined) {
-                facultyPublications[desig] += pubs;
-            } else {
-                facultyPublications[desig] = pubs;
-            }
+            facultyPublications[desig] = (facultyPublications[desig] || 0) + pubs;
 
             const edu = u.education || 'Ph.D';
-            if (facultyEducations[edu] !== undefined) {
-                facultyEducations[edu]++;
-            } else {
-                facultyEducations[edu] = 1;
-            }
+            facultyEducations[edu] = (facultyEducations[edu] || 0) + 1;
 
             const status = u.jobStatus || 'Active';
-            if (facultyJobStatus[status] !== undefined) {
-                facultyJobStatus[status]++;
-            } else {
-                facultyJobStatus[status] = 1;
-            }
+            facultyJobStatus[status] = (facultyJobStatus[status] || 0) + 1;
         }
     });
 
