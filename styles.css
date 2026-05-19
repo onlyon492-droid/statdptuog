@@ -2455,3 +2455,36 @@ body, nav, aside, main, div, input, select, textarea, button, p, span, h1, h2, h
     font-size: 0.85rem;
 }
 
+/* ─── DEPARTMENT ANALYTICS PORTIONS ───────────────────────────────────────── */
+.analytics-tab {
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text-secondary);
+    padding: 8px 16px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+    font-family: 'Outfit', sans-serif;
+}
+.analytics-tab.active {
+    background: var(--uog-blue);
+    color: #fff;
+    box-shadow: 0 4px 10px rgba(15, 76, 129, 0.2);
+}
+.analytics-tab:hover:not(.active) {
+    background: rgba(15, 76, 129, 0.08);
+    color: var(--uog-blue);
+}
+.analytics-tab-content {
+    animation: fadeIn 0.4s ease;
+}
+.kpi-card {
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+.kpi-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-hover);
+}

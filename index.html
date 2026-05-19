@@ -337,14 +337,93 @@
 
                     <!-- Analytics View Container -->
                     <div id="analytics-container" style="display: none; width: 100%; padding: 1rem;">
-                        <div class="analytics-header" style="margin-bottom: 2rem;">
-                            <h2 style="font-size: 1.5rem; color: var(--uog-blue);"><i class="fas fa-chart-bar"></i> Department Analytics</h2>
-                            <p style="color: var(--text-secondary);">Real-time statistical overview of the department.</p>
+                        <div class="analytics-header" style="margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+                            <div>
+                                <h2 style="font-size: 1.5rem; color: var(--uog-blue); margin: 0;"><i class="fas fa-chart-bar"></i> Department Analytics</h2>
+                                <p style="color: var(--text-secondary); margin: 4px 0 0 0;">Real-time statistical overview of the department.</p>
+                            </div>
+                            <div class="analytics-tabs" style="display: flex; gap: 8px; background: rgba(15, 76, 129, 0.05); padding: 4px; border-radius: 8px;">
+                                <button class="analytics-tab active" onclick="window.switchAnalyticsTab('overview')" id="btn-analytics-overview">Overview</button>
+                                <button class="analytics-tab" onclick="window.switchAnalyticsTab('statistics')" id="btn-analytics-statistics">BS Statistics</button>
+                                <button class="analytics-tab" onclick="window.switchAnalyticsTab('analytics-program')" id="btn-analytics-program">BS Data Analytics</button>
+                                <button class="analytics-tab" onclick="window.switchAnalyticsTab('faculty')" id="btn-analytics-faculty">Faculty Portfolio</button>
+                            </div>
                         </div>
-                        <div class="charts-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem;">
-                            <!-- Charts will be injected here via app.js -->
+
+                        <!-- 1. Overview Tab -->
+                        <div id="analytics-tab-overview" class="analytics-tab-content">
+                            <div class="charts-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem;">
+                                <!-- Overview charts -->
+                            </div>
+                        </div>
+
+                        <!-- 2. BS Statistics Tab -->
+                        <div id="analytics-tab-statistics" class="analytics-tab-content" style="display: none;">
+                            <div class="analytics-kpi-row" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+                                <div class="edu-card kpi-card" style="padding: 1rem; text-align: center; border-left: 4px solid var(--uog-blue); background: var(--bg-surface);">
+                                    <div style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary);">Total BS Stats Students</div>
+                                    <div id="kpi-stats-total" style="font-size: 1.8rem; font-weight: 700; color: var(--uog-blue); margin-top: 4px;">0</div>
+                                </div>
+                                <div class="edu-card kpi-card" style="padding: 1rem; text-align: center; border-left: 4px solid var(--uog-orange); background: var(--bg-surface);">
+                                    <div style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary);">Active Batches</div>
+                                    <div id="kpi-stats-batches" style="font-size: 1.8rem; font-weight: 700; color: var(--uog-orange); margin-top: 4px;">4 Batches</div>
+                                </div>
+                                <div class="edu-card kpi-card" style="padding: 1rem; text-align: center; border-left: 4px solid #10b981; background: var(--bg-surface);">
+                                    <div style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary);">Average Batch Size</div>
+                                    <div id="kpi-stats-avg-size" style="font-size: 1.8rem; font-weight: 700; color: #10b981; margin-top: 4px;">0</div>
+                                </div>
+                            </div>
+                            <div class="charts-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem;">
+                                <div class="analytics-card" style="background: var(--bg-surface); padding: 16px; border-radius: 12px; border: 1px solid var(--border-color);"><canvas id="statsBatchChart" height="260"></canvas></div>
+                                <div class="analytics-card" style="background: var(--bg-surface); padding: 16px; border-radius: 12px; border: 1px solid var(--border-color);"><canvas id="statsSemesterChart" height="260"></canvas></div>
+                            </div>
+                        </div>
+
+                        <!-- 3. BS Data Analytics Tab -->
+                        <div id="analytics-tab-analytics-program" class="analytics-tab-content" style="display: none;">
+                            <div class="analytics-kpi-row" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+                                <div class="edu-card kpi-card" style="padding: 1rem; text-align: center; border-left: 4px solid var(--uog-blue); background: var(--bg-surface);">
+                                    <div style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary);">Total BS Analytics Students</div>
+                                    <div id="kpi-analytics-total" style="font-size: 1.8rem; font-weight: 700; color: var(--uog-blue); margin-top: 4px;">0</div>
+                                </div>
+                                <div class="edu-card kpi-card" style="padding: 1rem; text-align: center; border-left: 4px solid var(--uog-orange); background: var(--bg-surface);">
+                                    <div style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary);">Active Batches</div>
+                                    <div id="kpi-analytics-batches" style="font-size: 1.8rem; font-weight: 700; color: var(--uog-orange); margin-top: 4px;">3 Batches</div>
+                                </div>
+                                <div class="edu-card kpi-card" style="padding: 1rem; text-align: center; border-left: 4px solid #10b981; background: var(--bg-surface);">
+                                    <div style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary);">Average Batch Size</div>
+                                    <div id="kpi-analytics-avg-size" style="font-size: 1.8rem; font-weight: 700; color: #10b981; margin-top: 4px;">0</div>
+                                </div>
+                            </div>
+                            <div class="charts-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem;">
+                                <div class="analytics-card" style="background: var(--bg-surface); padding: 16px; border-radius: 12px; border: 1px solid var(--border-color);"><canvas id="analyticsBatchChart" height="260"></canvas></div>
+                                <div class="analytics-card" style="background: var(--bg-surface); padding: 16px; border-radius: 12px; border: 1px solid var(--border-color);"><canvas id="analyticsSemesterChart" height="260"></canvas></div>
+                            </div>
+                        </div>
+
+                        <!-- 4. Faculty Tab -->
+                        <div id="analytics-tab-faculty" class="analytics-tab-content" style="display: none;">
+                            <div class="analytics-kpi-row" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+                                <div class="edu-card kpi-card" style="padding: 1rem; text-align: center; border-left: 4px solid var(--uog-blue); background: var(--bg-surface);">
+                                    <div style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary);">Total Faculty Members</div>
+                                    <div id="kpi-faculty-total" style="font-size: 1.8rem; font-weight: 700; color: var(--uog-blue); margin-top: 4px;">0</div>
+                                </div>
+                                <div class="edu-card kpi-card" style="padding: 1rem; text-align: center; border-left: 4px solid var(--uog-orange); background: var(--bg-surface);">
+                                    <div style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary);">Total Publications</div>
+                                    <div id="kpi-faculty-pubs" style="font-size: 1.8rem; font-weight: 700; color: var(--uog-orange); margin-top: 4px;">140+</div>
+                                </div>
+                                <div class="edu-card kpi-card" style="padding: 1rem; text-align: center; border-left: 4px solid #10b981; background: var(--bg-surface);">
+                                    <div style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary);">Ph.D. Qualified</div>
+                                    <div id="kpi-faculty-phd" style="font-size: 1.8rem; font-weight: 700; color: #10b981; margin-top: 4px;">4 Faculty</div>
+                                </div>
+                            </div>
+                            <div class="charts-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem;">
+                                <div class="analytics-card" style="background: var(--bg-surface); padding: 16px; border-radius: 12px; border: 1px solid var(--border-color);"><canvas id="facultyDesignationChart" height="260"></canvas></div>
+                                <div class="analytics-card" style="background: var(--bg-surface); padding: 16px; border-radius: 12px; border: 1px solid var(--border-color);"><canvas id="facultyPublicationsChart" height="260"></canvas></div>
+                            </div>
                         </div>
                     </div>
+
                 </main>
 
                 <!-- Right Sidebar -->
