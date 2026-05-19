@@ -702,6 +702,21 @@
             </div>
         </div>
 
+        <!-- Add Story Modal -->
+        <div class="edu-modal-overlay" id="add-story-modal" style="z-index: 2005;">
+            <div class="edu-modal-content" style="max-width: 400px;">
+                <div class="edu-modal-header">
+                    <h3>Add Academic Status</h3>
+                    <i class="fas fa-times close-modal" onclick="document.getElementById('add-story-modal').classList.remove('active')"></i>
+                </div>
+                <div class="edu-modal-body">
+                    <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 12px;">What is your academic status or story for today? (Max 60 chars)</p>
+                    <input type="text" id="story-input-text" class="edu-input" maxlength="60" placeholder="e.g. Studying for Midterms..." style="margin-bottom: 16px;">
+                    <button type="button" class="edu-btn-post" onclick="submitUserStory()">Share Status</button>
+                </div>
+            </div>
+        </div>
+
         <!-- Academic Status Story Viewer Modal -->
         <div id="story-viewer-modal" class="story-viewer-modal" onclick="window.closeStoryViewer()">
             <div class="story-viewer-card" onclick="event.stopPropagation()">

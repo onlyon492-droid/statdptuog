@@ -1239,11 +1239,30 @@ async function deletePost(postId) {
 async function renderSoftware() {
     const swList = await dbGet('software');
     listContainer.innerHTML = '';
-    if (swList.length === 0) {
+    
+    // Filter by visibility and target parameters
+    const filteredSw = swList.filter(sw => {
+        if (sw.visibility === 'faculty') {
+            if (currentUser.role !== 'Faculty' && sw.author !== currentUser.username) return false;
+        } else if (sw.visibility === 'batch_faculty') {
+            if (currentUser.role !== 'Faculty' && sw.author !== currentUser.username) {
+                const targetProg = sw.targetProgram || 'all';
+                const targetBat = sw.targetBatch || 'all';
+                const targetSem = sw.targetSemester || 'all';
+                
+                if (targetProg !== 'all' && currentUser.program !== targetProg) return false;
+                if (targetBat !== 'all' && currentUser.batch !== targetBat) return false;
+                if (targetSem !== 'all' && currentUser.semester !== targetSem) return false;
+            }
+        }
+        return true;
+    });
+    
+    if (filteredSw.length === 0) {
         listContainer.innerHTML = `<div style="grid-column:1/-1;padding:2rem;text-align:center;color:#6b7280;border:1px dashed #e5e7eb;border-radius:8px;">No software uploaded yet.</div>`;
         return;
     }
-    swList.forEach(sw => {
+    filteredSw.forEach(sw => {
         const hasFile = sw.files && sw.files.length > 0;
         let actionsHtml = '';
         if (sw.link) actionsHtml += `<a href="${sw.link}" target="_blank" class="sw-btn" style="background:#0f4c81;"><i class="fas fa-external-link-alt"></i> Official Link</a>`;
@@ -1483,12 +1502,14 @@ function toggleSoftwareFields() {
     softwareLinkInput.style.display  = isSW ? 'block' : 'none';
     isSW ? softwareTitleInput.setAttribute('required','true') : softwareTitleInput.removeAttribute('required');
     
-    const isRecord = postCategory.value === 'Records';
+    const isRecordOrSW = postCategory.value === 'Records' || postCategory.value === 'Software';
+    const isTargetedAudience = postAudience.value === 'batch_faculty';
     const recordTargeting = document.getElementById('record-targeting-container');
     if (recordTargeting) {
-        recordTargeting.style.display = isRecord ? 'block' : 'none';
+        recordTargeting.style.display = (isRecordOrSW && isTargetedAudience) ? 'block' : 'none';
     }
 }
+postAudience.addEventListener('change', toggleSoftwareFields);
 
 fileUpload.addEventListener('change', (e) => {
     Array.from(e.target.files).forEach(file => {
@@ -1520,7 +1541,23 @@ uploadForm.addEventListener('submit', async (e) => {
     btn.textContent = 'Publishing...'; btn.disabled = true;
     try {
         if (category === 'Software') {
-            await dbPost('software', { author: currentUser.username, name: currentUser.name, title: softwareTitleInput.value, desc: text, link: softwareLinkInput.value, files: [...uploadedFiles] });
+            const visibility = document.getElementById('post-audience') ? document.getElementById('post-audience').value : 'everyone';
+            const targetProgram = document.getElementById('target-program') ? document.getElementById('target-program').value : 'all';
+            const targetBatch = document.getElementById('target-batch') ? document.getElementById('target-batch').value : 'all';
+            const targetSemester = document.getElementById('target-semester') ? document.getElementById('target-semester').value : 'all';
+
+            await dbPost('software', { 
+                author: currentUser.username, 
+                name: currentUser.name, 
+                title: softwareTitleInput.value, 
+                desc: text, 
+                link: softwareLinkInput.value, 
+                files: [...uploadedFiles],
+                visibility,
+                targetProgram,
+                targetBatch,
+                targetSemester
+            });
             showToast('Software added!');
             document.querySelector('.sidebar-list li[data-target="software"]').click();
         } else {
@@ -1553,9 +1590,10 @@ uploadForm.addEventListener('submit', async (e) => {
                 }
             }
             
-            const targetProgram = category === 'Records' ? document.getElementById('target-program').value : 'all';
-            const targetBatch = category === 'Records' ? document.getElementById('target-batch').value : 'all';
-            const targetSemester = category === 'Records' ? document.getElementById('target-semester').value : 'all';
+            const isTargeted = category === 'Records' || category === 'Software';
+            const targetProgram = isTargeted ? document.getElementById('target-program').value : 'all';
+            const targetBatch = isTargeted ? document.getElementById('target-batch').value : 'all';
+            const targetSemester = isTargeted ? document.getElementById('target-semester').value : 'all';
 
             await dbPost('posts', {
                 author: postAuthor,
@@ -1606,11 +1644,21 @@ function getStories() {
     return activeStories || [];
 }
 
-window.addUserStory = async function() {
+window.addUserStory = function() {
     if (!currentUser) return;
-    const txt = prompt("What is your academic status or story for today? (Max 60 chars):");
-    if (txt === null) return;
-    const cleanTxt = txt.trim();
+    const modal = document.getElementById('add-story-modal');
+    if (modal) {
+        document.getElementById('story-input-text').value = '';
+        modal.classList.add('active');
+    }
+};
+
+window.submitUserStory = async function() {
+    if (!currentUser) return;
+    const inputEl = document.getElementById('story-input-text');
+    if (!inputEl) return;
+    
+    const cleanTxt = inputEl.value.trim();
     if (!cleanTxt) {
         showToast("Status cannot be empty.", true);
         return;
@@ -1632,6 +1680,8 @@ window.addUserStory = async function() {
         
         logSecurityEvent('Add Story', `Updated personal academic status to: "${cleanTxt}"`, 'success');
         showToast("Academic status updated!");
+        
+        document.getElementById('add-story-modal').classList.remove('active');
         
         if (currentView === 'feed') {
             await renderPosts('feed');
