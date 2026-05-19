@@ -43,6 +43,8 @@ const userSchema = new mongoose.Schema({
     profilePic: { type: String, default: '' }, // holds base64
     program: { type: String, default: '' }, // e.g. 'BS Statistics', 'BS Data Analytics'
     batch: { type: String, default: '' }, // e.g. '2022-2026'
+    designation: { type: String, default: '' }, // e.g. 'Professor', 'Lecturer'
+    publicationsCount: { type: Number, default: 0 },
     
     // Privacy settings fields
     phoneVisible: { type: Boolean, default: false },
@@ -60,6 +62,16 @@ const userSchema = new mongoose.Schema({
     lastActive: { type: Date, default: Date.now }
 });
 const User = mongoose.model('User', userSchema);
+
+const storySchema = new mongoose.Schema({
+    id: { type: String, required: true },
+    username: { type: String, required: true },
+    name: { type: String, required: true },
+    profilePic: { type: String, default: '' },
+    text: { type: String, required: true },
+    timestamp: { type: Number, required: true }
+});
+const Story = mongoose.model('Story', storySchema);
 
 const batchSchema = new mongoose.Schema({
     name: { type: String, required: true, unique: true }
@@ -103,6 +115,9 @@ const postSchema = new mongoose.Schema({
     originalAuthor: { type: String },
     authorBatch: { type: String },
     visibility: { type: String, default: 'everyone' },
+    targetProgram: { type: String, default: 'all' },
+    targetBatch: { type: String, default: 'all' },
+    targetSemester: { type: String, default: 'all' },
     poll: {
         question: { type: String },
         options: [
@@ -160,7 +175,7 @@ app.use('/api', async (req, res, next) => {
 // ── USERS ─────────────────────────────────────────────────────────────────────
 app.post('/api/register', async (req, res) => {
     try {
-        const { username, password, name, role, phone, program, batch } = req.body;
+        const { username, password, name, role, phone, program, batch, designation, publicationsCount } = req.body;
         if (!username || !password || !name || !role) return res.status(400).json({ error: 'Missing fields' });
 
         const normalizedUsername = username.toLowerCase().trim();
@@ -183,6 +198,8 @@ app.post('/api/register', async (req, res) => {
             profilePic: '',
             program: program || '',
             batch: batch || '',
+            designation: designation || '',
+            publicationsCount: Number(publicationsCount) || 0,
             phoneVisible: false,
             allowComments: 'everyone',
             allowDownloads: true,
@@ -228,7 +245,7 @@ app.get('/api/users', async (req, res) => {
 
 app.put('/api/users/:username/profile', async (req, res) => {
     try {
-        const { name, phone, password, profilePic, program, batch, phoneVisible, allowComments, allowDownloads, showAppreciations, phonePrivacy, profileStealth, statusPrivacy, connectionPolicy, tagline } = req.body;
+        const { name, phone, password, profilePic, program, batch, phoneVisible, allowComments, allowDownloads, showAppreciations, phonePrivacy, profileStealth, statusPrivacy, connectionPolicy, tagline, designation, publicationsCount } = req.body;
         const user = await User.findOne({ username: req.params.username.toLowerCase().trim() });
         if (!user) return res.status(404).json({ error: 'User not found' });
         
@@ -238,6 +255,8 @@ app.put('/api/users/:username/profile', async (req, res) => {
         if (profilePic !== undefined) user.profilePic = profilePic;
         if (program !== undefined) user.program = program;
         if (batch !== undefined) user.batch = batch;
+        if (designation !== undefined) user.designation = designation;
+        if (publicationsCount !== undefined) user.publicationsCount = Number(publicationsCount) || 0;
         
         if (phoneVisible !== undefined) user.phoneVisible = phoneVisible;
         if (allowComments !== undefined) user.allowComments = allowComments;
@@ -316,7 +335,7 @@ app.get('/api/posts', async (req, res) => {
 
 app.post('/api/posts', async (req, res) => {
     try {
-        const { author, name, role, category, text, files, originalAuthor, authorBatch, visibility, poll } = req.body;
+        const { author, name, role, category, text, files, originalAuthor, authorBatch, visibility, poll, targetProgram, targetBatch, targetSemester } = req.body;
         if (!text || !category) return res.status(400).json({ error: 'Missing fields' });
         
         const post = new Post({
@@ -331,6 +350,9 @@ app.post('/api/posts', async (req, res) => {
             originalAuthor,
             authorBatch,
             visibility: visibility || 'everyone',
+            targetProgram: targetProgram || 'all',
+            targetBatch: targetBatch || 'all',
+            targetSemester: targetSemester || 'all',
             poll
         });
         await post.save();
@@ -462,48 +484,42 @@ app.post('/api/posts/:id/react', async (req, res) => {
     }
 });
 
-app.post('/api/users/:username/connect', async (req, res) => {
+// ── STORIES ───────────────────────────────────────────────────────────────────
+app.get('/api/stories', async (req, res) => {
     try {
-        const { targetUsername } = req.body;
-        if (!targetUsername) return res.status(400).json({ error: 'Missing targetUsername' });
+        // Clear stories older than 24 hours
+        const oneDayAgo = Date.now() - 24 * 3600 * 1000;
+        await Story.deleteMany({ timestamp: { $lt: oneDayAgo } });
         
-        const user = await User.findOne({ username: req.params.username.toLowerCase() });
-        const target = await User.findOne({ username: targetUsername.toLowerCase() });
-        
-        if (!user || !target) return res.status(404).json({ error: 'User not found' });
-        
-        if (!user.connections) user.connections = [];
-        if (!target.connections) target.connections = [];
-        
-        const idx = user.connections.indexOf(targetUsername);
-        if (idx !== -1) {
-            // Disconnect (Always allowed)
-            user.connections.splice(idx, 1);
-            const targetIdx = target.connections.indexOf(user.username);
-            if (targetIdx !== -1) target.connections.splice(targetIdx, 1);
-        } else {
-            // Connect - Validate target user's policy
-            const targetPolicy = target.connectionPolicy || 'everyone';
-            if (targetPolicy === 'faculty_only' && user.role !== 'Faculty') {
-                return res.status(403).json({ error: 'This user only allows connection requests from Faculty members.' });
-            }
-            if (targetPolicy === 'same_batch') {
-                if (user.role !== 'Faculty' && user.batch !== target.batch) {
-                    return res.status(403).json({ error: 'This user only allows connection requests from their own batch.' });
-                }
-            }
-            
-            user.connections.push(targetUsername);
-            target.connections.push(user.username);
-        }
-        
-        await user.save();
-        await target.save();
-        
-        res.json({ connections: user.connections });
+        const stories = await Story.find({}).sort({ timestamp: -1 });
+        res.json(stories);
     } catch (err) {
         console.error(err);
-        res.status(500).json({ error: 'Error toggling connection' });
+        res.status(500).json({ error: 'Error fetching stories' });
+    }
+});
+
+app.post('/api/stories', async (req, res) => {
+    try {
+        const { id, username, name, profilePic, text, timestamp } = req.body;
+        if (!text || !username) return res.status(400).json({ error: 'Missing fields' });
+        
+        // Remove previous story from same user if any
+        await Story.deleteMany({ username });
+        
+        const story = new Story({
+            id: id || 'user-' + Date.now(),
+            username,
+            name,
+            profilePic: profilePic || '',
+            text,
+            timestamp: timestamp || Date.now()
+        });
+        await story.save();
+        res.json(story);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Error creating story' });
     }
 });
 

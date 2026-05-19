@@ -83,40 +83,7 @@ async function dbPost(endpoint, body) {
         }
         return { success: true };
     }
-    if (endpoint.startsWith('users/') && endpoint.endsWith('/connect')) {
-        const username = endpoint.split('/')[1];
-        const targetUsername = body.targetUsername.toLowerCase();
-        const users = JSON.parse(localStorage.getItem('uog_users') || '[]');
-        const userIdx = users.findIndex(u => u.username === username);
-        const targetIdx = users.findIndex(u => u.username === targetUsername);
-        if (userIdx !== -1 && targetIdx !== -1) {
-            if (!users[userIdx].connections) users[userIdx].connections = [];
-            if (!users[targetIdx].connections) users[targetIdx].connections = [];
-            
-            const idx = users[userIdx].connections.indexOf(targetUsername);
-            if (idx !== -1) {
-                // Disconnect (Always allowed)
-                users[userIdx].connections.splice(idx, 1);
-                const targetConnIdx = users[targetIdx].connections.indexOf(username);
-                if (targetConnIdx !== -1) users[targetIdx].connections.splice(targetConnIdx, 1);
-            } else {
-                // Connect validation
-                const targetPolicy = users[targetIdx].connectionPolicy || 'everyone';
-                if (targetPolicy === 'faculty_only' && users[userIdx].role !== 'Faculty') {
-                    throw new Error('This user only allows connection requests from Faculty members.');
-                }
-                if (targetPolicy === 'same_batch') {
-                    if (users[userIdx].role !== 'Faculty' && users[userIdx].batch !== users[targetIdx].batch) {
-                        throw new Error('This user only allows connection requests from their own batch.');
-                    }
-                }
-                users[userIdx].connections.push(targetUsername);
-                users[targetIdx].connections.push(username);
-            }
-            localStorage.setItem('uog_users', JSON.stringify(users));
-            return { connections: users[userIdx].connections };
-        }
-    }
+
     if (endpoint.includes('/vote')) {
         const postId = endpoint.split('/')[1];
         const posts = JSON.parse(localStorage.getItem('uog_posts') || '[]');
@@ -282,6 +249,7 @@ if (!localStorage.getItem('uog_software')) localStorage.setItem('uog_software', 
 
 // ─── STATE ───────────────────────────────────────────────────────────────────
 let currentUser = null;
+let activeStories = [];
 let heartbeatInterval = null;
 
 // ─── SESSION PERSISTENCE ─────────────────────────────────────────────────────
@@ -513,23 +481,29 @@ document.getElementById('close-signup').addEventListener('click', () => document
 const regRole = document.getElementById('reg-role');
 const regUsername = document.getElementById('reg-username');
 const regStudentFields = document.getElementById('reg-student-fields');
+const regFacultyFields = document.getElementById('reg-faculty-fields');
+
 regRole.addEventListener('change', () => {
     if (regRole.value === 'Student') {
         regUsername.placeholder = "Roll No (Must contain 'UOG')";
         regStudentFields.style.display = 'block';
+        regFacultyFields.style.display = 'none';
         document.getElementById('reg-program').required = true;
         document.getElementById('reg-batch').required = true;
         document.getElementById('reg-area').required = true;
         document.getElementById('reg-age').required = true;
         document.getElementById('reg-semester').required = true;
+        document.getElementById('reg-designation').required = false;
     } else {
         regUsername.placeholder = "Faculty Email (@uog.edu.pk)";
         regStudentFields.style.display = 'none';
+        regFacultyFields.style.display = 'block';
         document.getElementById('reg-program').required = false;
         document.getElementById('reg-batch').required = false;
         document.getElementById('reg-area').required = false;
         document.getElementById('reg-age').required = false;
         document.getElementById('reg-semester').required = false;
+        document.getElementById('reg-designation').required = true;
     }
 });
 
@@ -539,6 +513,7 @@ document.getElementById('signup-form').addEventListener('submit', async (e) => {
     const username = regUsername.value.trim().toLowerCase();
     if (role === 'Student' && !username.includes('uog')) { showToast("Roll Number must contain 'UOG'", true); return; }
     if (role === 'Faculty' && !username.endsWith('@uog.edu.pk')) { showToast("Faculty must use @uog.edu.pk email", true); return; }
+    
     const program = role === 'Student' ? document.getElementById('reg-program').value : '';
     const batch = role === 'Student' ? document.getElementById('reg-batch').value : '';
     const tagline = document.getElementById('reg-tagline') ? document.getElementById('reg-tagline').value.trim() : '';
@@ -546,6 +521,9 @@ document.getElementById('signup-form').addEventListener('submit', async (e) => {
     const area = role === 'Student' ? document.getElementById('reg-area').value.trim() : '';
     const age = role === 'Student' ? document.getElementById('reg-age').value : '';
     const semester = role === 'Student' ? document.getElementById('reg-semester').value : '';
+    
+    const designation = role === 'Faculty' ? document.getElementById('reg-designation').value : '';
+    const publicationsCount = role === 'Faculty' ? (parseInt(document.getElementById('reg-publications').value) || 0) : 0;
     
     const btn = e.target.querySelector('button[type=submit]');
     btn.textContent = 'Registering...'; btn.disabled = true;
@@ -562,7 +540,9 @@ document.getElementById('signup-form').addEventListener('submit', async (e) => {
             gender,
             area,
             age,
-            semester
+            semester,
+            designation,
+            publicationsCount
         });
         showToast('Registration successful! Please login.');
         document.getElementById('signup-modal').classList.remove('active');
@@ -625,7 +605,9 @@ function initApp() {
     if (currentUser.role === 'Student') {
         document.getElementById('side-role').textContent = `${currentUser.program || 'Student'} • Batch ${currentUser.batch || 'N/A'}`;
     } else {
-        document.getElementById('side-role').textContent = currentUser.role;
+        const desig = currentUser.designation || 'Faculty Member';
+        const pubCount = currentUser.publicationsCount || 0;
+        document.getElementById('side-role').textContent = `${desig} • ${pubCount} Papers`;
     }
     
     document.getElementById('compose-name').textContent = currentUser.name;
@@ -671,12 +653,17 @@ document.getElementById('open-edit-profile').addEventListener('click', () => {
     }
     
     const editStudentFields = document.getElementById('edit-student-fields');
+    const editFacultyFields = document.getElementById('edit-faculty-fields');
     if (currentUser.role === 'Student') {
         editStudentFields.style.display = 'block';
+        editFacultyFields.style.display = 'none';
         document.getElementById('edit-program').value = currentUser.program || '';
         document.getElementById('edit-batch').value = currentUser.batch || '';
     } else {
         editStudentFields.style.display = 'none';
+        editFacultyFields.style.display = 'block';
+        document.getElementById('edit-designation').value = currentUser.designation || 'Lecturer';
+        document.getElementById('edit-publications').value = currentUser.publicationsCount || 0;
     }
     
     document.getElementById('edit-profile-modal').classList.add('active');
@@ -698,6 +685,9 @@ document.getElementById('edit-profile-form').addEventListener('submit', async (e
     if (currentUser.role === 'Student') {
         body.program = document.getElementById('edit-program').value;
         body.batch = document.getElementById('edit-batch').value;
+    } else {
+        body.designation = document.getElementById('edit-designation').value;
+        body.publicationsCount = parseInt(document.getElementById('edit-publications').value) || 0;
     }
     
     try {
@@ -706,6 +696,8 @@ document.getElementById('edit-profile-form').addEventListener('submit', async (e
         currentUser.program = data.user.program;
         currentUser.batch = data.user.batch;
         currentUser.tagline = data.user.tagline;
+        currentUser.designation = data.user.designation;
+        currentUser.publicationsCount = data.user.publicationsCount;
         localStorage.setItem('uog_session', JSON.stringify(currentUser)); // Keep session fresh
         
         document.getElementById('side-name').textContent = currentUser.name;
@@ -721,6 +713,10 @@ document.getElementById('edit-profile-form').addEventListener('submit', async (e
         // Also update subtext role/program/batch on sidebar
         if (currentUser.role === 'Student') {
             document.getElementById('side-role').textContent = `${currentUser.program || 'Student'} • Batch ${currentUser.batch || 'N/A'}`;
+        } else {
+            const desig = currentUser.designation || 'Faculty Member';
+            const pubCount = currentUser.publicationsCount || 0;
+            document.getElementById('side-role').textContent = `${desig} • ${pubCount} Papers`;
         }
         
         document.getElementById('edit-profile-modal').classList.remove('active');
@@ -832,7 +828,8 @@ function switchView(view) {
 
 // ─── RENDER POSTS ─────────────────────────────────────────────────────────────
 async function renderPosts(filterView) {
-    const [posts, users] = await Promise.all([dbGet('posts'), dbGet('users')]);
+    const [posts, users, stories] = await Promise.all([dbGet('posts'), dbGet('users'), dbGet('stories')]);
+    activeStories = stories || [];
     
     // 1. Filter Posts
     let filtered = [];
@@ -852,6 +849,17 @@ async function renderPosts(filterView) {
                 if (currentUser.role !== 'Faculty' && p.author !== currentUser.username && p.originalAuthor !== currentUser.username) {
                     if (!p.authorBatch || currentUser.batch !== p.authorBatch) return false;
                 }
+            }
+            
+            // Targeted records visibility (e.g. BS program, batches, semesters)
+            if (p.category.includes('Record') && currentUser.role !== 'Faculty' && p.author !== currentUser.username && p.originalAuthor !== currentUser.username) {
+                const targetProg = p.targetProgram || 'all';
+                const targetBat = p.targetBatch || 'all';
+                const targetSem = p.targetSemester || 'all';
+                
+                if (targetProg !== 'all' && currentUser.program !== targetProg) return false;
+                if (targetBat !== 'all' && currentUser.batch !== targetBat) return false;
+                if (targetSem !== 'all' && currentUser.semester !== targetSem) return false;
             }
             return true;
         });
@@ -912,11 +920,6 @@ async function renderPosts(filterView) {
                 const statusPrivacy = postUser.statusPrivacy || 'everyone';
                 if (statusPrivacy === 'everyone' || post.author === currentUser.username || currentUser.role === 'Faculty') {
                     showActiveDot = true;
-                } else if (statusPrivacy === 'connections') {
-                    const userConnections = currentUser.connections || [];
-                    if (userConnections.includes(post.author)) {
-                        showActiveDot = true;
-                    }
                 }
             }
         }
@@ -1283,11 +1286,6 @@ async function renderDirectory() {
             const statusPrivacy = u.statusPrivacy || 'everyone';
             if (statusPrivacy === 'everyone' || u.username === currentUser.username || currentUser.role === 'Faculty') {
                 showActiveDot = true;
-            } else if (statusPrivacy === 'connections') {
-                const userConnections = currentUser.connections || [];
-                if (userConnections.includes(u.username)) {
-                    showActiveDot = true;
-                }
             }
         }
         
@@ -1303,7 +1301,12 @@ async function renderDirectory() {
         let badgeHtml = '';
         let extraCardClass = '';
         if (u.role === 'Faculty') {
+            const desig = u.designation || 'Lecturer';
             badgeHtml = `<span class="badge-faculty"><i class="fas fa-chalkboard-teacher"></i> Faculty</span>`;
+            badgeHtml += ` <span class="badge-batch" style="background:#e0f2fe; color:#0369a1; border-color:#bae6fd;"><i class="fas fa-briefcase"></i> ${desig}</span>`;
+            if (u.publicationsCount) {
+                badgeHtml += ` <span class="badge-batch" style="background:#fef3c7; color:#d97706; border-color:#fde68a;"><i class="fas fa-book-open"></i> ${u.publicationsCount} Papers</span>`;
+            }
             extraCardClass = 'faculty-card';
         } else {
             const isAnalytics = u.program === 'BS Data Analytics';
@@ -1321,9 +1324,6 @@ async function renderDirectory() {
         const phonePrivacy = u.phonePrivacy || (u.phoneVisible === true ? 'everyone' : 'none');
         if (phonePrivacy === 'everyone') {
             isPhoneVisible = true;
-        } else if (phonePrivacy === 'connections') {
-            const userConnections = currentUser.connections || [];
-            if (userConnections.includes(u.username)) isPhoneVisible = true;
         } else if (phonePrivacy === 'faculty' && currentUser.role === 'Faculty') {
             isPhoneVisible = true;
         }
@@ -1341,45 +1341,6 @@ async function renderDirectory() {
                 <i class="fas fa-eye-slash" style="font-size:0.75rem;"></i>
                 <span style="font-weight: 400;">Phone Private</span>
                </div>`;
-        
-        let connectBtnHtml = '';
-        if (u.username !== currentUser.username) {
-            const userConnections = currentUser.connections || [];
-            const isConnected = userConnections.includes(u.username);
-            
-            // Check target's connection lock
-            let canConnect = true;
-            const targetPolicy = u.connectionPolicy || 'everyone';
-            if (targetPolicy === 'same_batch') {
-                if (currentUser.role !== 'Faculty' && (currentUser.role !== 'Student' || currentUser.batch !== u.batch)) {
-                    canConnect = false;
-                }
-            } else if (targetPolicy === 'faculty_only') {
-                if (currentUser.role !== 'Faculty') {
-                    canConnect = false;
-                }
-            }
-            
-            if (isConnected) {
-                connectBtnHtml = `
-                    <button class="connect-btn connected" disabled>
-                        <i class="fas fa-check"></i> Connected
-                    </button>
-                `;
-            } else if (!canConnect) {
-                connectBtnHtml = `
-                    <button class="connect-btn" disabled style="background:rgba(0,0,0,0.05); color:#6b7280; border-color:transparent; cursor:not-allowed;">
-                        <i class="fas fa-lock"></i> Restricted
-                    </button>
-                `;
-            } else {
-                connectBtnHtml = `
-                    <button class="connect-btn" onclick="window.toggleConnection('${u.username}', this)">
-                        <i class="fas fa-user-plus"></i> Connect
-                    </button>
-                `;
-            }
-        }
 
         const card = document.createElement('div');
         card.className = `student-card ${extraCardClass}`;
@@ -1390,7 +1351,6 @@ async function renderDirectory() {
             <div style="margin-bottom: 8px;">${badgeHtml}</div>
             <span style="font-size:0.8rem;background:rgba(15,76,129,0.05);color:var(--uog-blue);padding:4px 10px;border-radius:20px;border:1px solid rgba(15,76,129,0.1);font-family:monospace;font-weight:600;">${u.username}</span>
             ${phoneHtml}
-            ${connectBtnHtml}
         `;
         listContainer.appendChild(card);
     });
@@ -1472,6 +1432,12 @@ function toggleSoftwareFields() {
     softwareTitleInput.style.display = isSW ? 'block' : 'none';
     softwareLinkInput.style.display  = isSW ? 'block' : 'none';
     isSW ? softwareTitleInput.setAttribute('required','true') : softwareTitleInput.removeAttribute('required');
+    
+    const isRecord = postCategory.value === 'Records';
+    const recordTargeting = document.getElementById('record-targeting-container');
+    if (recordTargeting) {
+        recordTargeting.style.display = isRecord ? 'block' : 'none';
+    }
 }
 
 fileUpload.addEventListener('change', (e) => {
@@ -1537,7 +1503,25 @@ uploadForm.addEventListener('submit', async (e) => {
                 }
             }
             
-            await dbPost('posts', { author: postAuthor, name: postName, role: postRole, category: catText, text, files: [...uploadedFiles], originalAuthor: currentUser.username, authorBatch: currentUser.batch, visibility, poll });
+            const targetProgram = category === 'Records' ? document.getElementById('target-program').value : 'all';
+            const targetBatch = category === 'Records' ? document.getElementById('target-batch').value : 'all';
+            const targetSemester = category === 'Records' ? document.getElementById('target-semester').value : 'all';
+
+            await dbPost('posts', {
+                author: postAuthor,
+                name: postName,
+                role: postRole,
+                category: catText,
+                text,
+                files: [...uploadedFiles],
+                originalAuthor: currentUser.username,
+                authorBatch: currentUser.batch,
+                visibility,
+                poll,
+                targetProgram,
+                targetBatch,
+                targetSemester
+            });
             showToast(isAnon ? 'Anonymous update shared securely!' : 'Update shared!');
             document.querySelector(`.sidebar-list li[data-target="${category === 'Feed' ? 'feed' : 'records'}"]`).click();
         }
@@ -1569,56 +1553,10 @@ window.reactToPost = async function(postId, reactionType) {
 // ─── SOCIAL STORIES & POLLS LOGIC ───────────────────────────────────────────
 
 function getStories() {
-    let stories = JSON.parse(localStorage.getItem('uog_stories') || '[]');
-    // Seed default stories if empty to show interactive bubbles
-    if (stories.length === 0) {
-        const now = Date.now();
-        stories = [
-            {
-                id: 'seed-1',
-                username: 'ayesha.stats',
-                name: 'Ayesha Khan',
-                profilePic: '',
-                text: 'Working on the Regression Analysis project! 📊',
-                timestamp: now - 3 * 3600 * 1000 // 3 hours ago
-            },
-            {
-                id: 'seed-2',
-                username: 'bilal.student',
-                name: 'Bilal Ahmed',
-                profilePic: '',
-                text: 'Passed the Probability Theory midterm! 🎉',
-                timestamp: now - 5 * 3600 * 1000 // 5 hours ago
-            },
-            {
-                id: 'seed-3',
-                username: 'dr.asif.faculty',
-                name: 'Dr. Asif',
-                profilePic: '',
-                text: 'Statistical inference assignments are due tomorrow by 12:00 PM. ⏳',
-                timestamp: now - 1 * 3600 * 1000 // 1 hour ago
-            },
-            {
-                id: 'seed-4',
-                username: 'zainab.stats',
-                name: 'Zainab Jameel',
-                profilePic: '',
-                text: 'Learning R-markdown for data visualization. 📈',
-                timestamp: now - 8 * 3600 * 1000 // 8 hours ago
-            }
-        ];
-        localStorage.setItem('uog_stories', JSON.stringify(stories));
-    }
-    // Filter out stories older than 24 hours
-    const oneDay = 24 * 3600 * 1000;
-    const activeStories = stories.filter(s => (Date.now() - s.timestamp) < oneDay);
-    if (activeStories.length !== stories.length) {
-        localStorage.setItem('uog_stories', JSON.stringify(activeStories));
-    }
-    return activeStories;
+    return activeStories || [];
 }
 
-window.addUserStory = function() {
+window.addUserStory = async function() {
     if (!currentUser) return;
     const txt = prompt("What is your academic status or story for today? (Max 60 chars):");
     if (txt === null) return;
@@ -1632,25 +1570,24 @@ window.addUserStory = function() {
         return;
     }
     
-    const stories = JSON.parse(localStorage.getItem('uog_stories') || '[]');
-    // Remove previous story from same user if any
-    const filtered = stories.filter(s => s.username !== currentUser.username);
-    
-    filtered.unshift({
-        id: 'user-' + Date.now(),
-        username: currentUser.username,
-        name: currentUser.name,
-        profilePic: currentUser.profilePic || '',
-        text: cleanTxt,
-        timestamp: Date.now()
-    });
-    
-    localStorage.setItem('uog_stories', JSON.stringify(filtered));
-    logSecurityEvent('Add Story', `Updated personal academic status to: "${cleanTxt}"`, 'success');
-    showToast("Academic status updated!");
-    
-    if (currentView === 'feed') {
-        renderPosts('feed');
+    try {
+        await dbPost('stories', {
+            id: 'user-' + Date.now(),
+            username: currentUser.username,
+            name: currentUser.name,
+            profilePic: currentUser.profilePic || '',
+            text: cleanTxt,
+            timestamp: Date.now()
+        });
+        
+        logSecurityEvent('Add Story', `Updated personal academic status to: "${cleanTxt}"`, 'success');
+        showToast("Academic status updated!");
+        
+        if (currentView === 'feed') {
+            await renderPosts('feed');
+        }
+    } catch (err) {
+        showToast("Could not update status: " + err.message, true);
     }
 };
 
@@ -1783,29 +1720,6 @@ window.castPollVote = async function(postId, optionIndex) {
         switchView(currentView);
     } catch (err) {
         showToast('Could not record vote: ' + err.message, true);
-    }
-};
-
-window.toggleConnection = async function(targetUsername, btnEl) {
-    if (btnEl.classList.contains('connected')) return;
-    
-    try {
-        btnEl.disabled = true;
-        btnEl.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Connecting...`;
-        
-        const res = await dbPost(`users/${currentUser.username}/connect`, { targetUsername });
-        currentUser.connections = res.connections;
-        
-        // Dynamic success animation state transitions
-        btnEl.classList.add('connected');
-        btnEl.disabled = true;
-        btnEl.innerHTML = `<i class="fas fa-check"></i> Connected`;
-        
-        showToast(`Connected with @${targetUsername}!`);
-    } catch (err) {
-        showToast('Could not establish connection: ' + err.message, true);
-        btnEl.disabled = false;
-        btnEl.innerHTML = `<i class="fas fa-user-plus"></i> Connect`;
     }
 };
 
@@ -1994,6 +1908,7 @@ function populateBatchDropdowns(batches) {
     const regBatch = document.getElementById('reg-batch');
     const editBatch = document.getElementById('edit-batch');
     const dirBatchSelect = document.getElementById('dir-batch-select');
+    const targetBatch = document.getElementById('target-batch');
     
     if (regBatch) {
         const val = regBatch.value;
@@ -2012,6 +1927,12 @@ function populateBatchDropdowns(batches) {
         dirBatchSelect.innerHTML = '<option value="All">All Sessions</option>' + 
             batches.map(b => `<option value="${b.name}">Session ${b.name}</option>`).join('');
         dirBatchSelect.value = val;
+    }
+    if (targetBatch) {
+        const val = targetBatch.value || 'all';
+        targetBatch.innerHTML = '<option value="all">All Batches</option>' + 
+            batches.map(b => `<option value="${b.name}">${b.name}</option>`).join('');
+        targetBatch.value = val;
     }
 }
 
@@ -2121,7 +2042,6 @@ window.renderPrivacyDashboard = function() {
     }
     const profileStealth = currentUser.profileStealth === true;
     const statusPrivacy = currentUser.statusPrivacy || 'everyone';
-    const connectionPolicy = currentUser.connectionPolicy || 'everyone';
     
     const allowComments = currentUser.allowComments || 'everyone';
     const allowDownloads = currentUser.allowDownloads !== false; // default true
@@ -2144,7 +2064,6 @@ window.renderPrivacyDashboard = function() {
                     <span>Who can see your phone number</span>
                     <select class="edu-select" style="width: auto; margin-bottom: 0; padding: 6px 12px;" onchange="window.updatePrivacySetting('phonePrivacy', this.value)">
                         <option value="everyone" ${phonePrivacy === 'everyone' ? 'selected' : ''}>Everyone</option>
-                        <option value="connections" ${phonePrivacy === 'connections' ? 'selected' : ''}>My Connections</option>
                         <option value="faculty" ${phonePrivacy === 'faculty' ? 'selected' : ''}>Faculty Only</option>
                         <option value="none" ${phonePrivacy === 'none' ? 'selected' : ''}>Only Me (Private)</option>
                     </select>
@@ -2184,31 +2103,66 @@ window.renderPrivacyDashboard = function() {
                     <span>Who can see your online status</span>
                     <select class="edu-select" style="width: auto; margin-bottom: 0; padding: 6px 12px;" onchange="window.updatePrivacySetting('statusPrivacy', this.value)">
                         <option value="everyone" ${statusPrivacy === 'everyone' ? 'selected' : ''}>Everyone</option>
-                        <option value="connections" ${statusPrivacy === 'connections' ? 'selected' : ''}>My Connections</option>
                         <option value="none" ${statusPrivacy === 'none' ? 'selected' : ''}>Hide from all</option>
                     </select>
                 </div>
             </div>
         </div>
 
-        <!-- Card: Connection Request Policy -->
+        <!-- Card 2: Commenting Privacy -->
         <div class="privacy-card">
             <div class="privacy-header">
-                <div class="privacy-icon" style="color: #8b5cf6;"><i class="fas fa-user-friends"></i></div>
+                <div class="privacy-icon uog-orange-text"><i class="fas fa-comments"></i></div>
                 <div>
-                    <h3>Connection Requests</h3>
-                    <p>Control who is allowed to send you connection requests.</p>
+                    <h3>Post Commenting Policy</h3>
+                    <p>Select who is authorized to comment on the updates, files, and academic resources you upload to the department feed.</p>
                 </div>
             </div>
             <div class="privacy-control" style="flex-direction: column; align-items: stretch; gap: 12px;">
                 <div style="display:flex; justify-content:space-between; align-items:center; width: 100%;">
-                    <span>Who can connect with you</span>
-                    <select class="edu-select" style="width: auto; margin-bottom: 0; padding: 6px 12px;" onchange="window.updatePrivacySetting('connectionPolicy', this.value)">
-                        <option value="everyone" ${connectionPolicy === 'everyone' ? 'selected' : ''}>Everyone</option>
-                        <option value="same_batch" ${connectionPolicy === 'same_batch' ? 'selected' : ''}>Same Batch & Faculty</option>
-                        <option value="faculty_only" ${connectionPolicy === 'faculty_only' ? 'selected' : ''}>Faculty Only</option>
+                    <span>Who can comment on your posts</span>
+                    <select id="privacy-comments-select" class="edu-select" style="width: auto; margin-bottom: 0; padding: 6px 12px;" onchange="window.updatePrivacySetting('allowComments', this.value)">
+                        <option value="everyone" ${allowComments === 'everyone' ? 'selected' : ''}>Everyone (All Members)</option>
+                        <option value="faculty" ${allowComments === 'faculty' ? 'selected' : ''}>Only Faculty Members</option>
+                        <option value="none" ${allowComments === 'none' ? 'selected' : ''}>Disable Commenting Completely</option>
                     </select>
                 </div>
+            </div>
+        </div>
+
+        <!-- Card 3: File View & Download Locks -->
+        <div class="privacy-card">
+            <div class="privacy-header">
+                <div class="privacy-icon blue-text"><i class="fas fa-file-download"></i></div>
+                <div>
+                    <h3>Attachment Protection</h3>
+                    <p>Restrict downloading and viewing of documents, figures, slides, and videos attached to your posts. When enabled, non-authors will see a lock state and cannot access attachment files.</p>
+                </div>
+            </div>
+            <div class="privacy-control toggle-control">
+                <span>Allow others to view/download attachments</span>
+                <label class="switch">
+                    <input type="checkbox" id="privacy-downloads-toggle" ${allowDownloads ? 'checked' : ''} onchange="window.updatePrivacySetting('allowDownloads', this.checked)">
+                    <span class="slider"></span>
+                </label>
+            </div>
+        </div>
+
+        <!-- Card 4: Appreciation Visibility -->
+        <div class="privacy-card">
+            <div class="privacy-header">
+                <div class="privacy-icon purple-text"><i class="fas fa-thumbs-up"></i></div>
+                <div>
+                    <h3>Appreciations Visibility</h3>
+                    <p>Choose whether to show the total number of likes (appreciations) your posts receive. When turned off, others will see "Appreciations Private", but you can still view your post stats.</p>
+                </div>
+            </div>
+            <div class="privacy-control toggle-control">
+                <span>Show total appreciation count to others</span>
+                <label class="switch">
+                    <input type="checkbox" id="privacy-likes-toggle" ${showAppreciations ? 'checked' : ''} onchange="window.updatePrivacySetting('showAppreciations', this.checked)">
+                    <span class="slider"></span>
+                </label>
             </div>
         </div>
 
@@ -2667,17 +2621,17 @@ async function renderAnalytics() {
     const genders = { Male: 0, Female: 0, Other: 0 };
     const programs = { 'BS Statistics': 0, 'BS Data Analytics': 0, 'M.Phil Statistics': 0, 'Ph.D Statistics': 0 };
     const ages = { '< 20': 0, '20-22': 0, '23-25': 0, '> 25': 0 };
-    const areas = { 'Gujrat': 0, 'Wazirabad': 0, 'Sialkot': 0, 'Jhelum': 0, 'Kharian': 0 };
+    const areas = {};
 
-    // 2. Program-specific holders (seed data so it looks premium, populated by DB)
-    const statsBatches = { '2020-2024': 38, '2021-2025': 42, '2022-2026': 45, '2023-2027': 50 };
-    const statsSemesters = { 'Sem 2': 50, 'Sem 4': 45, 'Sem 6': 42, 'Sem 8': 38 };
+    // 2. Program-specific holders (populated exclusively by DB)
+    const statsBatches = {};
+    const statsSemesters = {};
     
-    const analyticsBatches = { '2021-2025': 28, '2022-2026': 32, '2023-2027': 40 };
-    const analyticsSemesters = { 'Sem 2': 40, 'Sem 4': 32, 'Sem 6': 28 };
+    const analyticsBatches = {};
+    const analyticsSemesters = {};
     
-    const facultyDesignations = { 'Professor': 2, 'Associate Professor': 2, 'Assistant Professor': 3, 'Lecturer': 6 };
-    const facultyPublications = { 'Professor': 52, 'Associate Professor': 38, 'Assistant Professor': 28, 'Lecturer': 22 };
+    const facultyDesignations = { 'Professor': 0, 'Associate Professor': 0, 'Assistant Professor': 0, 'Lecturer': 0 };
+    const facultyPublications = { 'Professor': 0, 'Associate Professor': 0, 'Assistant Professor': 0, 'Lecturer': 0 };
 
     // Update with DB user values
     users.forEach(u => {
@@ -2701,7 +2655,9 @@ async function renderAnalytics() {
         // Program and Batch specific tracking
         if (u.role === 'Student') {
             const prog = u.program || 'BS Statistics';
-            programs[prog] = (programs[prog] || 0) + 1;
+            if (programs[prog] !== undefined) {
+                programs[prog]++;
+            }
 
             if (prog === 'BS Statistics') {
                 if (u.batch) statsBatches[u.batch] = (statsBatches[u.batch] || 0) + 1;
@@ -2718,8 +2674,17 @@ async function renderAnalytics() {
             }
         } else if (u.role === 'Faculty') {
             const desig = u.designation || 'Lecturer';
-            facultyDesignations[desig] = (facultyDesignations[desig] || 0) + 1;
-            facultyPublications[desig] = (facultyPublications[desig] || 0) + 4; // Add realistic counts for active user faculty
+            if (facultyDesignations[desig] !== undefined) {
+                facultyDesignations[desig]++;
+            } else {
+                facultyDesignations[desig] = 1;
+            }
+            const pubs = parseInt(u.publicationsCount) || 0;
+            if (facultyPublications[desig] !== undefined) {
+                facultyPublications[desig] += pubs;
+            } else {
+                facultyPublications[desig] = pubs;
+            }
         }
     });
 
@@ -2728,20 +2693,20 @@ async function renderAnalytics() {
 
     // KPI update for BS Statistics Tab
     const totalStats = Object.values(statsBatches).reduce((a,b) => a+b, 0);
-    const avgStatsBatch = Math.round(totalStats / Object.keys(statsBatches).length);
+    const avgStatsBatch = Object.keys(statsBatches).length > 0 ? Math.round(totalStats / Object.keys(statsBatches).length) : 0;
     document.getElementById('kpi-stats-total').textContent = totalStats;
     document.getElementById('kpi-stats-avg-size').textContent = `${avgStatsBatch} students`;
 
     // KPI update for BS Data Analytics Tab
     const totalAnalytics = Object.values(analyticsBatches).reduce((a,b) => a+b, 0);
-    const avgAnalyticsBatch = Math.round(totalAnalytics / Object.keys(analyticsBatches).length);
+    const avgAnalyticsBatch = Object.keys(analyticsBatches).length > 0 ? Math.round(totalAnalytics / Object.keys(analyticsBatches).length) : 0;
     document.getElementById('kpi-analytics-total').textContent = totalAnalytics;
     document.getElementById('kpi-analytics-avg-size').textContent = `${avgAnalyticsBatch} students`;
 
     // KPI update for Faculty Tab
     const totalFaculty = Object.values(facultyDesignations).reduce((a,b) => a+b, 0);
     const totalPubs = Object.values(facultyPublications).reduce((a,b) => a+b, 0);
-    const phdCount = facultyDesignations['Professor'] + facultyDesignations['Associate Professor'] + (facultyDesignations['Assistant Professor'] || 0);
+    const phdCount = (facultyDesignations['Professor'] || 0) + (facultyDesignations['Associate Professor'] || 0) + (facultyDesignations['Assistant Professor'] || 0);
     document.getElementById('kpi-faculty-total').textContent = totalFaculty;
     document.getElementById('kpi-faculty-pubs').textContent = `${totalPubs} Papers`;
     document.getElementById('kpi-faculty-phd').textContent = `${phdCount} PhDs`;

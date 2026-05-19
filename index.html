@@ -64,7 +64,7 @@
                     </div>
                     <div class="edu-row">
                         <select id="reg-role" required class="edu-select">
-                            <option value="" disabled selected>Select Designation...</option>
+                            <option value="" disabled selected>Select Role...</option>
                             <option value="Student">Current Student / Alumni</option>
                             <option value="Faculty">Faculty Member</option>
                         </select>
@@ -109,6 +109,19 @@
                                     <i class="fas fa-plus"></i>
                                 </button>
                             </div>
+                        </div>
+                    </div>
+                    <!-- Conditional Faculty Fields -->
+                    <div id="reg-faculty-fields" style="display: none; margin-bottom: 12px; border-left: 3px solid var(--uog-blue); padding-left: 10px;">
+                        <div class="edu-row" style="margin-bottom: 10px;">
+                            <select id="reg-designation" class="edu-select" style="margin-bottom: 0; flex: 1;">
+                                <option value="" disabled selected>Select Designation...</option>
+                                <option value="Professor">Professor</option>
+                                <option value="Associate Professor">Associate Professor</option>
+                                <option value="Assistant Professor">Assistant Professor</option>
+                                <option value="Lecturer">Lecturer</option>
+                            </select>
+                            <input type="number" id="reg-publications" class="edu-input" placeholder="Publications Count (e.g. 15)" min="0" style="margin-bottom: 0; flex: 1;">
                         </div>
                     </div>
                     <input type="text" id="reg-tagline" class="edu-input" placeholder="Academic Tagline (e.g. 🚀 Learning Statistics)" style="margin-bottom:12px;">
@@ -493,6 +506,35 @@
                         </select>
                     </div>
 
+                    <!-- Target Audience for Academic Records -->
+                    <div id="record-targeting-container" style="display: none; border-left: 3px solid var(--uog-blue); padding-left: 10px; margin-bottom: 12px;">
+                        <p style="font-size:0.8rem; font-weight:600; color:#4b5563; margin-bottom:6px;"><i class="fas fa-bullseye"></i> Target Audience Filters (Visible to matching students, Faculty see all)</p>
+                        <div class="edu-row" style="margin-bottom: 8px; gap: 8px;">
+                            <select id="target-program" class="edu-select" style="margin-bottom: 0; flex: 1; font-size: 0.8rem; padding: 6px 8px;">
+                                <option value="all">All Programs</option>
+                                <option value="BS Statistics">BS Statistics</option>
+                                <option value="BS Data Analytics">BS Data Analytics</option>
+                                <option value="M.Phil Statistics">M.Phil Statistics</option>
+                                <option value="Ph.D Statistics">Ph.D Statistics</option>
+                            </select>
+                            <select id="target-batch" class="edu-select" style="margin-bottom: 0; flex: 1; font-size: 0.8rem; padding: 6px 8px;">
+                                <option value="all">All Batches</option>
+                            </select>
+                            <select id="target-semester" class="edu-select" style="margin-bottom: 0; flex: 1; font-size: 0.8rem; padding: 6px 8px;">
+                                <option value="all">All Semesters</option>
+                                <option value="1">1st Semester</option>
+                                <option value="2">2nd Semester</option>
+                                <option value="3">3rd Semester</option>
+                                <option value="4">4th Semester</option>
+                                <option value="5">5th Semester</option>
+                                <option value="6">6th Semester</option>
+                                <option value="7">7th Semester</option>
+                                <option value="8">8th Semester</option>
+                                <option value="Graduated">Graduated/Alumni</option>
+                            </select>
+                        </div>
+                    </div>
+
                     <input type="text" id="software-title" class="edu-input" placeholder="Software Name (e.g. SPSS v26)" style="display: none; margin-bottom: 10px;">
                     <input type="url" id="software-link" class="edu-input" placeholder="External Download Link (Optional, e.g. Google Drive)" style="display: none; margin-bottom: 10px;">
 
@@ -583,6 +625,19 @@
                                 <i class="fas fa-plus"></i>
                             </button>
                         </div>
+                    </div>
+
+                    <!-- Faculty Specific Profile Fields -->
+                    <div id="edit-faculty-fields" style="display: none; border-left: 3px solid var(--uog-blue); padding-left: 10px; margin-bottom: 12px;">
+                        <label style="font-size:0.85rem; font-weight:600; color:#4b5563; margin-bottom:5px; display:block;">Faculty Designation</label>
+                        <select id="edit-designation" class="edu-select" style="margin-bottom: 12px;">
+                            <option value="Professor">Professor</option>
+                            <option value="Associate Professor">Associate Professor</option>
+                            <option value="Assistant Professor">Assistant Professor</option>
+                            <option value="Lecturer">Lecturer</option>
+                        </select>
+                        <label style="font-size:0.85rem; font-weight:600; color:#4b5563; margin-bottom:5px; display:block;">Research Publications Count</label>
+                        <input type="number" id="edit-publications" class="edu-input" placeholder="Publications Count (e.g. 15)" min="0" style="margin-bottom: 12px;">
                     </div>
 
                     <label style="font-size:0.85rem; font-weight:600; color:#4b5563; margin-bottom:5px; display:block;">New Password (leave blank to keep current)</label>
