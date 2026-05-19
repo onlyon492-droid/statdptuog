@@ -2139,3 +2139,35 @@ async function renderAnalytics() {
         }
     });
 }
+
+// ─── MOBILE BOTTOM NAV HANDLER ────────────────────────────────────────────────
+window.mobileNavClick = function(btn, view) {
+    // Update active state on bottom nav buttons
+    document.querySelectorAll('.mob-nav-btn').forEach(b => b.classList.remove('active-mob'));
+    btn.classList.add('active-mob');
+
+    // Also sync the desktop sidebar active state
+    document.querySelectorAll('.sidebar-list li').forEach(li => {
+        li.classList.remove('active-item');
+        if (li.getAttribute('data-target') === view) li.classList.add('active-item');
+    });
+
+    // Switch the view
+    switchView(view);
+
+    // Scroll to top smoothly
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+};
+
+// ─── SYNC MOBILE SEARCH WITH DESKTOP SEARCH ───────────────────────────────────
+(function syncMobileSearch() {
+    const mobileSearchInput = document.querySelector('.mobile-search-bar .nav-search input');
+    const desktopSearchInput = document.querySelector('.nav-search input');
+    if (mobileSearchInput && desktopSearchInput) {
+        mobileSearchInput.addEventListener('input', (e) => {
+            // Fire the same input event on the desktop search input
+            desktopSearchInput.value = e.target.value;
+            desktopSearchInput.dispatchEvent(new Event('input'));
+        });
+    }
+})();
