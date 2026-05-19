@@ -380,7 +380,16 @@ async function updateStats() {
     const [posts, sw, users] = await Promise.all([dbGet('posts'), dbGet('software'), dbGet('users')]);
     document.getElementById('record-count').textContent = posts.length;
     document.getElementById('sw-count').textContent = sw.length;
-    document.getElementById('student-count').textContent = users.filter(u => u.role === 'Student').length;
+    
+    // Categorize students
+    const statsStudents = users.filter(u => u.role === 'Student' && (u.program === 'BS Statistics' || !u.program)).length;
+    const analyticsStudents = users.filter(u => u.role === 'Student' && u.program === 'BS Data Analytics').length;
+    
+    const statEl = document.getElementById('stat-student-count');
+    const analyticsEl = document.getElementById('analytics-student-count');
+    if (statEl) statEl.textContent = statsStudents;
+    if (analyticsEl) analyticsEl.textContent = analyticsStudents;
+
     document.getElementById('faculty-count').textContent = users.filter(u => u.role === 'Faculty').length;
     const notices = posts.filter(p => p.category && p.category.includes('Update'));
     const noticeList = document.getElementById('notice-list-container');
