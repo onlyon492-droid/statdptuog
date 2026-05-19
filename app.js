@@ -442,6 +442,8 @@ function initApp() {
     updateStats();
     startHeartbeatLoop();
     switchView('feed');
+    // Populate mobile profile sheet & avatar
+    if (typeof updateMobileProfileSheet === 'function') updateMobileProfileSheet();
 }
 
 // ─── PROFILE PIC ──────────────────────────────────────────────────────────────
@@ -2141,33 +2143,97 @@ async function renderAnalytics() {
 }
 
 // ─── MOBILE BOTTOM NAV HANDLER ────────────────────────────────────────────────
+// ─── MOBILE NAV CLICK HANDLER ────────────────────────────────────────────────
 window.mobileNavClick = function(btn, view) {
-    // Update active state on bottom nav buttons
-    document.querySelectorAll('.mob-nav-btn').forEach(b => b.classList.remove('active-mob'));
-    btn.classList.add('active-mob');
-
-    // Also sync the desktop sidebar active state
+    // Update active state on bottom nav (only if btn passed)
+    if (btn) {
+        document.querySelectorAll('.mob-nav-btn').forEach(b => b.classList.remove('active-mob'));
+        btn.classList.add('active-mob');
+    }
+    // Sync desktop sidebar
     document.querySelectorAll('.sidebar-list li').forEach(li => {
         li.classList.remove('active-item');
         if (li.getAttribute('data-target') === view) li.classList.add('active-item');
     });
-
-    // Switch the view
     switchView(view);
-
-    // Scroll to top smoothly
     window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
-// ─── SYNC MOBILE SEARCH WITH DESKTOP SEARCH ───────────────────────────────────
+// ─── CLOSE ALL MOBILE DRAWERS ────────────────────────────────────────────────
+window.closeMobileDrawers = function() {
+    ['mobile-more-drawer','mobile-profile-sheet'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.remove('active');
+    });
+    ['mobile-more-overlay','mobile-profile-overlay'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.remove('active');
+    });
+    // Also close search bar
+    const searchBar = document.getElementById('mobile-search-bar');
+    if (searchBar) searchBar.classList.remove('active');
+};
+
+// Show overlay when drawer opens
+['mobile-more-drawer','mobile-profile-sheet'].forEach(drawerId => {
+    const drawer = document.getElementById(drawerId);
+    if (!drawer) return;
+    const observer = new MutationObserver(() => {
+        const overlayId = drawerId === 'mobile-more-drawer' ? 'mobile-more-overlay' : 'mobile-profile-overlay';
+        const overlay = document.getElementById(overlayId);
+        if (!overlay) return;
+        if (drawer.classList.contains('active')) {
+            overlay.style.display = 'block';
+        } else {
+            overlay.style.display = 'none';
+        }
+    });
+    observer.observe(drawer, { attributes: true, attributeFilter: ['class'] });
+});
+
+// ─── SYNC MOBILE SEARCH WITH DESKTOP SEARCH ──────────────────────────────────
 (function syncMobileSearch() {
-    const mobileSearchInput = document.querySelector('.mobile-search-bar .nav-search input');
-    const desktopSearchInput = document.querySelector('.nav-search input');
-    if (mobileSearchInput && desktopSearchInput) {
-        mobileSearchInput.addEventListener('input', (e) => {
-            // Fire the same input event on the desktop search input
-            desktopSearchInput.value = e.target.value;
-            desktopSearchInput.dispatchEvent(new Event('input'));
+    const mobInput = document.getElementById('mob-search-input');
+    const desktopInput = document.querySelector('.nav-middle .nav-search input');
+    if (mobInput && desktopInput) {
+        mobInput.addEventListener('input', (e) => {
+            desktopInput.value = e.target.value;
+            desktopInput.dispatchEvent(new Event('input'));
+        });
+    }
+    // Also connect to the search input listener directly
+    if (mobInput) {
+        mobInput.addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase().trim();
+            if (currentView === 'feed' || currentView === 'records') {
+                document.querySelectorAll('.edu-card.post').forEach(card => {
+                    card.style.display = card.textContent.toLowerCase().includes(query) ? 'block' : 'none';
+                });
+            } else if (currentView === 'students') {
+                document.querySelectorAll('.student-card').forEach(card => {
+                    card.style.display = card.textContent.toLowerCase().includes(query) ? 'block' : 'none';
+                });
+            } else if (currentView === 'software') {
+                document.querySelectorAll('.sw-card').forEach(card => {
+                    card.style.display = card.textContent.toLowerCase().includes(query) ? 'flex' : 'none';
+                });
+            }
         });
     }
 })();
+
+// ─── MOBILE PROFILE SHEET POPULATION ─────────────────────────────────────────
+// Called from initApp() to fill profile sheet info
+function updateMobileProfileSheet() {
+    if (!currentUser) return;
+    const mobName   = document.getElementById('mob-profile-name');
+    const mobRole   = document.getElementById('mob-profile-role');
+    const mobAvatar = document.getElementById('mob-profile-avatar');
+    const mobTopAvatar = document.getElementById('mob-avatar');
+    if (mobName)  mobName.textContent  = currentUser.name;
+    if (mobRole)  mobRole.textContent  = currentUser.role === 'Student'
+        ? `${currentUser.program || 'Student'} • ${currentUser.batch || ''}`
+        : currentUser.role;
+    if (mobAvatar)    renderAvatar(mobAvatar, currentUser);
+    if (mobTopAvatar) renderAvatar(mobTopAvatar, currentUser);
+}

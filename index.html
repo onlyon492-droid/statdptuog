@@ -160,42 +160,107 @@
             <!-- Mobile Top Bar (only on mobile) -->
             <div class="mobile-topbar">
                 <div class="mobile-topbar-left">
-                    <img src="https://uog.edu.pk/assets/images/logo.png" alt="UOG" style="width:32px;height:32px;border-radius:50%;object-fit:cover;" onerror="this.src='https://via.placeholder.com/32?text=U'">
-                    <span style="font-weight:700;font-size:1rem;color:var(--uog-blue);">Stats Dept.</span>
+                    <img src="https://uog.edu.pk/assets/images/logo.png" alt="UOG" style="width:34px;height:34px;border-radius:50%;object-fit:cover;box-shadow:0 2px 6px rgba(0,0,0,0.15);" onerror="this.src='https://via.placeholder.com/34?text=U'">
+                    <div>
+                        <div style="font-weight:700;font-size:0.95rem;color:var(--uog-blue);line-height:1.1;">Stats Dept.</div>
+                        <div style="font-size:0.68rem;color:#9ca3af;line-height:1;">University of Gujrat</div>
+                    </div>
                 </div>
                 <div class="mobile-topbar-right">
                     <button class="mobile-icon-btn" onclick="document.getElementById('mobile-search-bar').classList.toggle('active')"><i class="fas fa-search"></i></button>
-                    <button class="mobile-icon-btn" id="mobile-notif-btn"><i class="fas fa-bell"></i><span class="mob-badge" id="mob-notif-badge" style="display:none;">0</span></button>
-                    <div class="avatar-small" id="nav-avatar" style="width:34px;height:34px;font-size:0.9rem;cursor:pointer;" id="mobile-profile-btn"></div>
+                    <button class="mobile-icon-btn" id="mobile-notif-btn" onclick="document.getElementById('notif-btn').click()">
+                        <i class="fas fa-bell"></i>
+                        <span class="mob-badge" id="mob-notif-badge" style="display:none;">0</span>
+                    </button>
+                    <div class="avatar-small mob-avatar-top" id="mob-avatar" onclick="document.getElementById('mobile-profile-sheet').classList.add('active')" style="cursor:pointer;"></div>
                 </div>
             </div>
 
             <!-- Mobile Search Bar (slides down) -->
             <div class="mobile-search-bar" id="mobile-search-bar">
-                <div class="nav-search" style="margin:0;flex:1;">
-                    <i class="fas fa-search"></i>
-                    <input type="text" placeholder="Search records, people, updates...">
-                </div>
+                <i class="fas fa-search" style="color:#9ca3af;"></i>
+                <input type="text" id="mob-search-input" placeholder="Search records, people, updates..." style="border:none;outline:none;flex:1;font-size:0.95rem;background:transparent;font-family:'Outfit',sans-serif;">
+                <button onclick="document.getElementById('mobile-search-bar').classList.remove('active')" style="background:none;border:none;color:#9ca3af;cursor:pointer;"><i class="fas fa-times"></i></button>
             </div>
 
-            <!-- Mobile Bottom Navigation (Instagram style) -->
+            <!-- Mobile Bottom Navigation -->
             <nav class="mobile-bottom-nav" id="mobile-bottom-nav">
                 <button class="mob-nav-btn active-mob" data-target="feed" onclick="mobileNavClick(this,'feed')">
                     <i class="fas fa-home"></i><span>Feed</span>
                 </button>
                 <button class="mob-nav-btn" data-target="records" onclick="mobileNavClick(this,'records')">
-                    <i class="fas fa-file-alt"></i><span>Records</span>
+                    <i class="fas fa-archive"></i><span>Records</span>
                 </button>
                 <button class="mob-nav-btn mob-compose-btn" onclick="document.getElementById('compose-modal').classList.add('active')">
                     <i class="fas fa-plus"></i>
                 </button>
-                <button class="mob-nav-btn" data-target="students" onclick="mobileNavClick(this,'students')">
-                    <i class="fas fa-users"></i><span>People</span>
+                <button class="mob-nav-btn" onclick="document.getElementById('mobile-more-drawer').classList.add('active')">
+                    <i class="fas fa-th"></i><span>More</span>
                 </button>
-                <button class="mob-nav-btn" data-target="privacy" onclick="mobileNavClick(this,'privacy')">
+                <button class="mob-nav-btn" onclick="document.getElementById('mobile-profile-sheet').classList.add('active')">
                     <i class="fas fa-user-circle"></i><span>Me</span>
                 </button>
             </nav>
+
+            <!-- Mobile "More" Drawer (slides up from bottom) -->
+            <div class="mobile-overlay" id="mobile-more-overlay" onclick="document.getElementById('mobile-more-drawer').classList.remove('active');this.classList.remove('active')"></div>
+            <div class="mobile-drawer" id="mobile-more-drawer">
+                <div class="mobile-drawer-handle"></div>
+                <div class="mobile-drawer-title">All Features</div>
+                <div class="mobile-drawer-grid">
+                    <button class="mob-drawer-item" onclick="mobileNavClick(null,'students');closeMobileDrawers()">
+                        <div class="mob-drawer-icon" style="background:#eff6ff;"><i class="fas fa-user-graduate" style="color:#3b82f6;"></i></div>
+                        <span>Directory</span>
+                    </button>
+                    <button class="mob-drawer-item" onclick="mobileNavClick(null,'software');closeMobileDrawers()">
+                        <div class="mob-drawer-icon" style="background:#f0fdf4;"><i class="fas fa-laptop-code" style="color:#10b981;"></i></div>
+                        <span>Software</span>
+                    </button>
+                    <button class="mob-drawer-item" onclick="mobileNavClick(null,'analytics');closeMobileDrawers()">
+                        <div class="mob-drawer-icon" style="background:#fdf4ff;"><i class="fas fa-chart-bar" style="color:#8b5cf6;"></i></div>
+                        <span>Analytics</span>
+                    </button>
+                    <button class="mob-drawer-item" onclick="mobileNavClick(null,'saved');closeMobileDrawers()">
+                        <div class="mob-drawer-icon" style="background:#fffbeb;"><i class="fas fa-bookmark" style="color:#f59e0b;"></i></div>
+                        <span>Saved</span>
+                    </button>
+                    <button class="mob-drawer-item" onclick="mobileNavClick(null,'privacy');closeMobileDrawers()">
+                        <div class="mob-drawer-icon" style="background:#fff1f2;"><i class="fas fa-user-shield" style="color:#f43f5e;"></i></div>
+                        <span>Privacy</span>
+                    </button>
+                    <button class="mob-drawer-item" onclick="window.open('https://uog.edu.pk/faculty/c-fod57cea53bbfd17/department-of-statistics','_blank');closeMobileDrawers()">
+                        <div class="mob-drawer-icon" style="background:#f0f9ff;"><i class="fas fa-chalkboard-teacher" style="color:#0ea5e9;"></i></div>
+                        <span>Faculty</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Mobile Profile Sheet -->
+            <div class="mobile-overlay" id="mobile-profile-overlay" onclick="document.getElementById('mobile-profile-sheet').classList.remove('active');this.classList.remove('active')"></div>
+            <div class="mobile-drawer" id="mobile-profile-sheet">
+                <div class="mobile-drawer-handle"></div>
+                <div class="mob-profile-header">
+                    <div class="avatar-large mob-profile-avatar" id="mob-profile-avatar"></div>
+                    <div>
+                        <div class="mob-profile-name" id="mob-profile-name">Name</div>
+                        <div class="mob-profile-role" id="mob-profile-role">Role</div>
+                    </div>
+                </div>
+                <div class="mob-profile-actions">
+                    <button class="mob-profile-btn" onclick="document.getElementById('open-edit-profile').click();closeMobileDrawers()">
+                        <i class="fas fa-user-edit"></i> Edit Profile
+                    </button>
+                    <button class="mob-profile-btn" onclick="document.getElementById('open-edit-profile').click();closeMobileDrawers()">
+                        <i class="fas fa-camera"></i> Change Photo
+                    </button>
+                    <button class="mob-profile-btn" onclick="mobileNavClick(null,'privacy');closeMobileDrawers()">
+                        <i class="fas fa-user-shield"></i> Privacy Settings
+                    </button>
+                    <button class="mob-profile-btn danger" onclick="document.getElementById('sign-out-btn').click()">
+                        <i class="fas fa-power-off"></i> Sign Out
+                    </button>
+                </div>
+            </div>
 
             <div class="edu-body">
                 <!-- Left Sidebar -->
