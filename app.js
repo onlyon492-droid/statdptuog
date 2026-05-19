@@ -290,6 +290,13 @@ try {
     const savedSession = localStorage.getItem('uog_session');
     if (savedSession) {
         currentUser = JSON.parse(savedSession);
+        // Synchronously toggle classes to prevent page flash of login screen
+        const authEl = document.getElementById('auth-view');
+        const workEl = document.getElementById('workspace-view');
+        if (authEl && workEl) {
+            authEl.classList.remove('active');
+            workEl.classList.add('active');
+        }
     }
 } catch(e) { currentUser = null; }
 
@@ -2584,10 +2591,12 @@ initTheme();
                 const { password, ...safeUser } = freshUser;
                 currentUser = safeUser;
                 localStorage.setItem('uog_session', JSON.stringify(currentUser));
+                initApp();
+                document.getElementById('auth-view').classList.remove('active');
+                document.getElementById('workspace-view').classList.add('active');
+            } else {
+                logoutUser(false);
             }
-            initApp();
-            document.getElementById('auth-view').classList.remove('active');
-            document.getElementById('workspace-view').classList.add('active');
         } catch (err) {
             console.error('Error during auto-restore session, using cache:', err);
             initApp();

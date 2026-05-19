@@ -1933,7 +1933,8 @@ body, nav, aside, main, div, input, select, textarea, button, p, span, h1, h2, h
     }
 
     /* === MOBILE DRAWERS & OVERLAY === */
-    .mobile-overlay { display: block; }
+    .mobile-overlay { display: none; }
+    .mobile-overlay.active { display: block; }
     .mobile-drawer  { display: block; }
     .mobile-search-bar {
         display: none;
