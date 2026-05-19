@@ -620,8 +620,7 @@ document.getElementById('sign-out-btn').addEventListener('click', () => {
     logoutUser(false);
 });
 
-document.getElementById('faculty-link').addEventListener('click', () =>
-    window.open('https://uog.edu.pk/faculty/c-fod57cea53bbfd17/department-of-statistics', '_blank'));
+
 
 // ─── APP INIT ─────────────────────────────────────────────────────────────────
 function initApp() {
@@ -1374,13 +1373,12 @@ async function renderDirectory() {
                 <span style="font-weight: 400;">Phone Private</span>
                </div>`;
 
-        let analyticsBtnHtml = '';
+        let analyticsPrivateHtml = '';
+        let canViewAnalytics = false;
         if (u.role === 'Faculty') {
-            const canView = u.showIndividualGraphs !== false || u.username === currentUser.username;
-            if (canView) {
-                analyticsBtnHtml = `<button onclick="window.openFacultyAnalytics('${u.username}')" style="margin-top:12px; width:100%; padding:8px; border-radius:8px; background:linear-gradient(135deg, var(--uog-blue), #1e3a8a); color:white; border:none; font-size:0.85rem; font-weight:600; cursor:pointer; box-shadow:0 4px 12px rgba(15,76,129,0.2); transition:transform 0.2s;"><i class="fas fa-chart-pie" style="margin-right:6px;"></i> View Analytics</button>`;
-            } else {
-                analyticsBtnHtml = `<div style="margin-top:12px; width:100%; padding:8px; border-radius:8px; background:rgba(0,0,0,0.03); color:#9ca3af; border:1px dashed rgba(0,0,0,0.1); font-size:0.85rem; display:flex; align-items:center; justify-content:center; gap:6px;"><i class="fas fa-lock"></i> Analytics Private</div>`;
+            canViewAnalytics = u.showIndividualGraphs !== false || u.username === currentUser.username;
+            if (!canViewAnalytics) {
+                analyticsPrivateHtml = `<div style="margin-top:12px; width:100%; padding:8px; border-radius:8px; background:rgba(0,0,0,0.03); color:#9ca3af; border:1px dashed rgba(0,0,0,0.1); font-size:0.85rem; display:flex; align-items:center; justify-content:center; gap:6px;"><i class="fas fa-lock"></i> Analytics Private</div>`;
             }
         }
 
@@ -1393,8 +1391,17 @@ async function renderDirectory() {
             <div style="margin-bottom: 8px;">${badgeHtml}</div>
             <span style="font-size:0.8rem;background:rgba(15,76,129,0.05);color:var(--uog-blue);padding:4px 10px;border-radius:20px;border:1px solid rgba(15,76,129,0.1);font-family:monospace;font-weight:600;">${u.username}</span>
             ${phoneHtml}
-            ${analyticsBtnHtml}
+            ${analyticsPrivateHtml}
         `;
+        
+        if (canViewAnalytics) {
+            card.style.cursor = 'pointer';
+            card.title = 'Click to view analytics portfolio';
+            card.onclick = () => window.openFacultyAnalytics(u.username);
+            
+            // Add a subtle hover effect hint
+            card.classList.add('faculty-interactive-card');
+        }
         listContainer.appendChild(card);
     });
 }

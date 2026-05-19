@@ -1507,6 +1507,9 @@ body, nav, aside, main, div, input, select, textarea, button, p, span, h1, h2, h
     border-color: #8b5cf6 !important;
     box-shadow: var(--neon-purple-glow, 0 10px 20px rgba(139, 92, 246, 0.15)) !important;
 }
+.student-card.faculty-interactive-card:active {
+    transform: scale(0.98) translateY(-5px);
+}
 
 /* Glassmorphic theme switcher button in Navbar */
 .theme-switch-btn {
