@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Department of Statistics - UOG</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div id="toast-container"></div>
+
+    <div id="app">
+        <!-- Educational Login View -->
+        <div id="auth-view" class="view active auth-bg">
+            <div class="edu-login-container">
+                <div class="edu-left">
+                    <img src="https://uog.edu.pk/assets/images/logo.png" alt="UOG Logo" class="uog-logo" onerror="this.src='https://via.placeholder.com/80?text=UOG'">
+                    <h1 class="edu-logo">Department Portal</h1>
+                    <h2>A secure and private academic network for Statistics students, alumni, and faculty.</h2>
+                    <ul class="edu-features">
+                        <li><i class="fas fa-shield-alt"></i> <span>Privacy First: Only verified members can access the portal.</span></li>
+                        <li><i class="fas fa-book-reader"></i> <span>Academic Focus: Share knowledge, research, and departmental updates.</span></li>
+                        <li><i class="fas fa-laptop-code"></i> <span>Software Lab: Download statistical software and tools directly.</span></li>
+                    </ul>
+                </div>
+                <div class="edu-right">
+                    <div class="edu-login-box">
+                        <form id="login-form">
+                            <h3 style="margin-bottom: 20px; font-weight: 600; color: #1f2937;">Secure Login</h3>
+                            <input type="text" id="login-username" class="edu-input" placeholder="Roll Number or UOG Email" required autocomplete="off">
+                            <input type="password" id="login-password" class="edu-input" placeholder="Password" required>
+                            <button type="submit" class="edu-btn-login">Access Portal</button>
+                            <div class="edu-divider"><span>OR</span></div>
+                            <button type="button" class="edu-btn-create" id="open-signup">Register New Account</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Registration Modal -->
+        <div class="edu-modal-overlay" id="signup-modal">
+            <div class="edu-modal-content">
+                <div class="edu-modal-header">
+                    <div>
+                        <h2>Member Registration</h2>
+                        <p>Join the secure departmental network.</p>
+                    </div>
+                    <i class="fas fa-times close-modal" id="close-signup"></i>
+                </div>
+                <form id="signup-form" class="edu-modal-body">
+                    <div class="edu-row">
+                        <input type="text" id="reg-firstname" class="edu-input" placeholder="First Name" required>
+                        <input type="text" id="reg-lastname" class="edu-input" placeholder="Last Name" required>
+                    </div>
+                    <div class="edu-row">
+                        <select id="reg-role" required class="edu-select">
+                            <option value="" disabled selected>Select Designation...</option>
+                            <option value="Student">Current Student / Alumni</option>
+                            <option value="Faculty">Faculty Member</option>
+                        </select>
+                    </div>
+                    <input type="text" id="reg-username" class="edu-input" placeholder="Roll No (e.g. 20-UOG-102) or UOG Email" required>
+                    <input type="text" id="reg-phone" class="edu-input" placeholder="Mobile Number (Private)" required>
+                    <input type="password" id="reg-password" class="edu-input" placeholder="Create Password" required>
+                    
+                    <p class="edu-privacy-note"><i class="fas fa-lock"></i> Your data is kept private and is only visible within the department.</p>
+                    <button type="submit" class="edu-btn-signup">Complete Registration</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Main Academic Workspace -->
+        <div id="workspace-view" class="view">
+            <!-- Top Navbar -->
+            <nav class="edu-navbar">
+                <div class="nav-left">
+                    <img src="https://uog.edu.pk/assets/images/logo.png" alt="UOG" class="nav-logo-img" onerror="this.src='https://via.placeholder.com/40?text=U'">
+                    <span class="nav-title">Statistics Dept.</span>
+                </div>
+                <div class="nav-middle">
+                    <div class="nav-search">
+                        <i class="fas fa-search"></i>
+                        <input type="text" placeholder="Search records, software, updates...">
+                    </div>
+                </div>
+                <div class="nav-right">
+                    <div class="nav-icon" id="notif-btn" title="Notifications">
+                        <i class="fas fa-bell"></i><span class="badge" id="notif-badge" style="display:none;">0</span>
+                        <div class="notif-dropdown" id="notif-dropdown">
+                            <h4>Recent Notifications</h4>
+                            <ul id="notif-list">
+                                <li style="text-align:center; color:#6b7280;">No new notifications.</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="profile-chip" id="profile-chip">
+                        <div class="avatar-small" id="nav-avatar"></div>
+                        <span id="nav-name" style="font-weight: 500;">Name</span>
+                    </div>
+                    <div class="circle-icon" id="sign-out-btn" title="Secure Logout"><i class="fas fa-power-off"></i></div>
+                </div>
+            </nav>
+
+            <div class="edu-body">
+                <!-- Left Sidebar -->
+                <aside class="edu-sidebar-left">
+                    <div class="profile-summary">
+                        <!-- Profile Picture Upload Area -->
+                        <div class="avatar-upload-container" id="avatar-upload-container">
+                            <div class="avatar-large" id="side-avatar"></div>
+                            <label for="profile-pic-input" class="avatar-edit-btn" title="Change Profile Picture">
+                                <i class="fas fa-camera"></i>
+                            </label>
+                            <input type="file" id="profile-pic-input" accept="image/*" style="display:none;">
+                        </div>
+                        <h3 id="side-name">Name</h3>
+                        <p id="side-role">Student</p>
+                        <button class="edit-profile-btn" id="open-edit-profile"><i class="fas fa-user-edit"></i> Edit Profile</button>
+                    </div>
+                    <ul class="sidebar-list">
+                        <li class="active-item" data-target="feed"><i class="fas fa-chalkboard"></i> Department Feed</li>
+                        <li data-target="records"><i class="fas fa-archive"></i> Academic Records</li>
+                        <li data-target="software"><i class="fas fa-laptop-code"></i> Software Repository</li>
+                        <li data-target="students"><i class="fas fa-user-graduate"></i> Alumni Directory</li>
+                        <li id="faculty-link"><i class="fas fa-chalkboard-teacher"></i> Faculty Profiles <i class="fas fa-external-link-alt" style="font-size: 10px; margin-left: auto;"></i></li>
+                        <li style="margin-top: 20px; color: #6b7280;"><i class="fas fa-user-shield"></i> Privacy Settings</li>
+                    </ul>
+                </aside>
+
+                <!-- Middle Content Area -->
+                <main class="edu-main" id="main-content">
+                    <div class="view-header">
+                        <h2 id="view-title">Department Feed</h2>
+                        <p id="view-desc">Latest updates, notices, and academic discussions.</p>
+                    </div>
+
+                    <!-- Create Post Box -->
+                    <div class="edu-card create-post-card" id="compose-card">
+                        <div class="create-top">
+                            <div class="avatar-small" id="post-avatar"></div>
+                            <input type="text" id="open-compose" placeholder="Share an update, document, or software with the department..." readonly>
+                        </div>
+                        <div class="create-bottom">
+                            <div class="create-action" id="open-compose-text"><i class="fas fa-file-alt" style="color: #0f4c81;"></i> Share Update</div>
+                            <div class="create-action" id="open-compose-doc"><i class="fas fa-paperclip" style="color: #10b981;"></i> Attach File</div>
+                            <div class="create-action" id="open-compose-sw"><i class="fas fa-laptop-code" style="color: #f58220;"></i> Add Software</div>
+                        </div>
+                    </div>
+
+                    <!-- Dynamic Content Container -->
+                    <div id="list-container">
+                        <!-- Content populated via JS -->
+                    </div>
+                </main>
+
+                <!-- Right Sidebar -->
+                <aside class="edu-sidebar-right">
+                    <div class="notice-board">
+                        <div class="notice-header">
+                            <h4><i class="fas fa-bullhorn"></i> Important Notices</h4>
+                        </div>
+                        <ul class="notice-list" id="notice-list-container">
+                            <li style="text-align:center; color:#6b7280; font-size:0.85rem;">No recent notices.</li>
+                        </ul>
+                    </div>
+
+                    <div class="stats-card mt-4">
+                        <h4>Department Stats</h4>
+                        <div class="stat-item"><span>Students & Alumni</span><strong id="student-count">0</strong></div>
+                        <div class="stat-item"><span>Faculty Members</span><strong id="faculty-count">0</strong></div>
+                        <div class="stat-item"><span>Software Tools</span><strong id="sw-count">0</strong></div>
+                        <div class="stat-item"><span>Shared Records</span><strong id="record-count">0</strong></div>
+                    </div>
+                </aside>
+            </div>
+        </div>
+
+        <!-- Compose Post/Software Modal -->
+        <div class="edu-modal-overlay" id="compose-modal">
+            <div class="edu-modal-content" style="max-width: 550px;">
+                <div class="edu-modal-header">
+                    <h2 style="font-size: 18px;">Upload Record / Software</h2>
+                    <i class="fas fa-times close-modal" id="close-compose"></i>
+                </div>
+                <form id="upload-form" class="edu-modal-body">
+                    <div class="post-user-info">
+                        <div class="avatar-small" id="compose-avatar"></div>
+                        <div>
+                            <strong><span id="compose-name">Name</span></strong>
+                            <div class="post-privacy"><i class="fas fa-shield-alt"></i> Visible to Department Only</div>
+                        </div>
+                    </div>
+                    
+                    <select id="post-category" required class="edu-select" style="margin-bottom: 10px;">
+                        <option value="Feed">General Update / Notice</option>
+                        <option value="Records">Academic Record / Media Files</option>
+                        <option value="Software">Software Repository Tool</option>
+                    </select>
+
+                    <input type="text" id="software-title" class="edu-input" placeholder="Software Name (e.g. SPSS v26)" style="display: none; margin-bottom: 10px;">
+                    <input type="url" id="software-link" class="edu-input" placeholder="External Download Link (Optional, e.g. Google Drive)" style="display: none; margin-bottom: 10px;">
+
+                    <textarea id="upload-desc" class="edu-textarea" placeholder="Write description or details here..." required></textarea>
+                    
+                    <div class="image-preview-container" id="preview-area"></div>
+                    
+                    <div class="add-to-post">
+                        <span>Attach Document/Setup File</span>
+                        <div class="add-actions">
+                            <label for="file-upload" class="upload-btn"><i class="fas fa-cloud-upload-alt"></i> Select Files</label>
+                            <input type="file" id="file-upload" accept="image/*,video/*,.pdf,.doc,.docx,.zip,.rar,.exe" multiple style="display:none;">
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="edu-btn-post">Publish Update</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Edit Post Modal -->
+        <div class="edu-modal-overlay" id="edit-post-modal">
+            <div class="edu-modal-content" style="max-width: 500px;">
+                <div class="edu-modal-header">
+                    <h2 style="font-size: 18px;"><i class="fas fa-edit"></i> Edit Post</h2>
+                    <i class="fas fa-times close-modal" id="close-edit-post"></i>
+                </div>
+                <div class="edu-modal-body">
+                    <input type="hidden" id="edit-post-id">
+                    <textarea id="edit-post-text" class="edu-textarea" style="height: 140px;" placeholder="Edit your post text..."></textarea>
+                    <button id="save-edit-post" class="edu-btn-post">Save Changes</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Edit Profile Modal -->
+        <div class="edu-modal-overlay" id="edit-profile-modal">
+            <div class="edu-modal-content" style="max-width: 450px;">
+                <div class="edu-modal-header">
+                    <div>
+                        <h2>Edit My Profile</h2>
+                        <p>Update your public information.</p>
+                    </div>
+                    <i class="fas fa-times close-modal" id="close-edit-profile"></i>
+                </div>
+                <form id="edit-profile-form" class="edu-modal-body">
+                    <label style="font-size:0.85rem; font-weight:600; color:#4b5563; margin-bottom:5px; display:block;">Full Name</label>
+                    <input type="text" id="edit-name" class="edu-input" placeholder="Full Name" required style="margin-bottom:12px;">
+                    <label style="font-size:0.85rem; font-weight:600; color:#4b5563; margin-bottom:5px; display:block;">Phone Number (Private)</label>
+                    <input type="text" id="edit-phone" class="edu-input" placeholder="Phone Number" style="margin-bottom:12px;">
+                    <label style="font-size:0.85rem; font-weight:600; color:#4b5563; margin-bottom:5px; display:block;">New Password (leave blank to keep current)</label>
+                    <input type="password" id="edit-password" class="edu-input" placeholder="New Password (optional)" style="margin-bottom:20px;">
+                    <button type="submit" class="edu-btn-post">Save Profile</button>
+                </form>
+            </div>
+        </div>
+        
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>

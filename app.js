@@ -1,0 +1,511 @@
+// ─── CLEANUP OLD DATA FROM PREVIOUS VERSIONS ─────────────────────────────────
+// Remove any old conflicting localStorage keys from earlier builds
+['edu_users','edu_posts','edu_software','statbook_users','statbook_posts'].forEach(k => localStorage.removeItem(k));
+
+// Detect if running via server or as a local file
+const HAS_SERVER = window.location.protocol !== 'file:';
+
+// ─── DATA LAYER ──────────────────────────────────────────────────────────────
+// If server is running → use API. Otherwise → use localStorage.
+async function dbGet(key) {
+    if (HAS_SERVER) {
+        const res = await fetch(`/api/${key}`);
+        if (!res.ok) throw new Error('Server error');
+        return res.json();
+    }
+    return JSON.parse(localStorage.getItem(`uog_${key}`) || '[]');
+}
+async function dbPost(endpoint, body) {
+    if (HAS_SERVER) {
+        const res = await fetch(`/api/${endpoint}`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        const d = await res.json();
+        if (!res.ok) throw new Error(d.error || 'Error');
+        return d;
+    }
+    // localStorage fallback for each endpoint
+    if (endpoint === 'register') {
+        const users = JSON.parse(localStorage.getItem('uog_users') || '[]');
+        if (users.find(u => u.username === body.username.toLowerCase()))
+            throw new Error('Account already exists');
+        const u = { ...body, username: body.username.toLowerCase(), profilePic: '' };
+        users.push(u);
+        localStorage.setItem('uog_users', JSON.stringify(users));
+        return { user: safeUser(u) };
+    }
+    if (endpoint === 'login') {
+        const users = JSON.parse(localStorage.getItem('uog_users') || '[]');
+        const user = users.find(u => u.username === body.username.toLowerCase() && u.password === body.password);
+        if (!user) throw new Error('Invalid credentials');
+        return { user: safeUser(user) };
+    }
+    if (endpoint === 'posts') {
+        const posts = JSON.parse(localStorage.getItem('uog_posts') || '[]');
+        const post = { id: Date.now(), date: new Date().toLocaleDateString('en-PK', { day: 'numeric', month: 'short' }), ...body };
+        posts.unshift(post);
+        localStorage.setItem('uog_posts', JSON.stringify(posts));
+        return post;
+    }
+    if (endpoint === 'software') {
+        const sw = JSON.parse(localStorage.getItem('uog_software') || '[]');
+        const item = { id: Date.now(), date: new Date().toLocaleDateString('en-PK', { day: 'numeric', month: 'short' }), ...body };
+        sw.unshift(item);
+        localStorage.setItem('uog_software', JSON.stringify(sw));
+        return item;
+    }
+}
+async function dbPut(endpoint, body) {
+    if (HAS_SERVER) {
+        const res = await fetch(`/api/${endpoint}`, {
+            method: 'PUT', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        const d = await res.json();
+        if (!res.ok) throw new Error(d.error || 'Error');
+        return d;
+    }
+    // localStorage fallback
+    if (endpoint.startsWith('posts/')) {
+        const id = endpoint.split('/')[1];
+        const posts = JSON.parse(localStorage.getItem('uog_posts') || '[]');
+        const idx = posts.findIndex(p => String(p.id) === String(id));
+        if (idx !== -1) { posts[idx].text = body.text; localStorage.setItem('uog_posts', JSON.stringify(posts)); }
+        return posts[idx];
+    }
+    if (endpoint.startsWith('users/')) {
+        const username = endpoint.split('/')[1];
+        const users = JSON.parse(localStorage.getItem('uog_users') || '[]');
+        const idx = users.findIndex(u => u.username === username);
+        if (idx !== -1) {
+            if (body.name) users[idx].name = body.name;
+            if (body.phone) users[idx].phone = body.phone;
+            if (body.password) users[idx].password = body.password;
+            if (body.profilePic !== undefined) users[idx].profilePic = body.profilePic;
+            localStorage.setItem('uog_users', JSON.stringify(users));
+            return { user: safeUser(users[idx]) };
+        }
+    }
+}
+async function dbDelete(endpoint, body) {
+    if (HAS_SERVER) {
+        const res = await fetch(`/api/${endpoint}`, {
+            method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        return res.json();
+    }
+    if (endpoint.startsWith('posts/')) {
+        const id = endpoint.split('/')[1];
+        const posts = JSON.parse(localStorage.getItem('uog_posts') || '[]');
+        localStorage.setItem('uog_posts', JSON.stringify(posts.filter(p => String(p.id) !== String(id))));
+    }
+}
+
+function safeUser(u) { const { password, ...s } = u; return s; }
+
+// Initialize empty localStorage if first time
+if (!localStorage.getItem('uog_users'))    localStorage.setItem('uog_users', '[]');
+if (!localStorage.getItem('uog_posts'))    localStorage.setItem('uog_posts', '[]');
+if (!localStorage.getItem('uog_software')) localStorage.setItem('uog_software', '[]');
+
+// ─── STATE ───────────────────────────────────────────────────────────────────
+let currentUser = null;
+let currentView = 'feed';
+let uploadedFiles = [];
+
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
+function showToast(msg, isError = false) {
+    const t = document.createElement('div');
+    t.className = 'toast';
+    t.innerHTML = `<i class="fas ${isError ? 'fa-exclamation-circle' : 'fa-check-circle'}" style="color:${isError ? '#ef4444' : '#10b981'};margin-right:8px;"></i> ${msg}`;
+    document.getElementById('toast-container').appendChild(t);
+    setTimeout(() => t.remove(), 4000);
+}
+
+function renderAvatar(el, user) {
+    if (!el) return;
+    el.innerHTML = (user && user.profilePic)
+        ? `<img src="${user.profilePic}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`
+        : (user ? user.name.charAt(0).toUpperCase() : '?');
+}
+
+// ─── NOTIFICATIONS ────────────────────────────────────────────────────────────
+const notifBtn = document.getElementById('notif-btn');
+const notifDropdown = document.getElementById('notif-dropdown');
+notifBtn.addEventListener('click', (e) => {
+    notifDropdown.classList.toggle('active');
+    document.getElementById('notif-badge').style.display = 'none';
+    e.stopPropagation();
+});
+document.addEventListener('click', (e) => {
+    if (!notifBtn.contains(e.target)) notifDropdown.classList.remove('active');
+});
+
+// ─── REGISTRATION ─────────────────────────────────────────────────────────────
+document.getElementById('open-signup').addEventListener('click', () => document.getElementById('signup-modal').classList.add('active'));
+document.getElementById('close-signup').addEventListener('click', () => document.getElementById('signup-modal').classList.remove('active'));
+
+const regRole = document.getElementById('reg-role');
+const regUsername = document.getElementById('reg-username');
+regRole.addEventListener('change', () => {
+    regUsername.placeholder = regRole.value === 'Student' ? "Roll No (Must contain 'UOG')" : "Faculty Email (@uog.edu.pk)";
+});
+
+document.getElementById('signup-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const role = regRole.value;
+    const username = regUsername.value.trim().toLowerCase();
+    if (role === 'Student' && !username.includes('uog')) { showToast("Roll Number must contain 'UOG'", true); return; }
+    if (role === 'Faculty' && !username.endsWith('@uog.edu.pk')) { showToast("Faculty must use @uog.edu.pk email", true); return; }
+    const btn = e.target.querySelector('button[type=submit]');
+    btn.textContent = 'Registering...'; btn.disabled = true;
+    try {
+        await dbPost('register', {
+            username,
+            password: document.getElementById('reg-password').value,
+            name: `${document.getElementById('reg-firstname').value.trim()} ${document.getElementById('reg-lastname').value.trim()}`,
+            role,
+            phone: document.getElementById('reg-phone').value.trim()
+        });
+        showToast('Registration successful! Please login.');
+        document.getElementById('signup-modal').classList.remove('active');
+        document.getElementById('signup-form').reset();
+    } catch (err) { showToast(err.message, true); }
+    finally { btn.textContent = 'Complete Registration'; btn.disabled = false; }
+});
+
+// ─── LOGIN ────────────────────────────────────────────────────────────────────
+document.getElementById('login-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = e.target.querySelector('button[type=submit]');
+    btn.textContent = 'Logging in...'; btn.disabled = true;
+    try {
+        const data = await dbPost('login', {
+            username: document.getElementById('login-username').value.trim(),
+            password: document.getElementById('login-password').value
+        });
+        currentUser = data.user;
+        initApp();
+        document.getElementById('auth-view').classList.remove('active');
+        document.getElementById('workspace-view').classList.add('active');
+        showToast(`Welcome back, ${currentUser.name}!`);
+    } catch (err) { showToast(err.message, true); }
+    finally { btn.textContent = 'Access Portal'; btn.disabled = false; }
+});
+
+document.getElementById('sign-out-btn').addEventListener('click', () => {
+    currentUser = null;
+    document.getElementById('workspace-view').classList.remove('active');
+    document.getElementById('auth-view').classList.add('active');
+    document.getElementById('login-form').reset();
+});
+
+document.getElementById('faculty-link').addEventListener('click', () =>
+    window.open('https://uog.edu.pk/faculty/c-fod57cea53bbfd17/department-of-statistics', '_blank'));
+
+// ─── APP INIT ─────────────────────────────────────────────────────────────────
+function initApp() {
+    document.getElementById('nav-name').textContent = currentUser.name.split(' ')[0];
+    document.getElementById('side-name').textContent = currentUser.name;
+    document.getElementById('side-role').textContent = currentUser.role;
+    document.getElementById('compose-name').textContent = currentUser.name;
+    renderAvatar(document.getElementById('nav-avatar'), currentUser);
+    renderAvatar(document.getElementById('side-avatar'), currentUser);
+    renderAvatar(document.getElementById('post-avatar'), currentUser);
+    renderAvatar(document.getElementById('compose-avatar'), currentUser);
+    updateStats();
+    switchView('feed');
+}
+
+// ─── PROFILE PIC ──────────────────────────────────────────────────────────────
+document.getElementById('profile-pic-input').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file || !file.type.startsWith('image/')) { showToast('Please choose an image.', true); return; }
+    if (file.size > 1500000) { showToast('Image too large (max 1.5MB).', true); return; }
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+        try {
+            await dbPut(`users/${currentUser.username}/profile`, { profilePic: ev.target.result });
+            currentUser.profilePic = ev.target.result;
+            ['nav-avatar','side-avatar','post-avatar','compose-avatar'].forEach(id => renderAvatar(document.getElementById(id), currentUser));
+            showToast('Profile picture updated!');
+        } catch (err) { showToast(err.message, true); }
+    };
+    reader.readAsDataURL(file);
+});
+
+// ─── EDIT PROFILE ─────────────────────────────────────────────────────────────
+document.getElementById('open-edit-profile').addEventListener('click', () => {
+    document.getElementById('edit-name').value = currentUser.name;
+    document.getElementById('edit-phone').value = currentUser.phone || '';
+    document.getElementById('edit-password').value = '';
+    document.getElementById('edit-profile-modal').classList.add('active');
+});
+document.getElementById('close-edit-profile').addEventListener('click', () =>
+    document.getElementById('edit-profile-modal').classList.remove('active'));
+
+document.getElementById('edit-profile-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const body = { name: document.getElementById('edit-name').value.trim(), phone: document.getElementById('edit-phone').value.trim() };
+    const pw = document.getElementById('edit-password').value;
+    if (pw) body.password = pw;
+    try {
+        const data = await dbPut(`users/${currentUser.username}/profile`, body);
+        currentUser.name = data.user.name;
+        document.getElementById('side-name').textContent = currentUser.name;
+        document.getElementById('nav-name').textContent = currentUser.name.split(' ')[0];
+        document.getElementById('compose-name').textContent = currentUser.name;
+        document.getElementById('edit-profile-modal').classList.remove('active');
+        showToast('Profile updated!');
+    } catch (err) { showToast(err.message, true); }
+});
+
+// ─── STATS ────────────────────────────────────────────────────────────────────
+async function updateStats() {
+    const [posts, sw, users] = await Promise.all([dbGet('posts'), dbGet('software'), dbGet('users')]);
+    document.getElementById('record-count').textContent = posts.length;
+    document.getElementById('sw-count').textContent = sw.length;
+    document.getElementById('student-count').textContent = users.filter(u => u.role === 'Student').length;
+    document.getElementById('faculty-count').textContent = users.filter(u => u.role === 'Faculty').length;
+    const notices = posts.filter(p => p.category && p.category.includes('Update'));
+    const noticeList = document.getElementById('notice-list-container');
+    noticeList.innerHTML = notices.length === 0
+        ? `<li style="text-align:center;color:#6b7280;font-size:0.85rem;padding:15px;">No recent notices.</li>`
+        : notices.slice(0, 3).map(n => `<li><span class="notice-date">${n.date}</span><p>${n.text.substring(0,65)}${n.text.length > 65 ? '...' : ''}</p></li>`).join('');
+}
+
+// ─── NAVIGATION ───────────────────────────────────────────────────────────────
+const sidebarItems  = document.querySelectorAll('.sidebar-list li[data-target]');
+const listContainer = document.getElementById('list-container');
+const viewTitle     = document.getElementById('view-title');
+const viewDesc      = document.getElementById('view-desc');
+const composeCard   = document.getElementById('compose-card');
+
+sidebarItems.forEach(item => {
+    item.addEventListener('click', () => {
+        sidebarItems.forEach(i => i.classList.remove('active-item'));
+        item.classList.add('active-item');
+        switchView(item.getAttribute('data-target'));
+    });
+});
+
+function switchView(view) {
+    currentView = view;
+    listContainer.innerHTML = '<div style="padding:2rem;text-align:center;color:#9ca3af;"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';
+    if (view === 'feed' || view === 'records') {
+        composeCard.style.display = 'block';
+        viewTitle.textContent = view === 'feed' ? 'Department Feed' : 'Academic Records';
+        viewDesc.textContent  = view === 'feed' ? 'Latest updates, notices, and academic discussions.' : 'Shared documents, event pictures, and resources.';
+        listContainer.className = '';
+        renderPosts(view);
+    } else if (view === 'software') {
+        composeCard.style.display = 'block';
+        viewTitle.textContent = 'Software Repository';
+        viewDesc.textContent  = 'Download statistical software and tools.';
+        listContainer.className = 'software-grid';
+        renderSoftware();
+    } else if (view === 'students') {
+        composeCard.style.display = 'none';
+        viewTitle.textContent = 'Alumni & Student Directory';
+        viewDesc.textContent  = 'A secure directory of all registered members.';
+        listContainer.className = 'directory-grid';
+        renderDirectory();
+    }
+}
+
+// ─── RENDER POSTS ─────────────────────────────────────────────────────────────
+async function renderPosts(filterView) {
+    const [posts, users] = await Promise.all([dbGet('posts'), dbGet('users')]);
+    const filtered = posts.filter(p => p.category && (filterView === 'feed' ? p.category.includes('Update') : p.category.includes('Record')));
+    listContainer.innerHTML = '';
+    if (filtered.length === 0) {
+        listContainer.innerHTML = `<div style="padding:2rem;text-align:center;color:#6b7280;border:1px dashed #e5e7eb;border-radius:8px;">No posts here yet. Be the first!</div>`;
+        return;
+    }
+    filtered.forEach(post => {
+        const isOwner = post.author === currentUser.username;
+        const postUser = users.find(u => u.username === post.author);
+        const avatarHtml = postUser && postUser.profilePic
+            ? `<img src="${postUser.profilePic}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" alt="">`
+            : (post.name || '?').charAt(0).toUpperCase();
+
+        let imagesHtml = '', filesHtml = '';
+        (post.files || []).forEach(f => {
+            if (f.type === 'image') imagesHtml += `<img src="${f.data}">`;
+            else if (f.type === 'video') filesHtml += `<div class="file-attachment video"><i class="fas fa-file-video"></i><div class="file-details"><div class="file-name">${f.name}</div><div class="file-meta">Video</div></div></div>`;
+            else filesHtml += `<div class="file-attachment doc"><i class="fas fa-file-pdf"></i><div class="file-details"><div class="file-name">${f.name}</div><div class="file-meta">Document</div></div></div>`;
+        });
+        const mediaHtml = (imagesHtml ? `<div class="post-images">${imagesHtml}</div>` : '') + filesHtml;
+        const card = document.createElement('div');
+        card.className = 'edu-card post';
+        card.innerHTML = `
+            <div class="post-header">
+                <div class="post-user-info">
+                    <div class="avatar-small">${avatarHtml}</div>
+                    <div>
+                        <div class="post-name">${post.name}</div>
+                        <div class="post-meta">${post.date} • <i class="fas fa-shield-alt" style="font-size:0.7rem;"></i> Dept. Only</div>
+                    </div>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <div class="post-badge">${post.category}</div>
+                    ${isOwner ? `<button class="post-action-btn edit" onclick="openEditPost('${post.id}')"><i class="fas fa-edit"></i> Edit</button>
+                    <button class="post-action-btn delete" onclick="deletePost('${post.id}')"><i class="fas fa-trash"></i> Delete</button>` : ''}
+                </div>
+            </div>
+            <div class="post-text">${post.text}</div>${mediaHtml}`;
+        listContainer.appendChild(card);
+    });
+}
+
+// ─── EDIT / DELETE POST ───────────────────────────────────────────────────────
+async function openEditPost(postId) {
+    const posts = await dbGet('posts');
+    const post = posts.find(p => String(p.id) === String(postId));
+    if (!post) return;
+    document.getElementById('edit-post-id').value = postId;
+    document.getElementById('edit-post-text').value = post.text;
+    document.getElementById('edit-post-modal').classList.add('active');
+}
+document.getElementById('close-edit-post').addEventListener('click', () =>
+    document.getElementById('edit-post-modal').classList.remove('active'));
+document.getElementById('save-edit-post').addEventListener('click', async () => {
+    const id = document.getElementById('edit-post-id').value;
+    const newText = document.getElementById('edit-post-text').value.trim();
+    if (!newText) { showToast('Text cannot be empty.', true); return; }
+    try {
+        await dbPut(`posts/${id}`, { text: newText, author: currentUser.username });
+        document.getElementById('edit-post-modal').classList.remove('active');
+        showToast('Post updated!');
+        switchView(currentView); updateStats();
+    } catch (err) { showToast(err.message, true); }
+});
+async function deletePost(postId) {
+    if (!confirm('Delete this post?')) return;
+    await dbDelete(`posts/${postId}`, { author: currentUser.username });
+    showToast('Post deleted.');
+    switchView(currentView); updateStats();
+}
+
+// ─── RENDER SOFTWARE ──────────────────────────────────────────────────────────
+async function renderSoftware() {
+    const swList = await dbGet('software');
+    listContainer.innerHTML = '';
+    if (swList.length === 0) {
+        listContainer.innerHTML = `<div style="grid-column:1/-1;padding:2rem;text-align:center;color:#6b7280;border:1px dashed #e5e7eb;border-radius:8px;">No software uploaded yet.</div>`;
+        return;
+    }
+    swList.forEach(sw => {
+        const hasFile = sw.files && sw.files.length > 0;
+        let actionsHtml = '';
+        if (sw.link) actionsHtml += `<a href="${sw.link}" target="_blank" class="sw-btn" style="background:#0f4c81;"><i class="fas fa-external-link-alt"></i> Official Link</a>`;
+        if (hasFile) actionsHtml += `<button class="sw-btn"><i class="fas fa-download"></i> Download</button>`;
+        if (!actionsHtml) actionsHtml = `<button class="sw-btn" disabled style="background:#9ca3af;">No Source</button>`;
+        const card = document.createElement('div');
+        card.className = 'sw-card';
+        card.innerHTML = `
+            <div class="sw-header">
+                <div class="sw-icon"><i class="fas fa-laptop-code"></i></div>
+                <div class="sw-info"><h3>${sw.title}</h3><p>By ${sw.name} • ${sw.date}</p>
+                ${hasFile ? `<p style="color:#10b981;font-weight:600;"><i class="fas fa-paperclip"></i> ${sw.files.length} File(s)</p>` : ''}</div>
+            </div>
+            <div class="sw-desc">${sw.desc}</div>
+            <div class="sw-footer">${actionsHtml}</div>`;
+        listContainer.appendChild(card);
+    });
+}
+
+// ─── RENDER DIRECTORY ─────────────────────────────────────────────────────────
+async function renderDirectory() {
+    const users = await dbGet('users');
+    listContainer.innerHTML = '';
+    if (users.length === 0) {
+        listContainer.innerHTML = `<div style="grid-column:1/-1;padding:2rem;text-align:center;color:#6b7280;border:1px dashed #e5e7eb;border-radius:8px;">No users registered yet.</div>`;
+        return;
+    }
+    users.forEach(u => {
+        const avatarHtml = u.profilePic
+            ? `<img src="${u.profilePic}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" alt="">`
+            : u.name.charAt(0).toUpperCase();
+        const card = document.createElement('div');
+        card.className = 'student-card';
+        card.innerHTML = `<div class="avatar-large" style="margin:0 auto 1rem;">${avatarHtml}</div>
+            <h3>${u.name}</h3><p>${u.role}</p>
+            <span style="font-size:0.8rem;background:#f3f4f6;padding:4px 8px;border-radius:4px;border:1px solid #e5e7eb;">${u.username}</span>`;
+        listContainer.appendChild(card);
+    });
+}
+
+// ─── COMPOSE MODAL ────────────────────────────────────────────────────────────
+const composeModal       = document.getElementById('compose-modal');
+const uploadForm         = document.getElementById('upload-form');
+const postCategory       = document.getElementById('post-category');
+const softwareTitleInput = document.getElementById('software-title');
+const softwareLinkInput  = document.getElementById('software-link');
+const fileUpload         = document.getElementById('file-upload');
+const previewArea        = document.getElementById('preview-area');
+
+['open-compose','open-compose-text'].forEach(id => document.getElementById(id).addEventListener('click', () => { resetCompose('Feed'); composeModal.classList.add('active'); }));
+document.getElementById('open-compose-doc').addEventListener('click', () => { resetCompose('Records'); composeModal.classList.add('active'); });
+document.getElementById('open-compose-sw').addEventListener('click',  () => { resetCompose('Software'); composeModal.classList.add('active'); });
+document.getElementById('close-compose').addEventListener('click', () => { composeModal.classList.remove('active'); resetCompose('Feed'); });
+postCategory.addEventListener('change', toggleSoftwareFields);
+
+function resetCompose(cat) {
+    uploadForm.reset(); previewArea.innerHTML = ''; uploadedFiles = [];
+    postCategory.value = cat || 'Feed'; toggleSoftwareFields();
+}
+function toggleSoftwareFields() {
+    const isSW = postCategory.value === 'Software';
+    softwareTitleInput.style.display = isSW ? 'block' : 'none';
+    softwareLinkInput.style.display  = isSW ? 'block' : 'none';
+    isSW ? softwareTitleInput.setAttribute('required','true') : softwareTitleInput.removeAttribute('required');
+}
+
+fileUpload.addEventListener('change', (e) => {
+    Array.from(e.target.files).forEach(file => {
+        if (file.type.startsWith('image/') && file.size < 2000000) {
+            const reader = new FileReader();
+            reader.onload = ev => {
+                uploadedFiles.push({ type: 'image', data: ev.target.result, name: file.name });
+                previewArea.innerHTML += `<div class="preview-item"><img src="${ev.target.result}" style="height:40px;border-radius:4px;"> ${file.name.substring(0,12)}</div>`;
+            };
+            reader.readAsDataURL(file);
+        } else if (file.type.startsWith('video/')) {
+            uploadedFiles.push({ type: 'video', data: '', name: file.name });
+            previewArea.innerHTML += `<div class="preview-item"><i class="fas fa-file-video" style="color:#ef4444;"></i> ${file.name}</div>`;
+        } else if (['.exe','.zip','.rar'].some(x => file.name.endsWith(x))) {
+            uploadedFiles.push({ type: 'software', data: '', name: file.name });
+            previewArea.innerHTML += `<div class="preview-item"><i class="fas fa-box-open" style="color:#f58220;"></i> ${file.name}</div>`;
+        } else {
+            uploadedFiles.push({ type: 'document', data: '', name: file.name });
+            previewArea.innerHTML += `<div class="preview-item"><i class="fas fa-file-pdf" style="color:#3b82f6;"></i> ${file.name}</div>`;
+        }
+    });
+});
+
+uploadForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const text = document.getElementById('upload-desc').value.trim();
+    const category = postCategory.value;
+    const btn = e.target.querySelector('button[type=submit]');
+    btn.textContent = 'Publishing...'; btn.disabled = true;
+    try {
+        if (category === 'Software') {
+            await dbPost('software', { author: currentUser.username, name: currentUser.name, title: softwareTitleInput.value, desc: text, link: softwareLinkInput.value, files: [...uploadedFiles] });
+            showToast('Software added!');
+            document.querySelector('.sidebar-list li[data-target="software"]').click();
+        } else {
+            const catText = category === 'Feed' ? 'General Update / Notice' : 'Academic Record / Media Files';
+            await dbPost('posts', { author: currentUser.username, name: currentUser.name, role: currentUser.role, category: catText, text, files: [...uploadedFiles] });
+            showToast('Update shared!');
+            document.querySelector(`.sidebar-list li[data-target="${category === 'Feed' ? 'feed' : 'records'}"]`).click();
+        }
+        composeModal.classList.remove('active');
+        resetCompose('Feed');
+        updateStats();
+    } catch (err) { showToast(err.message, true); }
+    finally { btn.textContent = 'Publish Update'; btn.disabled = false; }
+});
