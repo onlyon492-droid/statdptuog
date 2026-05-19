@@ -7,6 +7,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js for Analytics -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <div id="toast-container"></div>
@@ -67,6 +69,14 @@
                             <option value="Faculty">Faculty Member</option>
                         </select>
                     </div>
+                    <div class="edu-row">
+                        <select id="reg-gender" required class="edu-select" style="margin-bottom: 12px;">
+                            <option value="" disabled selected>Select Gender...</option>
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
                     <!-- Conditional Student Fields -->
                     <div id="reg-student-fields" style="display: none; margin-bottom: 12px; border-left: 3px solid var(--uog-orange); padding-left: 10px;">
                         <select id="reg-program" class="edu-select" style="margin-bottom: 10px;">
@@ -74,15 +84,34 @@
                             <option value="BS Statistics">BS Statistics</option>
                             <option value="BS Data Analytics">BS Data Analytics</option>
                         </select>
-                        <div style="display: flex; gap: 8px; align-items: center;">
-                            <select id="reg-batch" class="edu-select" style="flex: 1; margin-bottom: 0;">
-                                <option value="" disabled selected>Select Batch...</option>
+                        <div class="edu-row" style="margin-bottom: 10px;">
+                            <input type="text" id="reg-area" class="edu-input" placeholder="City/Area (e.g. Gujrat)" style="margin-bottom: 0;">
+                            <input type="number" id="reg-age" class="edu-input" placeholder="Age" min="15" max="60" style="margin-bottom: 0;">
+                        </div>
+                        <div class="edu-row" style="margin-bottom: 10px;">
+                            <select id="reg-semester" class="edu-select" style="margin-bottom: 0;">
+                                <option value="" disabled selected>Select Semester...</option>
+                                <option value="1">1st Semester</option>
+                                <option value="2">2nd Semester</option>
+                                <option value="3">3rd Semester</option>
+                                <option value="4">4th Semester</option>
+                                <option value="5">5th Semester</option>
+                                <option value="6">6th Semester</option>
+                                <option value="7">7th Semester</option>
+                                <option value="8">8th Semester</option>
+                                <option value="Graduated">Graduated/Alumni</option>
                             </select>
-                            <button type="button" class="add-batch-inline-btn" title="Add New Batch" onclick="triggerAddBatch()">
-                                <i class="fas fa-plus"></i>
-                            </button>
+                            <div style="display: flex; gap: 8px; align-items: center; flex: 1;">
+                                <select id="reg-batch" class="edu-select" style="flex: 1; margin-bottom: 0;">
+                                    <option value="" disabled selected>Select Batch...</option>
+                                </select>
+                                <button type="button" class="add-batch-inline-btn" title="Add New Batch" onclick="triggerAddBatch()">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
                         </div>
                     </div>
+                    <input type="text" id="reg-tagline" class="edu-input" placeholder="Academic Tagline (e.g. 🚀 Learning Statistics)" style="margin-bottom:12px;">
                     <input type="text" id="reg-username" class="edu-input" placeholder="Roll No (e.g. 20-UOG-102) or UOG Email" required>
                     <input type="text" id="reg-phone" class="edu-input" placeholder="Mobile Number (Private)" required>
                     <input type="password" id="reg-password" class="edu-input" placeholder="Create Password" required>
@@ -117,6 +146,9 @@
                             </ul>
                         </div>
                     </div>
+                    <div class="theme-switch-btn" id="theme-toggle-btn" title="Toggle Theme">
+                        <i class="fas fa-moon"></i>
+                    </div>
                     <div class="profile-chip" id="profile-chip">
                         <div class="avatar-small" id="nav-avatar"></div>
                         <span id="nav-name" style="font-weight: 500;">Name</span>
@@ -129,6 +161,7 @@
                 <!-- Left Sidebar -->
                 <aside class="edu-sidebar-left">
                     <div class="profile-summary">
+                        <div class="profile-cover-banner"></div>
                         <!-- Profile Picture Upload Area -->
                         <div class="avatar-upload-container" id="avatar-upload-container">
                             <div class="avatar-large" id="side-avatar"></div>
@@ -139,7 +172,8 @@
                         </div>
                         <h3 id="side-name">Name</h3>
                         <p id="side-role">Student</p>
-                        <button class="edit-profile-btn" id="open-edit-profile"><i class="fas fa-user-edit"></i> Edit Profile</button>
+                        <p class="profile-tagline" id="side-tagline"></p>
+                        <button class="edit-profile-btn" id="open-edit-profile" style="margin-top: 12px;"><i class="fas fa-user-edit"></i> Edit Profile</button>
                     </div>
                     <ul class="sidebar-list">
                         <li class="active-item" data-target="feed"><i class="fas fa-chalkboard"></i> <span>Department Feed</span></li>
@@ -147,6 +181,7 @@
                         <li data-target="software"><i class="fas fa-laptop-code"></i> <span>Software Repository</span> <span class="sidebar-badge" id="badge-software">0</span></li>
                         <li data-target="students"><i class="fas fa-user-graduate"></i> <span>Alumni Directory</span></li>
                         <li id="faculty-link"><i class="fas fa-chalkboard-teacher"></i> <span>Faculty Profiles</span> <i class="fas fa-external-link-alt" style="font-size: 10px; margin-left: auto;"></i></li>
+                        <li data-target="analytics"><i class="fas fa-chart-bar"></i> <span>Analytics & Stats</span></li>
                         <li data-target="saved"><i class="fas fa-bookmark"></i> <span>Saved Items</span> <span class="sidebar-badge" id="badge-saved">0</span></li>
                         <li data-target="privacy" style="margin-top: 20px;"><i class="fas fa-user-shield"></i> <span>Privacy Settings</span></li>
                     </ul>
@@ -193,6 +228,17 @@
                     <!-- Dynamic Content Container -->
                     <div id="list-container">
                         <!-- Content populated via JS -->
+                    </div>
+
+                    <!-- Analytics View Container -->
+                    <div id="analytics-container" style="display: none; width: 100%; padding: 1rem;">
+                        <div class="analytics-header" style="margin-bottom: 2rem;">
+                            <h2 style="font-size: 1.5rem; color: var(--uog-blue);"><i class="fas fa-chart-bar"></i> Department Analytics</h2>
+                            <p style="color: var(--text-secondary);">Real-time statistical overview of the department.</p>
+                        </div>
+                        <div class="charts-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem;">
+                            <!-- Charts will be injected here via app.js -->
+                        </div>
                     </div>
                 </main>
 
@@ -250,11 +296,18 @@
                         </div>
                     </div>
                     
-                    <select id="post-category" required class="edu-select" style="margin-bottom: 10px;">
-                        <option value="Feed">General Update / Notice</option>
-                        <option value="Records">Academic Record / Media Files</option>
-                        <option value="Software">Software Repository Tool</option>
-                    </select>
+                    <div class="edu-row" style="margin-bottom: 10px; gap: 10px;">
+                        <select id="post-category" required class="edu-select" style="margin-bottom: 0; flex: 1;">
+                            <option value="Feed">General Update / Notice</option>
+                            <option value="Records">Academic Record / Media Files</option>
+                            <option value="Software">Software Repository Tool</option>
+                        </select>
+                        <select id="post-visibility" class="edu-select" style="margin-bottom: 0; flex: 1;">
+                            <option value="everyone">Visible to Everyone</option>
+                            <option value="batch_faculty">My Batch & Faculty Only</option>
+                            <option value="faculty">Faculty Only</option>
+                        </select>
+                    </div>
 
                     <input type="text" id="software-title" class="edu-input" placeholder="Software Name (e.g. SPSS v26)" style="display: none; margin-bottom: 10px;">
                     <input type="url" id="software-link" class="edu-input" placeholder="External Download Link (Optional, e.g. Google Drive)" style="display: none; margin-bottom: 10px;">
@@ -306,6 +359,8 @@
                     <input type="text" id="edit-name" class="edu-input" placeholder="Full Name" required style="margin-bottom:12px;">
                     <label style="font-size:0.85rem; font-weight:600; color:#4b5563; margin-bottom:5px; display:block;">Phone Number (Private)</label>
                     <input type="text" id="edit-phone" class="edu-input" placeholder="Phone Number" style="margin-bottom:12px;">
+                    <label style="font-size:0.85rem; font-weight:600; color:#4b5563; margin-bottom:5px; display:block;">Academic Tagline / Bio</label>
+                    <input type="text" id="edit-tagline" class="edu-input" placeholder="e.g. 🚀 Learning Statistics" style="margin-bottom:12px;">
                     
                     <!-- Student Specific Profile Fields -->
                     <div id="edit-student-fields" style="display: none; border-left: 3px solid var(--uog-orange); padding-left: 10px; margin-bottom: 12px;">

@@ -49,7 +49,15 @@ const userSchema = new mongoose.Schema({
     allowComments: { type: String, default: 'everyone' }, // 'everyone', 'faculty', 'none'
     allowDownloads: { type: Boolean, default: true },
     showAppreciations: { type: Boolean, default: true },
-    connections: { type: [String], default: [] }
+    connections: { type: [String], default: [] },
+    
+    // Wave 4 expanded privacy & customization settings
+    phonePrivacy: { type: String, default: 'none' }, // 'everyone', 'connections', 'faculty', 'none'
+    profileStealth: { type: Boolean, default: false },
+    statusPrivacy: { type: String, default: 'everyone' }, // 'everyone', 'connections', 'none'
+    connectionPolicy: { type: String, default: 'everyone' }, // 'everyone', 'same_batch', 'faculty_only'
+    tagline: { type: String, default: '' },
+    lastActive: { type: Date, default: Date.now }
 });
 const User = mongoose.model('User', userSchema);
 
@@ -166,7 +174,13 @@ app.post('/api/register', async (req, res) => {
             phoneVisible: false,
             allowComments: 'everyone',
             allowDownloads: true,
-            showAppreciations: true
+            showAppreciations: true,
+            phonePrivacy: 'none',
+            profileStealth: false,
+            statusPrivacy: 'everyone',
+            connectionPolicy: 'everyone',
+            tagline: '',
+            lastActive: new Date()
         });
         await user.save();
         res.json({ message: 'Registered successfully', user: safeUser(user.toObject()) });
@@ -202,7 +216,7 @@ app.get('/api/users', async (req, res) => {
 
 app.put('/api/users/:username/profile', async (req, res) => {
     try {
-        const { name, phone, password, profilePic, program, batch, phoneVisible, allowComments, allowDownloads, showAppreciations } = req.body;
+        const { name, phone, password, profilePic, program, batch, phoneVisible, allowComments, allowDownloads, showAppreciations, phonePrivacy, profileStealth, statusPrivacy, connectionPolicy, tagline } = req.body;
         const user = await User.findOne({ username: req.params.username.toLowerCase().trim() });
         if (!user) return res.status(404).json({ error: 'User not found' });
         
@@ -217,6 +231,12 @@ app.put('/api/users/:username/profile', async (req, res) => {
         if (allowComments !== undefined) user.allowComments = allowComments;
         if (allowDownloads !== undefined) user.allowDownloads = allowDownloads;
         if (showAppreciations !== undefined) user.showAppreciations = showAppreciations;
+        
+        if (phonePrivacy !== undefined) user.phonePrivacy = phonePrivacy;
+        if (profileStealth !== undefined) user.profileStealth = profileStealth;
+        if (statusPrivacy !== undefined) user.statusPrivacy = statusPrivacy;
+        if (connectionPolicy !== undefined) user.connectionPolicy = connectionPolicy;
+        if (tagline !== undefined) user.tagline = tagline;
         
         await user.save();
         res.json({ message: 'Profile updated', user: safeUser(user.toObject()) });
@@ -412,12 +432,22 @@ app.post('/api/users/:username/connect', async (req, res) => {
         
         const idx = user.connections.indexOf(targetUsername);
         if (idx !== -1) {
-            // Disconnect
+            // Disconnect (Always allowed)
             user.connections.splice(idx, 1);
             const targetIdx = target.connections.indexOf(user.username);
             if (targetIdx !== -1) target.connections.splice(targetIdx, 1);
         } else {
-            // Connect
+            // Connect - Validate target user's policy
+            const targetPolicy = target.connectionPolicy || 'everyone';
+            if (targetPolicy === 'faculty_only' && user.role !== 'Faculty') {
+                return res.status(403).json({ error: 'This user only allows connection requests from Faculty members.' });
+            }
+            if (targetPolicy === 'same_batch') {
+                if (user.role !== 'Faculty' && user.batch !== target.batch) {
+                    return res.status(403).json({ error: 'This user only allows connection requests from their own batch.' });
+                }
+            }
+            
             user.connections.push(targetUsername);
             target.connections.push(user.username);
         }
@@ -429,6 +459,20 @@ app.post('/api/users/:username/connect', async (req, res) => {
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: 'Error toggling connection' });
+    }
+});
+
+app.post('/api/users/:username/heartbeat', async (req, res) => {
+    try {
+        const user = await User.findOne({ username: req.params.username.toLowerCase().trim() });
+        if (user) {
+            user.lastActive = new Date();
+            await user.save();
+        }
+        res.json({ success: true });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Heartbeat error' });
     }
 });
 

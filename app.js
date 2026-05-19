@@ -73,6 +73,16 @@ async function dbPost(endpoint, body) {
             return { reactions: posts[idx].reactions, likes: posts[idx].likes };
         }
     }
+    if (endpoint.startsWith('users/') && endpoint.endsWith('/heartbeat')) {
+        const username = endpoint.split('/')[1];
+        const users = JSON.parse(localStorage.getItem('uog_users') || '[]');
+        const idx = users.findIndex(u => u.username === username);
+        if (idx !== -1) {
+            users[idx].lastActive = new Date().toISOString();
+            localStorage.setItem('uog_users', JSON.stringify(users));
+        }
+        return { success: true };
+    }
     if (endpoint.startsWith('users/') && endpoint.endsWith('/connect')) {
         const username = endpoint.split('/')[1];
         const targetUsername = body.targetUsername.toLowerCase();
@@ -85,10 +95,21 @@ async function dbPost(endpoint, body) {
             
             const idx = users[userIdx].connections.indexOf(targetUsername);
             if (idx !== -1) {
+                // Disconnect (Always allowed)
                 users[userIdx].connections.splice(idx, 1);
                 const targetConnIdx = users[targetIdx].connections.indexOf(username);
                 if (targetConnIdx !== -1) users[targetIdx].connections.splice(targetConnIdx, 1);
             } else {
+                // Connect validation
+                const targetPolicy = users[targetIdx].connectionPolicy || 'everyone';
+                if (targetPolicy === 'faculty_only' && users[userIdx].role !== 'Faculty') {
+                    throw new Error('This user only allows connection requests from Faculty members.');
+                }
+                if (targetPolicy === 'same_batch') {
+                    if (users[userIdx].role !== 'Faculty' && users[userIdx].batch !== users[targetIdx].batch) {
+                        throw new Error('This user only allows connection requests from their own batch.');
+                    }
+                }
                 users[userIdx].connections.push(targetUsername);
                 users[targetIdx].connections.push(username);
             }
@@ -237,6 +258,30 @@ if (!localStorage.getItem('uog_software')) localStorage.setItem('uog_software', 
 
 // ─── STATE ───────────────────────────────────────────────────────────────────
 let currentUser = null;
+let heartbeatInterval = null;
+
+function startHeartbeatLoop() {
+    if (!currentUser) return;
+    // Send immediate heartbeat
+    dbPost(`users/${currentUser.username}/heartbeat`, {}).catch(e => console.log('Heartbeat failed:', e));
+    
+    // Loop every 60s
+    if (heartbeatInterval) clearInterval(heartbeatInterval);
+    heartbeatInterval = setInterval(() => {
+        if (!currentUser) {
+            clearInterval(heartbeatInterval);
+            return;
+        }
+        dbPost(`users/${currentUser.username}/heartbeat`, {}).catch(e => console.log('Heartbeat failed:', e));
+    }, 60000);
+}
+
+function stopHeartbeatLoop() {
+    if (heartbeatInterval) {
+        clearInterval(heartbeatInterval);
+        heartbeatInterval = null;
+    }
+}
 let currentView = 'feed';
 let uploadedFiles = [];
 let activeDirectoryTab = 'All';
@@ -284,11 +329,17 @@ regRole.addEventListener('change', () => {
         regStudentFields.style.display = 'block';
         document.getElementById('reg-program').required = true;
         document.getElementById('reg-batch').required = true;
+        document.getElementById('reg-area').required = true;
+        document.getElementById('reg-age').required = true;
+        document.getElementById('reg-semester').required = true;
     } else {
         regUsername.placeholder = "Faculty Email (@uog.edu.pk)";
         regStudentFields.style.display = 'none';
         document.getElementById('reg-program').required = false;
         document.getElementById('reg-batch').required = false;
+        document.getElementById('reg-area').required = false;
+        document.getElementById('reg-age').required = false;
+        document.getElementById('reg-semester').required = false;
     }
 });
 
@@ -300,6 +351,11 @@ document.getElementById('signup-form').addEventListener('submit', async (e) => {
     if (role === 'Faculty' && !username.endsWith('@uog.edu.pk')) { showToast("Faculty must use @uog.edu.pk email", true); return; }
     const program = role === 'Student' ? document.getElementById('reg-program').value : '';
     const batch = role === 'Student' ? document.getElementById('reg-batch').value : '';
+    const tagline = document.getElementById('reg-tagline') ? document.getElementById('reg-tagline').value.trim() : '';
+    const gender = document.getElementById('reg-gender').value;
+    const area = role === 'Student' ? document.getElementById('reg-area').value.trim() : '';
+    const age = role === 'Student' ? document.getElementById('reg-age').value : '';
+    const semester = role === 'Student' ? document.getElementById('reg-semester').value : '';
     
     const btn = e.target.querySelector('button[type=submit]');
     btn.textContent = 'Registering...'; btn.disabled = true;
@@ -311,7 +367,12 @@ document.getElementById('signup-form').addEventListener('submit', async (e) => {
             role,
             phone: document.getElementById('reg-phone').value.trim(),
             program,
-            batch
+            batch,
+            tagline,
+            gender,
+            area,
+            age,
+            semester
         });
         showToast('Registration successful! Please login.');
         document.getElementById('signup-modal').classList.remove('active');
@@ -341,6 +402,7 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
 });
 
 document.getElementById('sign-out-btn').addEventListener('click', () => {
+    stopHeartbeatLoop();
     currentUser = null;
     document.getElementById('workspace-view').classList.remove('active');
     document.getElementById('auth-view').classList.add('active');
@@ -367,6 +429,7 @@ function initApp() {
     renderAvatar(document.getElementById('post-avatar'), currentUser);
     renderAvatar(document.getElementById('compose-avatar'), currentUser);
     updateStats();
+    startHeartbeatLoop();
     switchView('feed');
 }
 
@@ -393,6 +456,11 @@ document.getElementById('open-edit-profile').addEventListener('click', () => {
     document.getElementById('edit-phone').value = currentUser.phone || '';
     document.getElementById('edit-password').value = '';
     
+    const editTaglineElem = document.getElementById('edit-tagline');
+    if (editTaglineElem) {
+        editTaglineElem.value = currentUser.tagline || '';
+    }
+    
     const editStudentFields = document.getElementById('edit-student-fields');
     if (currentUser.role === 'Student') {
         editStudentFields.style.display = 'block';
@@ -413,6 +481,11 @@ document.getElementById('edit-profile-form').addEventListener('submit', async (e
     const pw = document.getElementById('edit-password').value;
     if (pw) body.password = pw;
     
+    const editTaglineElem = document.getElementById('edit-tagline');
+    if (editTaglineElem) {
+        body.tagline = editTaglineElem.value.trim();
+    }
+    
     if (currentUser.role === 'Student') {
         body.program = document.getElementById('edit-program').value;
         body.batch = document.getElementById('edit-batch').value;
@@ -423,10 +496,17 @@ document.getElementById('edit-profile-form').addEventListener('submit', async (e
         currentUser.name = data.user.name;
         currentUser.program = data.user.program;
         currentUser.batch = data.user.batch;
+        currentUser.tagline = data.user.tagline;
         
         document.getElementById('side-name').textContent = currentUser.name;
         document.getElementById('nav-name').textContent = currentUser.name.split(' ')[0];
         document.getElementById('compose-name').textContent = currentUser.name;
+        
+        const sideTaglineElem = document.getElementById('side-tagline');
+        if (sideTaglineElem) {
+            sideTaglineElem.textContent = currentUser.tagline || '';
+            sideTaglineElem.style.display = currentUser.tagline ? 'block' : 'none';
+        }
         
         // Also update subtext role/program/batch on sidebar
         if (currentUser.role === 'Student') {
@@ -492,6 +572,10 @@ function switchView(view) {
     if (searchInput) searchInput.value = '';
     listContainer.innerHTML = '<div style="padding:2rem;text-align:center;color:#9ca3af;"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';
     
+    const analyticsContainer = document.getElementById('analytics-container');
+    if (analyticsContainer) analyticsContainer.style.display = (view === 'analytics') ? 'block' : 'none';
+    listContainer.style.display = (view === 'analytics') ? 'none' : '';
+
     // Toggle Directory Filter Bar visibility
     const filterBar = document.getElementById('directory-filter-bar');
     if (filterBar) {
@@ -528,6 +612,11 @@ function switchView(view) {
         viewDesc.textContent  = 'Boost your post-related privacy features and visibility controls.';
         listContainer.className = '';
         renderPrivacyDashboard();
+    } else if (view === 'analytics') {
+        composeCard.style.display = 'none';
+        viewTitle.textContent = 'Department Analytics';
+        viewDesc.textContent  = 'Real-time statistical overview of the department demographics.';
+        renderAnalytics();
     }
 }
 
@@ -541,7 +630,21 @@ async function renderPosts(filterView) {
         const savedIds = getBookmarks();
         filtered = posts.filter(p => savedIds.includes(String(p.id)));
     } else {
-        filtered = posts.filter(p => p.category && (filterView === 'feed' ? p.category.includes('Update') : p.category.includes('Record')));
+        filtered = posts.filter(p => {
+            if (!p.category) return false;
+            if (filterView === 'feed' && !p.category.includes('Update')) return false;
+            if (filterView === 'records' && !p.category.includes('Record')) return false;
+            
+            // Post Visibility Enforcement
+            if (p.visibility === 'faculty') {
+                if (currentUser.role !== 'Faculty' && p.author !== currentUser.username && p.originalAuthor !== currentUser.username) return false;
+            } else if (p.visibility === 'batch_faculty') {
+                if (currentUser.role !== 'Faculty' && p.author !== currentUser.username && p.originalAuthor !== currentUser.username) {
+                    if (!p.authorBatch || currentUser.batch !== p.authorBatch) return false;
+                }
+            }
+            return true;
+        });
     }
     
     listContainer.innerHTML = '';
@@ -586,6 +689,25 @@ async function renderPosts(filterView) {
         const avatarHtml = postUser && postUser.profilePic
             ? `<img src="${postUser.profilePic}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" alt="">`
             : (post.name || '?').charAt(0).toUpperCase();
+
+        let showActiveDot = false;
+        if (postUser && postUser.lastActive) {
+            const isActive = (new Date() - new Date(postUser.lastActive)) < (3 * 60 * 1000);
+            if (isActive) {
+                const statusPrivacy = postUser.statusPrivacy || 'everyone';
+                if (statusPrivacy === 'everyone' || post.author === currentUser.username || currentUser.role === 'Faculty') {
+                    showActiveDot = true;
+                } else if (statusPrivacy === 'connections') {
+                    const userConnections = currentUser.connections || [];
+                    if (userConnections.includes(post.author)) {
+                        showActiveDot = true;
+                    }
+                }
+            }
+        }
+        
+        const activeDotHtml = showActiveDot ? `<div class="active-dot-pulse" style="position:absolute; bottom:0; right:0; width:12px; height:12px; background-color:#10b981; border-radius:50%; border:2px solid var(--surface-card);"></div>` : '';
+        const avatarWrapper = `<div style="position:relative; width:100%; height:100%;">${avatarHtml}${activeDotHtml}</div>`;
 
         const allowComments = postUser && postUser.allowComments ? postUser.allowComments : 'everyone';
         const allowDownloads = postUser && postUser.allowDownloads !== false; // default true
@@ -758,7 +880,7 @@ async function renderPosts(filterView) {
         card.innerHTML = `
             <div class="post-header">
                 <div class="post-user-info">
-                    <div class="avatar-small">${avatarHtml}</div>
+                    <div class="avatar-small">${avatarWrapper}</div>
                     <div>
                         <div class="post-name">${post.name}</div>
                         <div class="post-meta">${post.date} • <i class="fas fa-eye" style="font-size:0.75rem;margin-left:2px;"></i> ${mockViews} Views</div>
@@ -888,6 +1010,11 @@ async function renderDirectory() {
     
     // Filter users by Active Category Tab, Batch select, and Search query
     const filtered = users.filter(u => {
+        // 0. Stealth Filter
+        if (u.profileStealth === true && u.username !== currentUser.username && currentUser.role !== 'Faculty') {
+            return false;
+        }
+        
         // 1. Role / Category Tab Filter
         if (activeDirectoryTab === 'BS Statistics' || activeDirectoryTab === 'BS Data Analytics') {
             if (u.role !== 'Student' || u.program !== activeDirectoryTab) return false;
@@ -919,9 +1046,28 @@ async function renderDirectory() {
     }
     
     filtered.forEach(u => {
+        // Calculate Active Status
+        const isActive = u.lastActive && (new Date() - new Date(u.lastActive)) < (3 * 60 * 1000); // 3 minutes
+        let showActiveDot = false;
+        if (isActive) {
+            const statusPrivacy = u.statusPrivacy || 'everyone';
+            if (statusPrivacy === 'everyone' || u.username === currentUser.username || currentUser.role === 'Faculty') {
+                showActiveDot = true;
+            } else if (statusPrivacy === 'connections') {
+                const userConnections = currentUser.connections || [];
+                if (userConnections.includes(u.username)) {
+                    showActiveDot = true;
+                }
+            }
+        }
+        
+        const activeDotHtml = showActiveDot ? `<div class="active-dot-pulse" style="position:absolute; bottom:2px; right:2px; width:14px; height:14px; background-color:#10b981; border-radius:50%; border:2px solid var(--surface-card);"></div>` : '';
+        
         const avatarHtml = u.profilePic
             ? `<img src="${u.profilePic}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" alt="">`
             : u.name.charAt(0).toUpperCase();
+            
+        const avatarWrapper = `<div style="position:relative; width:100%; height:100%;">${avatarHtml}${activeDotHtml}</div>`;
             
         // Build badges
         let badgeHtml = '';
@@ -937,9 +1083,25 @@ async function renderDirectory() {
             }
             extraCardClass = isAnalytics ? 'analytics-card' : 'stat-card';
         }
+        
+        const taglineHtml = u.tagline ? `<div style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:8px; font-style:italic;">"${u.tagline}"</div>` : '';
 
         // Determine phone visibility according to privacy preferences
-        const isPhoneVisible = u.phoneVisible === true || u.username === currentUser.username || currentUser.role === 'Faculty';
+        let isPhoneVisible = false;
+        const phonePrivacy = u.phonePrivacy || (u.phoneVisible === true ? 'everyone' : 'none');
+        if (phonePrivacy === 'everyone') {
+            isPhoneVisible = true;
+        } else if (phonePrivacy === 'connections') {
+            const userConnections = currentUser.connections || [];
+            if (userConnections.includes(u.username)) isPhoneVisible = true;
+        } else if (phonePrivacy === 'faculty' && currentUser.role === 'Faculty') {
+            isPhoneVisible = true;
+        }
+        
+        // Strict Private
+        if (phonePrivacy === 'none') isPhoneVisible = false;
+        if (u.username === currentUser.username) isPhoneVisible = true; // Can always see own phone
+        
         const phoneHtml = isPhoneVisible
             ? `<div class="member-phone" style="margin-top:12px; font-size:0.82rem; color:var(--text-secondary); display:flex; align-items:center; justify-content:center; gap:6px; background:rgba(15,76,129,0.03); padding:6px 12px; border-radius:8px; border:1px dashed rgba(15,76,129,0.15);">
                 <i class="fas fa-phone-alt" style="color:var(--uog-blue);font-size:0.75rem;"></i>
@@ -954,20 +1116,47 @@ async function renderDirectory() {
         if (u.username !== currentUser.username) {
             const userConnections = currentUser.connections || [];
             const isConnected = userConnections.includes(u.username);
-            connectBtnHtml = `
-                <button class="connect-btn ${isConnected ? 'connected' : ''}" 
-                        ${isConnected ? 'disabled' : ''} 
-                        onclick="window.toggleConnection('${u.username}', this)">
-                    ${isConnected ? '<i class="fas fa-check"></i> Connected' : '<i class="fas fa-user-plus"></i> Connect'}
-                </button>
-            `;
+            
+            // Check target's connection lock
+            let canConnect = true;
+            const targetPolicy = u.connectionPolicy || 'everyone';
+            if (targetPolicy === 'same_batch') {
+                if (currentUser.role !== 'Faculty' && (currentUser.role !== 'Student' || currentUser.batch !== u.batch)) {
+                    canConnect = false;
+                }
+            } else if (targetPolicy === 'faculty_only') {
+                if (currentUser.role !== 'Faculty') {
+                    canConnect = false;
+                }
+            }
+            
+            if (isConnected) {
+                connectBtnHtml = `
+                    <button class="connect-btn connected" disabled>
+                        <i class="fas fa-check"></i> Connected
+                    </button>
+                `;
+            } else if (!canConnect) {
+                connectBtnHtml = `
+                    <button class="connect-btn" disabled style="background:rgba(0,0,0,0.05); color:#6b7280; border-color:transparent; cursor:not-allowed;">
+                        <i class="fas fa-lock"></i> Restricted
+                    </button>
+                `;
+            } else {
+                connectBtnHtml = `
+                    <button class="connect-btn" onclick="window.toggleConnection('${u.username}', this)">
+                        <i class="fas fa-user-plus"></i> Connect
+                    </button>
+                `;
+            }
         }
 
         const card = document.createElement('div');
         card.className = `student-card ${extraCardClass}`;
         card.innerHTML = `
-            <div class="avatar-large" style="margin:0 auto 1rem;">${avatarHtml}</div>
+            <div class="avatar-large" style="margin:0 auto 1rem;">${avatarWrapper}</div>
             <h3 style="margin-bottom: 4px;">${u.name}</h3>
+            ${taglineHtml}
             <div style="margin-bottom: 8px;">${badgeHtml}</div>
             <span style="font-size:0.8rem;background:rgba(15,76,129,0.05);color:var(--uog-blue);padding:4px 10px;border-radius:20px;border:1px solid rgba(15,76,129,0.1);font-family:monospace;font-weight:600;">${u.username}</span>
             ${phoneHtml}
@@ -1038,8 +1227,16 @@ uploadForm.addEventListener('submit', async (e) => {
             document.querySelector('.sidebar-list li[data-target="software"]').click();
         } else {
             const catText = category === 'Feed' ? 'General Update / Notice' : 'Academic Record / Media Files';
-            await dbPost('posts', { author: currentUser.username, name: currentUser.name, role: currentUser.role, category: catText, text, files: [...uploadedFiles] });
-            showToast('Update shared!');
+            
+            // Check Anonymous Privacy Setting
+            const isAnon = currentUser.anonymousMode === true;
+            const postAuthor = isAnon ? 'anonymous_ghost' : currentUser.username;
+            const postName = isAnon ? 'Anonymous Member' : currentUser.name;
+            const postRole = isAnon ? 'Hidden' : currentUser.role;
+            const visibility = document.getElementById('post-visibility') ? document.getElementById('post-visibility').value : 'everyone';
+            
+            await dbPost('posts', { author: postAuthor, name: postName, role: postRole, category: catText, text, files: [...uploadedFiles], originalAuthor: currentUser.username, authorBatch: currentUser.batch, visibility });
+            showToast(isAnon ? 'Anonymous update shared securely!' : 'Update shared!');
             document.querySelector(`.sidebar-list li[data-target="${category === 'Feed' ? 'feed' : 'records'}"]`).click();
         }
         composeModal.classList.remove('active');
@@ -1182,7 +1379,6 @@ window.submitComment = async function(postId) {
             list.scrollTop = list.scrollHeight;
         }
         showToast('Comment published!');
-        
         // Also refresh the counts silently
         updateStats();
     } catch (err) {
@@ -1396,8 +1592,15 @@ function saveBookmarks(bookmarks) {
 window.renderPrivacyDashboard = function() {
     listContainer.innerHTML = '';
     
-    // Fallback if some properties are undefined
-    const phoneVisible = currentUser.phoneVisible === true;
+    // Fallbacks and variable setups
+    let phonePrivacy = currentUser.phonePrivacy;
+    if (!phonePrivacy) {
+        phonePrivacy = currentUser.phoneVisible === true ? 'everyone' : 'none';
+    }
+    const profileStealth = currentUser.profileStealth === true;
+    const statusPrivacy = currentUser.statusPrivacy || 'everyone';
+    const connectionPolicy = currentUser.connectionPolicy || 'everyone';
+    
     const allowComments = currentUser.allowComments || 'everyone';
     const allowDownloads = currentUser.allowDownloads !== false; // default true
     const showAppreciations = currentUser.showAppreciations !== false; // default true
@@ -1411,15 +1614,79 @@ window.renderPrivacyDashboard = function() {
                 <div class="privacy-icon uog-blue-text"><i class="fas fa-phone-alt"></i></div>
                 <div>
                     <h3>Directory Phone Visibility</h3>
-                    <p>Control whether student members can view your phone number in the Alumni & Student Directory. Faculty members can always view contact details for departmental coordination.</p>
+                    <p>Control who can view your phone number in the Alumni & Student Directory. Faculty members can always view contact details.</p>
+                </div>
+            </div>
+            <div class="privacy-control" style="flex-direction: column; align-items: stretch; gap: 12px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; width: 100%;">
+                    <span>Who can see your phone number</span>
+                    <select class="edu-select" style="width: auto; margin-bottom: 0; padding: 6px 12px;" onchange="window.updatePrivacySetting('phonePrivacy', this.value)">
+                        <option value="everyone" ${phonePrivacy === 'everyone' ? 'selected' : ''}>Everyone</option>
+                        <option value="connections" ${phonePrivacy === 'connections' ? 'selected' : ''}>My Connections</option>
+                        <option value="faculty" ${phonePrivacy === 'faculty' ? 'selected' : ''}>Faculty Only</option>
+                        <option value="none" ${phonePrivacy === 'none' ? 'selected' : ''}>Only Me (Private)</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card: Directory Stealth Mode -->
+        <div class="privacy-card">
+            <div class="privacy-header">
+                <div class="privacy-icon uog-blue-text" style="color: #6366f1;"><i class="fas fa-user-ninja"></i></div>
+                <div>
+                    <h3>Profile Stealth Mode</h3>
+                    <p>Hide your profile completely from the directory for general students. Faculty and yourself can still see it.</p>
                 </div>
             </div>
             <div class="privacy-control toggle-control">
-                <span>Show phone number in directory</span>
+                <span>Enable Directory Stealth Mode</span>
                 <label class="switch">
-                    <input type="checkbox" id="privacy-phone-toggle" ${phoneVisible ? 'checked' : ''} onchange="window.updatePrivacySetting('phoneVisible', this.checked)">
+                    <input type="checkbox" ${profileStealth ? 'checked' : ''} onchange="window.updatePrivacySetting('profileStealth', this.checked)">
                     <span class="slider"></span>
                 </label>
+            </div>
+        </div>
+
+        <!-- Card: Active Status Visibility -->
+        <div class="privacy-card">
+            <div class="privacy-header">
+                <div class="privacy-icon" style="color: #10b981;"><i class="fas fa-circle"></i></div>
+                <div>
+                    <h3>Active Status</h3>
+                    <p>Show a pulsing green dot when you are online. Choose who can see your active status.</p>
+                </div>
+            </div>
+            <div class="privacy-control" style="flex-direction: column; align-items: stretch; gap: 12px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; width: 100%;">
+                    <span>Who can see your online status</span>
+                    <select class="edu-select" style="width: auto; margin-bottom: 0; padding: 6px 12px;" onchange="window.updatePrivacySetting('statusPrivacy', this.value)">
+                        <option value="everyone" ${statusPrivacy === 'everyone' ? 'selected' : ''}>Everyone</option>
+                        <option value="connections" ${statusPrivacy === 'connections' ? 'selected' : ''}>My Connections</option>
+                        <option value="none" ${statusPrivacy === 'none' ? 'selected' : ''}>Hide from all</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card: Connection Request Policy -->
+        <div class="privacy-card">
+            <div class="privacy-header">
+                <div class="privacy-icon" style="color: #8b5cf6;"><i class="fas fa-user-friends"></i></div>
+                <div>
+                    <h3>Connection Requests</h3>
+                    <p>Control who is allowed to send you connection requests.</p>
+                </div>
+            </div>
+            <div class="privacy-control" style="flex-direction: column; align-items: stretch; gap: 12px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; width: 100%;">
+                    <span>Who can connect with you</span>
+                    <select class="edu-select" style="width: auto; margin-bottom: 0; padding: 6px 12px;" onchange="window.updatePrivacySetting('connectionPolicy', this.value)">
+                        <option value="everyone" ${connectionPolicy === 'everyone' ? 'selected' : ''}>Everyone</option>
+                        <option value="same_batch" ${connectionPolicy === 'same_batch' ? 'selected' : ''}>Same Batch & Faculty</option>
+                        <option value="faculty_only" ${connectionPolicy === 'faculty_only' ? 'selected' : ''}>Faculty Only</option>
+                    </select>
+                </div>
             </div>
         </div>
 
@@ -1476,6 +1743,42 @@ window.renderPrivacyDashboard = function() {
                 <label class="switch">
                     <input type="checkbox" id="privacy-likes-toggle" ${showAppreciations ? 'checked' : ''} onchange="window.updatePrivacySetting('showAppreciations', this.checked)">
                     <span class="slider"></span>
+                </label>
+            </div>
+        </div>
+
+        <!-- Card 5: Anonymous Posting -->
+        <div class="privacy-card" style="border-color: rgba(15, 76, 129, 0.4); background: linear-gradient(to right, rgba(15, 76, 129, 0.02), rgba(255,255,255,0.8));">
+            <div class="privacy-header">
+                <div class="privacy-icon" style="color: #374151; background: #e5e7eb;"><i class="fas fa-user-secret"></i></div>
+                <div>
+                    <h3 style="color: #374151;">Anonymous Posting Mode</h3>
+                    <p>Mask your identity when posting to the department feed. Your name, picture, and profile will be hidden from everyone, and your posts will appear as "Anonymous Member".</p>
+                </div>
+            </div>
+            <div class="privacy-control toggle-control">
+                <span>Enable Anonymous Identity</span>
+                <label class="switch">
+                    <input type="checkbox" ${currentUser.anonymousMode ? 'checked' : ''} onchange="window.updatePrivacySetting('anonymousMode', this.checked)">
+                    <span class="slider" style="background-color: ${currentUser.anonymousMode ? '#374151' : '#cbd5e1'};"></span>
+                </label>
+            </div>
+        </div>
+
+        <!-- Card 6: Incognito Browsing -->
+        <div class="privacy-card" style="border-color: rgba(139, 92, 246, 0.3);">
+            <div class="privacy-header">
+                <div class="privacy-icon" style="color: #8b5cf6; background: rgba(139, 92, 246, 0.1);"><i class="fas fa-eye-slash"></i></div>
+                <div>
+                    <h3 style="color: #8b5cf6;">Incognito Browsing</h3>
+                    <p>Pause your activity tracking. Your active status, read receipts, profile views, and general interactions will not be recorded or shown to others.</p>
+                </div>
+            </div>
+            <div class="privacy-control toggle-control">
+                <span>Enable Incognito Mode</span>
+                <label class="switch">
+                    <input type="checkbox" ${currentUser.incognitoMode ? 'checked' : ''} onchange="window.updatePrivacySetting('incognitoMode', this.checked)">
+                    <span class="slider" style="background-color: ${currentUser.incognitoMode ? '#8b5cf6' : '#cbd5e1'};"></span>
                 </label>
             </div>
         </div>
@@ -1607,3 +1910,45 @@ window.closeLightbox = function() {
     }, 300);
 };
 
+// ─── THEME SWITCHER LOGIC ───────────────────────────────────────────────────
+function initTheme() {
+    const savedTheme = localStorage.getItem('uog_theme') || 'light';
+    if (savedTheme === 'dark') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+        updateThemeIcon('dark');
+    } else {
+        document.documentElement.removeAttribute('data-theme');
+        updateThemeIcon('light');
+    }
+}
+
+function updateThemeIcon(theme) {
+    const themeBtn = document.getElementById('theme-toggle-btn');
+    if (!themeBtn) return;
+    if (theme === 'dark') {
+        themeBtn.innerHTML = '<i class="fas fa-sun" style="color: #fbbf24; filter: drop-shadow(0 0 8px rgba(251,191,36,0.6));"></i>';
+    } else {
+        themeBtn.innerHTML = '<i class="fas fa-moon" style="color: #6366f1;"></i>';
+    }
+}
+
+function toggleTheme() {
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    if (isDark) {
+        document.documentElement.removeAttribute('data-theme');
+        localStorage.setItem('uog_theme', 'light');
+        updateThemeIcon('light');
+    } else {
+        document.documentElement.setAttribute('data-theme', 'dark');
+        localStorage.setItem('uog_theme', 'dark');
+        updateThemeIcon('dark');
+    }
+}
+
+const themeToggleBtn = document.getElementById('theme-toggle-btn');
+if (themeToggleBtn) {
+    themeToggleBtn.addEventListener('click', toggleTheme);
+}
+
+// Call on load
+initTheme();
