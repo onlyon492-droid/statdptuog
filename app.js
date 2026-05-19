@@ -13,6 +13,14 @@ async function dbGet(key) {
         if (!res.ok) throw new Error('Server error');
         return res.json();
     }
+    if (key === 'batches') {
+        let batches = JSON.parse(localStorage.getItem('uog_batches') || '[]');
+        if (batches.length === 0) {
+            batches = ['2020-2024', '2021-2025', '2022-2026', '2023-2027'];
+            localStorage.setItem('uog_batches', JSON.stringify(batches));
+        }
+        return batches.map(b => ({ name: b }));
+    }
     return JSON.parse(localStorage.getItem(`uog_${key}`) || '[]');
 }
 async function dbPost(endpoint, body) {
@@ -89,6 +97,19 @@ async function dbPost(endpoint, body) {
         localStorage.setItem('uog_software', JSON.stringify(sw));
         return item;
     }
+    if (endpoint === 'batches') {
+        let batches = JSON.parse(localStorage.getItem('uog_batches') || '[]');
+        if (batches.length === 0) {
+            batches = ['2020-2024', '2021-2025', '2022-2026', '2023-2027'];
+        }
+        const name = body.name.trim();
+        if (!batches.includes(name)) {
+            batches.push(name);
+            batches.sort();
+            localStorage.setItem('uog_batches', JSON.stringify(batches));
+        }
+        return batches.map(b => ({ name: b }));
+    }
 }
 async function dbPut(endpoint, body) {
     if (HAS_SERVER) {
@@ -117,6 +138,8 @@ async function dbPut(endpoint, body) {
             if (body.phone) users[idx].phone = body.phone;
             if (body.password) users[idx].password = body.password;
             if (body.profilePic !== undefined) users[idx].profilePic = body.profilePic;
+            if (body.program !== undefined) users[idx].program = body.program;
+            if (body.batch !== undefined) users[idx].batch = body.batch;
             localStorage.setItem('uog_users', JSON.stringify(users));
             return { user: safeUser(users[idx]) };
         }
@@ -148,6 +171,9 @@ if (!localStorage.getItem('uog_software')) localStorage.setItem('uog_software', 
 let currentUser = null;
 let currentView = 'feed';
 let uploadedFiles = [];
+let activeDirectoryTab = 'All';
+let activeDirectoryBatch = 'All';
+let allBatches = [];
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 function showToast(msg, isError = false) {
@@ -183,8 +209,19 @@ document.getElementById('close-signup').addEventListener('click', () => document
 
 const regRole = document.getElementById('reg-role');
 const regUsername = document.getElementById('reg-username');
+const regStudentFields = document.getElementById('reg-student-fields');
 regRole.addEventListener('change', () => {
-    regUsername.placeholder = regRole.value === 'Student' ? "Roll No (Must contain 'UOG')" : "Faculty Email (@uog.edu.pk)";
+    if (regRole.value === 'Student') {
+        regUsername.placeholder = "Roll No (Must contain 'UOG')";
+        regStudentFields.style.display = 'block';
+        document.getElementById('reg-program').required = true;
+        document.getElementById('reg-batch').required = true;
+    } else {
+        regUsername.placeholder = "Faculty Email (@uog.edu.pk)";
+        regStudentFields.style.display = 'none';
+        document.getElementById('reg-program').required = false;
+        document.getElementById('reg-batch').required = false;
+    }
 });
 
 document.getElementById('signup-form').addEventListener('submit', async (e) => {
@@ -193,6 +230,9 @@ document.getElementById('signup-form').addEventListener('submit', async (e) => {
     const username = regUsername.value.trim().toLowerCase();
     if (role === 'Student' && !username.includes('uog')) { showToast("Roll Number must contain 'UOG'", true); return; }
     if (role === 'Faculty' && !username.endsWith('@uog.edu.pk')) { showToast("Faculty must use @uog.edu.pk email", true); return; }
+    const program = role === 'Student' ? document.getElementById('reg-program').value : '';
+    const batch = role === 'Student' ? document.getElementById('reg-batch').value : '';
+    
     const btn = e.target.querySelector('button[type=submit]');
     btn.textContent = 'Registering...'; btn.disabled = true;
     try {
@@ -201,11 +241,14 @@ document.getElementById('signup-form').addEventListener('submit', async (e) => {
             password: document.getElementById('reg-password').value,
             name: `${document.getElementById('reg-firstname').value.trim()} ${document.getElementById('reg-lastname').value.trim()}`,
             role,
-            phone: document.getElementById('reg-phone').value.trim()
+            phone: document.getElementById('reg-phone').value.trim(),
+            program,
+            batch
         });
         showToast('Registration successful! Please login.');
         document.getElementById('signup-modal').classList.remove('active');
         document.getElementById('signup-form').reset();
+        if (regStudentFields) regStudentFields.style.display = 'none';
     } catch (err) { showToast(err.message, true); }
     finally { btn.textContent = 'Complete Registration'; btn.disabled = false; }
 });
@@ -243,7 +286,13 @@ document.getElementById('faculty-link').addEventListener('click', () =>
 function initApp() {
     document.getElementById('nav-name').textContent = currentUser.name.split(' ')[0];
     document.getElementById('side-name').textContent = currentUser.name;
-    document.getElementById('side-role').textContent = currentUser.role;
+    
+    if (currentUser.role === 'Student') {
+        document.getElementById('side-role').textContent = `${currentUser.program || 'Student'} • Batch ${currentUser.batch || 'N/A'}`;
+    } else {
+        document.getElementById('side-role').textContent = currentUser.role;
+    }
+    
     document.getElementById('compose-name').textContent = currentUser.name;
     renderAvatar(document.getElementById('nav-avatar'), currentUser);
     renderAvatar(document.getElementById('side-avatar'), currentUser);
@@ -275,6 +324,16 @@ document.getElementById('open-edit-profile').addEventListener('click', () => {
     document.getElementById('edit-name').value = currentUser.name;
     document.getElementById('edit-phone').value = currentUser.phone || '';
     document.getElementById('edit-password').value = '';
+    
+    const editStudentFields = document.getElementById('edit-student-fields');
+    if (currentUser.role === 'Student') {
+        editStudentFields.style.display = 'block';
+        document.getElementById('edit-program').value = currentUser.program || '';
+        document.getElementById('edit-batch').value = currentUser.batch || '';
+    } else {
+        editStudentFields.style.display = 'none';
+    }
+    
     document.getElementById('edit-profile-modal').classList.add('active');
 });
 document.getElementById('close-edit-profile').addEventListener('click', () =>
@@ -285,14 +344,34 @@ document.getElementById('edit-profile-form').addEventListener('submit', async (e
     const body = { name: document.getElementById('edit-name').value.trim(), phone: document.getElementById('edit-phone').value.trim() };
     const pw = document.getElementById('edit-password').value;
     if (pw) body.password = pw;
+    
+    if (currentUser.role === 'Student') {
+        body.program = document.getElementById('edit-program').value;
+        body.batch = document.getElementById('edit-batch').value;
+    }
+    
     try {
         const data = await dbPut(`users/${currentUser.username}/profile`, body);
         currentUser.name = data.user.name;
+        currentUser.program = data.user.program;
+        currentUser.batch = data.user.batch;
+        
         document.getElementById('side-name').textContent = currentUser.name;
         document.getElementById('nav-name').textContent = currentUser.name.split(' ')[0];
         document.getElementById('compose-name').textContent = currentUser.name;
+        
+        // Also update subtext role/program/batch on sidebar
+        if (currentUser.role === 'Student') {
+            document.getElementById('side-role').textContent = `${currentUser.program || 'Student'} • Batch ${currentUser.batch || 'N/A'}`;
+        }
+        
         document.getElementById('edit-profile-modal').classList.remove('active');
         showToast('Profile updated!');
+        
+        // Refresh directory if currently active
+        if (currentView === 'students') {
+            renderDirectory();
+        }
     } catch (err) { showToast(err.message, true); }
 });
 
@@ -330,6 +409,13 @@ function switchView(view) {
     const searchInput = document.querySelector('.nav-search input');
     if (searchInput) searchInput.value = '';
     listContainer.innerHTML = '<div style="padding:2rem;text-align:center;color:#9ca3af;"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';
+    
+    // Toggle Directory Filter Bar visibility
+    const filterBar = document.getElementById('directory-filter-bar');
+    if (filterBar) {
+        filterBar.style.display = (view === 'students') ? 'flex' : 'none';
+    }
+
     if (view === 'feed' || view === 'records') {
         composeCard.style.display = 'block';
         viewTitle.textContent = view === 'feed' ? 'Department Feed' : 'Academic Records';
@@ -498,19 +584,71 @@ async function renderSoftware() {
 async function renderDirectory() {
     const users = await dbGet('users');
     listContainer.innerHTML = '';
-    if (users.length === 0) {
-        listContainer.innerHTML = `<div style="grid-column:1/-1;padding:2rem;text-align:center;color:#6b7280;border:1px dashed #e5e7eb;border-radius:8px;">No users registered yet.</div>`;
+    
+    // Read active search query
+    const searchInput = document.querySelector('.nav-search input');
+    const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
+    
+    // Filter users by Active Category Tab, Batch select, and Search query
+    const filtered = users.filter(u => {
+        // 1. Role / Category Tab Filter
+        if (activeDirectoryTab === 'BS Statistics' || activeDirectoryTab === 'BS Data Analytics') {
+            if (u.role !== 'Student' || u.program !== activeDirectoryTab) return false;
+        } else if (activeDirectoryTab === 'Faculty') {
+            if (u.role !== 'Faculty') return false;
+        }
+        
+        // 2. Batch Filter
+        if (activeDirectoryBatch !== 'All') {
+            if (u.role !== 'Student' || u.batch !== activeDirectoryBatch) return false;
+        }
+        
+        // 3. Search Query Filter
+        if (query) {
+            const nameMatch = u.name && u.name.toLowerCase().includes(query);
+            const usernameMatch = u.username && u.username.toLowerCase().includes(query);
+            const roleMatch = u.role && u.role.toLowerCase().includes(query);
+            const progMatch = u.program && u.program.toLowerCase().includes(query);
+            const batchMatch = u.batch && u.batch.toLowerCase().includes(query);
+            if (!nameMatch && !usernameMatch && !roleMatch && !progMatch && !batchMatch) return false;
+        }
+        
+        return true;
+    });
+    
+    if (filtered.length === 0) {
+        listContainer.innerHTML = `<div class="no-results-msg" style="grid-column:1/-1;padding:2rem;text-align:center;color:#6b7280;border:1px dashed #e5e7eb;border-radius:8px;">No registered members matching these filters.</div>`;
         return;
     }
-    users.forEach(u => {
+    
+    filtered.forEach(u => {
         const avatarHtml = u.profilePic
             ? `<img src="${u.profilePic}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" alt="">`
             : u.name.charAt(0).toUpperCase();
+            
+        // Build badges
+        let badgeHtml = '';
+        let extraCardClass = '';
+        if (u.role === 'Faculty') {
+            badgeHtml = `<span class="badge-faculty"><i class="fas fa-chalkboard-teacher"></i> Faculty</span>`;
+            extraCardClass = 'faculty-card';
+        } else {
+            const isAnalytics = u.program === 'BS Data Analytics';
+            badgeHtml = `<span class="${isAnalytics ? 'badge-analytics' : 'badge-stat'}"><i class="fas ${isAnalytics ? 'fa-chart-pie' : 'fa-calculator'}"></i> ${u.program || 'BS Statistics'}</span>`;
+            if (u.batch) {
+                badgeHtml += ` <span class="badge-batch"><i class="fas fa-graduation-cap"></i> ${u.batch}</span>`;
+            }
+            extraCardClass = isAnalytics ? 'analytics-card' : 'stat-card';
+        }
+        
         const card = document.createElement('div');
-        card.className = 'student-card';
-        card.innerHTML = `<div class="avatar-large" style="margin:0 auto 1rem;">${avatarHtml}</div>
-            <h3>${u.name}</h3><p>${u.role}</p>
-            <span style="font-size:0.8rem;background:#f3f4f6;padding:4px 8px;border-radius:4px;border:1px solid #e5e7eb;">${u.username}</span>`;
+        card.className = `student-card ${extraCardClass}`;
+        card.innerHTML = `
+            <div class="avatar-large" style="margin:0 auto 1rem;">${avatarHtml}</div>
+            <h3 style="margin-bottom: 4px;">${u.name}</h3>
+            <div style="margin-bottom: 8px;">${badgeHtml}</div>
+            <span style="font-size:0.8rem;background:rgba(15,76,129,0.05);color:var(--uog-blue);padding:4px 10px;border-radius:20px;border:1px solid rgba(15,76,129,0.1);font-family:monospace;font-weight:600;">${u.username}</span>
+        `;
         listContainer.appendChild(card);
     });
 }
@@ -701,6 +839,7 @@ if (searchInput) {
                 noResultMsg.remove();
             }
         } else if (currentView === 'students') {
+            // Live DOM filtering is fine for typing, but let's make sure it matches the elements perfectly
             const cards = listContainer.querySelectorAll('.student-card');
             cards.forEach(card => {
                 const text = card.textContent.toLowerCase();
@@ -722,4 +861,125 @@ if (searchInput) {
         }
     });
 }
+
+// ─── BATCHES MANAGEMENT AND SELECT INITIALIZATION ────────────────────────────
+async function loadBatches() {
+    try {
+        allBatches = await dbGet('batches');
+        populateBatchDropdowns(allBatches);
+    } catch (err) {
+        console.error('Error loading batches:', err);
+    }
+}
+
+function populateBatchDropdowns(batches) {
+    const regBatch = document.getElementById('reg-batch');
+    const editBatch = document.getElementById('edit-batch');
+    const dirBatchSelect = document.getElementById('dir-batch-select');
+    
+    if (regBatch) {
+        const val = regBatch.value;
+        regBatch.innerHTML = '<option value="" disabled selected>Select Batch...</option>' + 
+            batches.map(b => `<option value="${b.name}">${b.name}</option>`).join('');
+        if (val) regBatch.value = val;
+    }
+    if (editBatch) {
+        const val = editBatch.value;
+        editBatch.innerHTML = '<option value="" disabled>Select Batch...</option>' + 
+            batches.map(b => `<option value="${b.name}">${b.name}</option>`).join('');
+        if (val) editBatch.value = val;
+    }
+    if (dirBatchSelect) {
+        const val = dirBatchSelect.value || 'All';
+        dirBatchSelect.innerHTML = '<option value="All">All Sessions</option>' + 
+            batches.map(b => `<option value="${b.name}">Session ${b.name}</option>`).join('');
+        dirBatchSelect.value = val;
+    }
+}
+
+window.triggerAddBatch = function() {
+    const modal = document.getElementById('batch-modal');
+    if (modal) {
+        modal.classList.add('active');
+        const input = document.getElementById('new-batch-name');
+        if (input) {
+            input.value = '';
+            input.focus();
+        }
+    }
+};
+
+window.closeBatchModal = function() {
+    const modal = document.getElementById('batch-modal');
+    if (modal) modal.classList.remove('active');
+};
+
+window.submitNewBatch = async function(event) {
+    event.preventDefault();
+    const input = document.getElementById('new-batch-name');
+    if (!input) return;
+    const value = input.value.trim();
+    if (!value) return;
+    
+    if (!/^\d{4}-\d{4}$/.test(value)) {
+        showToast('Batch must be in YYYY-YYYY format (e.g. 2024-2028).', true);
+        return;
+    }
+    
+    try {
+        const updatedBatches = await dbPost('batches', { name: value });
+        allBatches = updatedBatches;
+        populateBatchDropdowns(allBatches);
+        
+        // Auto-select in signup/profile-edit if active
+        const regBatch = document.getElementById('reg-batch');
+        if (regBatch && regStudentFields && regStudentFields.style.display !== 'none') {
+            regBatch.value = value;
+        }
+        
+        const editBatch = document.getElementById('edit-batch');
+        const editStudentFields = document.getElementById('edit-student-fields');
+        if (editBatch && editStudentFields && editStudentFields.style.display !== 'none') {
+            editBatch.value = value;
+        }
+        
+        const dirBatchSelect = document.getElementById('dir-batch-select');
+        if (dirBatchSelect) {
+            dirBatchSelect.value = value;
+            activeDirectoryBatch = value;
+            if (currentView === 'students') {
+                renderDirectory();
+            }
+        }
+        
+        showToast(`Batch ${value} added successfully!`);
+        closeBatchModal();
+    } catch (err) {
+        showToast(err.message || 'Error adding batch.', true);
+    }
+};
+
+function initDirectoryFilters() {
+    const tabs = document.querySelectorAll('.dir-tab');
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            tabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            activeDirectoryTab = tab.getAttribute('data-tab');
+            renderDirectory();
+        });
+    });
+    
+    const select = document.getElementById('dir-batch-select');
+    if (select) {
+        select.addEventListener('change', (e) => {
+            activeDirectoryBatch = e.target.value;
+            renderDirectory();
+        });
+    }
+}
+
+// Bootstrapping at load time
+loadBatches();
+initDirectoryFilters();
 

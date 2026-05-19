@@ -40,9 +40,16 @@ const userSchema = new mongoose.Schema({
     name: { type: String, required: true },
     role: { type: String, required: true },
     phone: { type: String, default: '' },
-    profilePic: { type: String, default: '' } // holds base64
+    profilePic: { type: String, default: '' }, // holds base64
+    program: { type: String, default: '' }, // e.g. 'BS Statistics', 'BS Data Analytics'
+    batch: { type: String, default: '' } // e.g. '2022-2026'
 });
 const User = mongoose.model('User', userSchema);
+
+const batchSchema = new mongoose.Schema({
+    name: { type: String, required: true, unique: true }
+});
+const Batch = mongoose.model('Batch', batchSchema);
 
 const commentSchema = new mongoose.Schema({
     author: { type: String, required: true },
@@ -117,7 +124,7 @@ app.use('/api', async (req, res, next) => {
 // ── USERS ─────────────────────────────────────────────────────────────────────
 app.post('/api/register', async (req, res) => {
     try {
-        const { username, password, name, role, phone } = req.body;
+        const { username, password, name, role, phone, program, batch } = req.body;
         if (!username || !password || !name || !role) return res.status(400).json({ error: 'Missing fields' });
 
         const normalizedUsername = username.toLowerCase().trim();
@@ -137,7 +144,9 @@ app.post('/api/register', async (req, res) => {
             name,
             role,
             phone: phone || '',
-            profilePic: ''
+            profilePic: '',
+            program: program || '',
+            batch: batch || ''
         });
         await user.save();
         res.json({ message: 'Registered successfully', user: safeUser(user.toObject()) });
@@ -173,7 +182,7 @@ app.get('/api/users', async (req, res) => {
 
 app.put('/api/users/:username/profile', async (req, res) => {
     try {
-        const { name, phone, password, profilePic } = req.body;
+        const { name, phone, password, profilePic, program, batch } = req.body;
         const user = await User.findOne({ username: req.params.username.toLowerCase().trim() });
         if (!user) return res.status(404).json({ error: 'User not found' });
         
@@ -181,12 +190,48 @@ app.put('/api/users/:username/profile', async (req, res) => {
         if (phone !== undefined) user.phone = phone;
         if (password) user.password = password;
         if (profilePic !== undefined) user.profilePic = profilePic;
+        if (program !== undefined) user.program = program;
+        if (batch !== undefined) user.batch = batch;
         
         await user.save();
         res.json({ message: 'Profile updated', user: safeUser(user.toObject()) });
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: 'Error updating profile' });
+    }
+});
+
+// ── BATCHES ───────────────────────────────────────────────────────────────────
+app.get('/api/batches', async (req, res) => {
+    try {
+        let batches = await Batch.find({}).sort({ name: 1 });
+        if (batches.length === 0) {
+            const defaults = ['2020-2024', '2021-2025', '2022-2026', '2023-2027'];
+            await Batch.insertMany(defaults.map(b => ({ name: b })));
+            batches = await Batch.find({}).sort({ name: 1 });
+        }
+        res.json(batches);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Error fetching batches' });
+    }
+});
+
+app.post('/api/batches', async (req, res) => {
+    try {
+        const { name } = req.body;
+        if (!name) return res.status(400).json({ error: 'Batch name required' });
+        const trimmed = name.trim();
+        let existing = await Batch.findOne({ name: trimmed });
+        if (!existing) {
+            const newBatch = new Batch({ name: trimmed });
+            await newBatch.save();
+        }
+        const allBatches = await Batch.find({}).sort({ name: 1 });
+        res.json(allBatches);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Error saving batch' });
     }
 });
 

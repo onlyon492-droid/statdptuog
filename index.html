@@ -62,6 +62,22 @@
                             <option value="Faculty">Faculty Member</option>
                         </select>
                     </div>
+                    <!-- Conditional Student Fields -->
+                    <div id="reg-student-fields" style="display: none; margin-bottom: 12px; border-left: 3px solid var(--uog-orange); padding-left: 10px;">
+                        <select id="reg-program" class="edu-select" style="margin-bottom: 10px;">
+                            <option value="" disabled selected>Select Program...</option>
+                            <option value="BS Statistics">BS Statistics</option>
+                            <option value="BS Data Analytics">BS Data Analytics</option>
+                        </select>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <select id="reg-batch" class="edu-select" style="flex: 1; margin-bottom: 0;">
+                                <option value="" disabled selected>Select Batch...</option>
+                            </select>
+                            <button type="button" class="add-batch-inline-btn" title="Add New Batch" onclick="triggerAddBatch()">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
+                    </div>
                     <input type="text" id="reg-username" class="edu-input" placeholder="Roll No (e.g. 20-UOG-102) or UOG Email" required>
                     <input type="text" id="reg-phone" class="edu-input" placeholder="Mobile Number (Private)" required>
                     <input type="password" id="reg-password" class="edu-input" placeholder="Create Password" required>
@@ -147,6 +163,24 @@
                             <div class="create-action" id="open-compose-text"><i class="fas fa-file-alt" style="color: #0f4c81;"></i> Share Update</div>
                             <div class="create-action" id="open-compose-doc"><i class="fas fa-paperclip" style="color: #10b981;"></i> Attach File</div>
                             <div class="create-action" id="open-compose-sw"><i class="fas fa-laptop-code" style="color: #f58220;"></i> Add Software</div>
+                        </div>
+                    </div>
+
+                    <!-- Directory Advanced Filter Bar -->
+                    <div id="directory-filter-bar" class="directory-filter-bar" style="display: none;">
+                        <div class="directory-tabs">
+                            <button class="dir-tab active" data-tab="All">All Members</button>
+                            <button class="dir-tab" data-tab="BS Statistics">BS Statistics</button>
+                            <button class="dir-tab" data-tab="BS Data Analytics">BS Data Analytics</button>
+                            <button class="dir-tab" data-tab="Faculty">Faculty</button>
+                        </div>
+                        <div class="directory-selects">
+                            <select id="dir-batch-select" class="dir-filter-select">
+                                <option value="All">All Sessions</option>
+                            </select>
+                            <button class="dir-add-batch-btn" onclick="triggerAddBatch()" title="Add New Session/Batch">
+                                <i class="fas fa-plus"></i> Add Batch
+                            </button>
                         </div>
                     </div>
 
@@ -250,6 +284,26 @@
                     <input type="text" id="edit-name" class="edu-input" placeholder="Full Name" required style="margin-bottom:12px;">
                     <label style="font-size:0.85rem; font-weight:600; color:#4b5563; margin-bottom:5px; display:block;">Phone Number (Private)</label>
                     <input type="text" id="edit-phone" class="edu-input" placeholder="Phone Number" style="margin-bottom:12px;">
+                    
+                    <!-- Student Specific Profile Fields -->
+                    <div id="edit-student-fields" style="display: none; border-left: 3px solid var(--uog-orange); padding-left: 10px; margin-bottom: 12px;">
+                        <label style="font-size:0.85rem; font-weight:600; color:#4b5563; margin-bottom:5px; display:block;">Academic Program</label>
+                        <select id="edit-program" class="edu-select" style="margin-bottom: 12px;">
+                            <option value="" disabled>Select Program...</option>
+                            <option value="BS Statistics">BS Statistics</option>
+                            <option value="BS Data Analytics">BS Data Analytics</option>
+                        </select>
+                        <label style="font-size:0.85rem; font-weight:600; color:#4b5563; margin-bottom:5px; display:block;">Academic Batch</label>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <select id="edit-batch" class="edu-select" style="flex: 1; margin-bottom: 0;">
+                                <option value="" disabled>Select Batch...</option>
+                            </select>
+                            <button type="button" class="add-batch-inline-btn" title="Add New Batch" onclick="triggerAddBatch()">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
+                    </div>
+
                     <label style="font-size:0.85rem; font-weight:600; color:#4b5563; margin-bottom:5px; display:block;">New Password (leave blank to keep current)</label>
                     <input type="password" id="edit-password" class="edu-input" placeholder="New Password (optional)" style="margin-bottom:20px;">
                     <button type="submit" class="edu-btn-post">Save Profile</button>
@@ -257,6 +311,21 @@
             </div>
         </div>
         
+        <!-- Add Batch Modal -->
+        <div class="edu-modal-overlay" id="batch-modal" style="z-index: 2005;">
+            <div class="edu-modal-content" style="max-width: 380px;">
+                <div class="edu-modal-header">
+                    <h2>Add Academic Batch</h2>
+                    <i class="fas fa-times close-modal" id="close-batch-modal" onclick="closeBatchModal()"></i>
+                </div>
+                <form id="batch-form" class="edu-modal-body" onsubmit="submitNewBatch(event)">
+                    <p style="font-size:0.8rem; color:#6b7280; margin-bottom:12px;">Enter a new batch/session (e.g. 2024-2028):</p>
+                    <input type="text" id="new-batch-name" class="edu-input" placeholder="e.g. 2024-2028" required pattern="\d{4}-\d{4}">
+                    <button type="submit" class="edu-btn-post" style="margin-top:12px;">Add Session</button>
+                </form>
+            </div>
+        </div>
+
     </div>
     <script src="app.js"></script>
 </body>
