@@ -58,6 +58,7 @@ const userSchema = new mongoose.Schema({
     // Wave 4 expanded privacy & customization settings
     phonePrivacy: { type: String, default: 'none' }, // 'everyone', 'connections', 'faculty', 'none'
     profileStealth: { type: Boolean, default: false },
+    showIndividualGraphs: { type: Boolean, default: true },
     statusPrivacy: { type: String, default: 'everyone' }, // 'everyone', 'connections', 'none'
     connectionPolicy: { type: String, default: 'everyone' }, // 'everyone', 'same_batch', 'faculty_only'
     tagline: { type: String, default: '' },

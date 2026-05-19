@@ -1374,6 +1374,16 @@ async function renderDirectory() {
                 <span style="font-weight: 400;">Phone Private</span>
                </div>`;
 
+        let analyticsBtnHtml = '';
+        if (u.role === 'Faculty') {
+            const canView = u.showIndividualGraphs !== false || u.username === currentUser.username;
+            if (canView) {
+                analyticsBtnHtml = `<button onclick="window.openFacultyAnalytics('${u.username}')" style="margin-top:12px; width:100%; padding:8px; border-radius:8px; background:linear-gradient(135deg, var(--uog-blue), #1e3a8a); color:white; border:none; font-size:0.85rem; font-weight:600; cursor:pointer; box-shadow:0 4px 12px rgba(15,76,129,0.2); transition:transform 0.2s;"><i class="fas fa-chart-pie" style="margin-right:6px;"></i> View Analytics</button>`;
+            } else {
+                analyticsBtnHtml = `<div style="margin-top:12px; width:100%; padding:8px; border-radius:8px; background:rgba(0,0,0,0.03); color:#9ca3af; border:1px dashed rgba(0,0,0,0.1); font-size:0.85rem; display:flex; align-items:center; justify-content:center; gap:6px;"><i class="fas fa-lock"></i> Analytics Private</div>`;
+            }
+        }
+
         const card = document.createElement('div');
         card.className = `student-card ${extraCardClass}`;
         card.innerHTML = `
@@ -1383,6 +1393,7 @@ async function renderDirectory() {
             <div style="margin-bottom: 8px;">${badgeHtml}</div>
             <span style="font-size:0.8rem;background:rgba(15,76,129,0.05);color:var(--uog-blue);padding:4px 10px;border-radius:20px;border:1px solid rgba(15,76,129,0.1);font-family:monospace;font-weight:600;">${u.username}</span>
             ${phoneHtml}
+            ${analyticsBtnHtml}
         `;
         listContainer.appendChild(card);
     });
@@ -2120,6 +2131,26 @@ window.renderPrivacyDashboard = function() {
                 </label>
             </div>
         </div>
+
+        <!-- Card: Faculty Individual Analytics Visibility -->
+        ${currentUser.role === 'Faculty' ? `
+        <div class="privacy-card">
+            <div class="privacy-header">
+                <div class="privacy-icon uog-orange-text"><i class="fas fa-chart-pie"></i></div>
+                <div>
+                    <h3>Public Individual Analytics</h3>
+                    <p>Show your individual performance graphs (Publications, Rank, vs Department) on your profile card in the Directory.</p>
+                </div>
+            </div>
+            <div class="privacy-control toggle-control">
+                <span>Display Analytics Publicly</span>
+                <label class="switch">
+                    <input type="checkbox" ${currentUser.showIndividualGraphs !== false ? 'checked' : ''} onchange="window.updatePrivacySetting('showIndividualGraphs', this.checked)">
+                    <span class="slider"></span>
+                </label>
+            </div>
+        </div>
+        ` : ''}
 
         <!-- Card: Active Status Visibility -->
         <div class="privacy-card">
@@ -3161,3 +3192,124 @@ function updateMobileProfileSheet() {
     if (mobAvatar)    renderAvatar(mobAvatar, currentUser);
     if (mobTopAvatar) renderAvatar(mobTopAvatar, currentUser);
 }
+
+// ─── FACULTY INDIVIDUAL ANALYTICS ──────────────────────────────────────────
+let faActiveCharts = {};
+
+window.openFacultyAnalytics = async function(username) {
+    const modal = document.getElementById('faculty-analytics-modal');
+    if (!modal) return;
+    
+    // Fetch data
+    const users = await dbGet('users');
+    const faculty = users.find(u => u.username === username);
+    if (!faculty || faculty.role !== 'Faculty') return;
+    
+    // Render Modal Header
+    document.getElementById('fa-modal-name').textContent = faculty.name;
+    document.getElementById('fa-modal-role').textContent = faculty.designation || 'Faculty Member';
+    const avatarEl = document.getElementById('fa-modal-avatar');
+    renderAvatar(avatarEl, faculty);
+    
+    // Calculate Stats
+    const allFaculty = users.filter(u => u.role === 'Faculty');
+    
+    // 1. Research Output
+    const myPubs = parseInt(faculty.publicationsCount) || 0;
+    const totalPubs = allFaculty.reduce((sum, f) => sum + (parseInt(f.publicationsCount) || 0), 0);
+    const avgPubs = allFaculty.length > 0 ? (totalPubs / allFaculty.length).toFixed(1) : 0;
+    
+    // 2. Department Share
+    const myDesig = faculty.designation || 'Lecturer';
+    const sameDesigCount = allFaculty.filter(f => (f.designation || 'Lecturer') === myDesig).length;
+    const otherDesigCount = allFaculty.length - sameDesigCount;
+
+    // 3. Academic Standing (Radar)
+    const rankMap = { 'Lecturer': 1, 'Assistant Professor': 2, 'Associate Professor': 3, 'Professor': 4 };
+    const eduMap = { 'BS / Master': 1, 'M.Phil': 2, 'Ph.D': 3, 'Post-Doc': 4 };
+    const myRank = rankMap[myDesig] || 1;
+    const myEdu = eduMap[faculty.education || 'Ph.D'] || 3;
+    
+    // Destroy previous charts
+    Object.values(faActiveCharts).forEach(c => c && c.destroy());
+    faActiveCharts = {};
+    
+    Chart.defaults.color = '#94a3b8';
+    
+    // Render Research Output (Bar)
+    const ctxRes = document.getElementById('faChartResearch').getContext('2d');
+    faActiveCharts.res = new Chart(ctxRes, {
+        type: 'bar',
+        data: {
+            labels: ['Your Papers', 'Dept Avg'],
+            datasets: [{
+                label: 'Publications',
+                data: [myPubs, avgPubs],
+                backgroundColor: ['#f58220', 'rgba(255,255,255,0.1)'],
+                borderRadius: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' } }, x: { grid: { display: false } } }
+        }
+    });
+
+    // Render Academic Standing (Radar)
+    const ctxStand = document.getElementById('faChartStanding').getContext('2d');
+    faActiveCharts.stand = new Chart(ctxStand, {
+        type: 'radar',
+        data: {
+            labels: ['Rank', 'Education', 'Activity'],
+            datasets: [{
+                label: 'Your Standing',
+                data: [myRank, myEdu, (faculty.jobStatus === 'Active' || !faculty.jobStatus) ? 4 : 2],
+                backgroundColor: 'rgba(16, 185, 129, 0.2)',
+                borderColor: '#10b981',
+                pointBackgroundColor: '#10b981'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                r: {
+                    angleLines: { color: 'rgba(255,255,255,0.1)' },
+                    grid: { color: 'rgba(255,255,255,0.1)' },
+                    pointLabels: { color: '#cbd5e1' },
+                    ticks: { display: false, max: 4, min: 0 }
+                }
+            },
+            plugins: { legend: { display: false } }
+        }
+    });
+
+    // Render Department Share (Doughnut)
+    const ctxShare = document.getElementById('faChartShare').getContext('2d');
+    faActiveCharts.share = new Chart(ctxShare, {
+        type: 'doughnut',
+        data: {
+            labels: [`${myDesig}s`, 'Other Faculty'],
+            datasets: [{
+                data: [sameDesigCount, otherDesigCount],
+                backgroundColor: ['#3b82f6', 'rgba(255,255,255,0.1)'],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '70%',
+            plugins: { legend: { position: 'bottom', labels: { color: '#cbd5e1' } } }
+        }
+    });
+    
+    modal.style.display = 'flex';
+};
+
+window.closeFacultyAnalytics = function() {
+    const modal = document.getElementById('faculty-analytics-modal');
+    if (modal) modal.style.display = 'none';
+};
