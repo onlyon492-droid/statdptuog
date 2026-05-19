@@ -420,6 +420,26 @@
                     <textarea id="upload-desc" class="edu-textarea" placeholder="Write description or details here..." required></textarea>
                     
                     <div class="image-preview-container" id="preview-area"></div>
+
+                    <!-- Post Poll Composer -->
+                    <button type="button" class="poll-compose-trigger" id="poll-compose-trigger">
+                        <i class="fas fa-poll-h"></i> Create a Poll
+                    </button>
+                    <div class="poll-builder-ui" id="poll-builder-ui" style="display: none;">
+                        <input type="text" id="poll-question" class="edu-input" placeholder="Poll Question (e.g. Makeup class timing?)" style="margin-bottom: 8px;">
+                        <div id="poll-options-container">
+                            <div class="poll-builder-option-row">
+                                <input type="text" class="edu-input poll-option-input" placeholder="Option 1">
+                            </div>
+                            <div class="poll-builder-option-row">
+                                <input type="text" class="edu-input poll-option-input" placeholder="Option 2">
+                            </div>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; margin-top: 8px;">
+                            <button type="button" class="edu-btn-post" id="add-poll-option" style="padding: 6px 12px; font-size: 0.75rem; width: auto; background: var(--uog-blue); margin: 0;">+ Add Option</button>
+                            <button type="button" class="edu-btn-post" id="remove-poll" style="padding: 6px 12px; font-size: 0.75rem; width: auto; background: #ef4444; margin: 0;">Remove Poll</button>
+                        </div>
+                    </div>
                     
                     <div class="add-to-post">
                         <span>Attach Document/Setup File</span>
@@ -505,6 +525,26 @@
                     <input type="text" id="new-batch-name" class="edu-input" placeholder="e.g. 2024-2028" required pattern="\d{4}-\d{4}">
                     <button type="submit" class="edu-btn-post" style="margin-top:12px;">Add Session</button>
                 </form>
+            </div>
+        </div>
+
+        <!-- Academic Status Story Viewer Modal -->
+        <div id="story-viewer-modal" class="story-viewer-modal" onclick="window.closeStoryViewer()">
+            <div class="story-viewer-card" onclick="event.stopPropagation()">
+                <button class="story-close-btn" onclick="window.closeStoryViewer()">&times;</button>
+                <div class="story-progress-bar">
+                    <div class="story-progress-fill" id="story-progress-fill"></div>
+                </div>
+                <div class="story-user-info">
+                    <div class="avatar-small" id="story-avatar"></div>
+                    <div class="story-user-desc">
+                        <h4 id="story-username">Name</h4>
+                        <p id="story-time">Time</p>
+                    </div>
+                </div>
+                <div class="story-text-content" id="story-text-content">
+                    Status text goes here...
+                </div>
             </div>
         </div>
 

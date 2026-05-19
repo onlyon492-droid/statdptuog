@@ -117,6 +117,23 @@ async function dbPost(endpoint, body) {
             return { connections: users[userIdx].connections };
         }
     }
+    if (endpoint.includes('/vote')) {
+        const postId = endpoint.split('/')[1];
+        const posts = JSON.parse(localStorage.getItem('uog_posts') || '[]');
+        const idx = posts.findIndex(p => String(p.id) === String(postId));
+        if (idx !== -1 && posts[idx].poll) {
+            const { optionIndex, username } = body;
+            posts[idx].poll.options.forEach((opt) => {
+                opt.votes = (opt.votes || []).filter(u => u !== username);
+            });
+            if (posts[idx].poll.options[optionIndex]) {
+                if (!posts[idx].poll.options[optionIndex].votes) posts[idx].poll.options[optionIndex].votes = [];
+                posts[idx].poll.options[optionIndex].votes.push(username);
+            }
+            localStorage.setItem('uog_posts', JSON.stringify(posts));
+            return posts[idx];
+        }
+    }
     if (endpoint.includes('/comment')) {
         const postId = endpoint.split('/')[1];
         const posts = JSON.parse(localStorage.getItem('uog_posts') || '[]');
@@ -221,6 +238,13 @@ async function dbPut(endpoint, body) {
             if (body.allowComments !== undefined) users[idx].allowComments = body.allowComments;
             if (body.allowDownloads !== undefined) users[idx].allowDownloads = body.allowDownloads;
             if (body.showAppreciations !== undefined) users[idx].showAppreciations = body.showAppreciations;
+            if (body.phonePrivacy !== undefined) users[idx].phonePrivacy = body.phonePrivacy;
+            if (body.profileStealth !== undefined) users[idx].profileStealth = body.profileStealth;
+            if (body.statusPrivacy !== undefined) users[idx].statusPrivacy = body.statusPrivacy;
+            if (body.connectionPolicy !== undefined) users[idx].connectionPolicy = body.connectionPolicy;
+            if (body.anonymousMode !== undefined) users[idx].anonymousMode = body.anonymousMode;
+            if (body.incognitoMode !== undefined) users[idx].incognitoMode = body.incognitoMode;
+            if (body.autoLogoutTime !== undefined) users[idx].autoLogoutTime = body.autoLogoutTime;
             
             localStorage.setItem('uog_users', JSON.stringify(users));
             return { user: safeUser(users[idx]) };
@@ -313,6 +337,156 @@ function renderAvatar(el, user) {
         : (user ? user.name.charAt(0).toUpperCase() : '?');
 }
 
+// ─── SECURITY AUDIT LOGS ───────────────────────────────────────────────────
+function logSecurityEvent(action, details, status = 'success') {
+    if (!currentUser) return;
+    try {
+        const key = `uog_security_log_${currentUser.username}`;
+        const logs = JSON.parse(localStorage.getItem(key) || '[]');
+        const newLog = {
+            id: Date.now(),
+            timestamp: new Date().toLocaleString('en-PK'),
+            action: action,
+            details: details,
+            status: status, // 'success', 'info', 'warning', 'danger'
+            device: navigator.userAgent.includes('Mobile') ? 'Mobile Device' : 'Desktop Browser'
+        };
+        logs.unshift(newLog);
+        localStorage.setItem(key, JSON.stringify(logs.slice(0, 50)));
+    } catch (e) {
+        console.error('Error logging security event:', e);
+    }
+}
+
+// ─── INACTIVITY AUTO-LOGOUT ───────────────────────────────────────────────
+let inactivityTimer = null;
+
+function resetInactivityTimer() {
+    if (inactivityTimer) clearTimeout(inactivityTimer);
+    if (!currentUser) return;
+    
+    const timeoutMin = parseInt(currentUser.autoLogoutTime || 0);
+    if (timeoutMin === 0) return;
+    
+    const timeoutMs = timeoutMin * 60 * 1000;
+    inactivityTimer = setTimeout(() => {
+        logSecurityEvent('Auto Logout', `Logged out automatically due to ${timeoutMin} minutes of inactivity`, 'warning');
+        logoutUser(true);
+    }, timeoutMs);
+}
+
+function initInactivityTracker() {
+    const events = ['mousemove', 'keypress', 'click', 'scroll', 'touchstart'];
+    events.forEach(evt => {
+        window.addEventListener(evt, resetInactivityTimer, { passive: true });
+    });
+    resetInactivityTimer();
+}
+
+function stopInactivityTracker() {
+    const events = ['mousemove', 'keypress', 'click', 'scroll', 'touchstart'];
+    events.forEach(evt => {
+        window.removeEventListener(evt, resetInactivityTimer);
+    });
+    if (inactivityTimer) {
+        clearTimeout(inactivityTimer);
+        inactivityTimer = null;
+    }
+}
+
+function logoutUser(isAuto = false) {
+    stopHeartbeatLoop();
+    stopInactivityTracker();
+    
+    if (!isAuto && currentUser) {
+        logSecurityEvent('Account Logout', 'User logged out of session', 'info');
+    }
+    
+    currentUser = null;
+    localStorage.removeItem('uog_session');
+    document.getElementById('workspace-view').classList.remove('active');
+    document.getElementById('auth-view').classList.add('active');
+    document.getElementById('login-form').reset();
+    
+    if (isAuto) {
+        showToast('Logged out automatically due to inactivity.', true);
+    } else {
+        showToast('Logged out successfully.');
+    }
+}
+
+// GDPR compliance: Export user data
+window.exportUserData = function() {
+    if (!currentUser) return;
+    try {
+        const securityLogs = JSON.parse(localStorage.getItem(`uog_security_log_${currentUser.username}`) || '[]');
+        const bookmarks = JSON.parse(localStorage.getItem(`bookmarks_${currentUser.username}`) || '[]');
+        
+        const dataToExport = {
+            exportedAt: new Date().toLocaleString(),
+            profile: currentUser,
+            securityLogs: securityLogs,
+            bookmarks: bookmarks,
+            note: "UOG Statistics Portal - User Account Data Export"
+        };
+        
+        const blob = new Blob([JSON.stringify(dataToExport, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `uog_stats_data_${currentUser.username}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        logSecurityEvent('GDPR Data Export', 'Downloaded full account data archive', 'info');
+        showToast('Account data exported successfully.');
+    } catch (e) {
+        showToast('Failed to export data.', true);
+    }
+};
+
+// GDPR compliance: Complete user account erasure
+window.eraseUserAccount = async function() {
+    if (!currentUser) return;
+    if (!confirm("Are you absolutely sure you want to delete your account? This will permanently delete your profile, logs, and logout you from the system. This cannot be undone!")) {
+        return;
+    }
+    
+    try {
+        const usernameToDelete = currentUser.username;
+        
+        // 1. Delete all posts by this user
+        if (HAS_SERVER) {
+            await dbDelete(`users/${usernameToDelete}/posts`);
+            await dbDelete(`users/${usernameToDelete}`); // Backend endpoint for user deletion if exists
+        } else {
+            const posts = JSON.parse(localStorage.getItem('uog_posts') || '[]');
+            localStorage.setItem('uog_posts', JSON.stringify(posts.filter(p => p.author !== usernameToDelete)));
+            
+            const users = JSON.parse(localStorage.getItem('uog_users') || '[]');
+            localStorage.setItem('uog_users', JSON.stringify(users.filter(u => u.username !== usernameToDelete)));
+        }
+        
+        // 2. Clear local storage records related to user
+        localStorage.removeItem(`uog_security_log_${usernameToDelete}`);
+        localStorage.removeItem(`bookmarks_${usernameToDelete}`);
+        
+        // 3. Clear session and redirect to login
+        currentUser = null;
+        localStorage.removeItem('uog_session');
+        document.getElementById('workspace-view').classList.remove('active');
+        document.getElementById('auth-view').classList.add('active');
+        document.getElementById('login-form').reset();
+        
+        showToast('Your account and all associated data have been permanently deleted.', true);
+    } catch (e) {
+        showToast('Failed to erase account.', true);
+    }
+};
+
+
 // ─── NOTIFICATIONS ────────────────────────────────────────────────────────────
 const notifBtn = document.getElementById('notif-btn');
 const notifDropdown = document.getElementById('notif-dropdown');
@@ -394,30 +568,43 @@ document.getElementById('signup-form').addEventListener('submit', async (e) => {
 // ─── LOGIN ────────────────────────────────────────────────────────────────────
 document.getElementById('login-form').addEventListener('submit', async (e) => {
     e.preventDefault();
+    const usernameInput = document.getElementById('login-username').value.trim();
     const btn = e.target.querySelector('button[type=submit]');
     btn.textContent = 'Logging in...'; btn.disabled = true;
     try {
         const data = await dbPost('login', {
-            username: document.getElementById('login-username').value.trim(),
+            username: usernameInput,
             password: document.getElementById('login-password').value
         });
         currentUser = data.user;
         localStorage.setItem('uog_session', JSON.stringify(currentUser)); // Save session
+        logSecurityEvent('Account Login', 'Successful authentication via credentials', 'success');
         initApp();
         document.getElementById('auth-view').classList.remove('active');
         document.getElementById('workspace-view').classList.add('active');
         showToast(`Welcome back, ${currentUser.name}!`);
-    } catch (err) { showToast(err.message, true); }
+    } catch (err) {
+        showToast(err.message, true);
+        try {
+            const userKey = usernameInput.toLowerCase();
+            const key = `uog_security_log_${userKey}`;
+            const logs = JSON.parse(localStorage.getItem(key) || '[]');
+            logs.unshift({
+                id: Date.now(),
+                timestamp: new Date().toLocaleString('en-PK'),
+                action: 'Login Failure',
+                details: `Failed login attempt: ${err.message}`,
+                status: 'danger',
+                device: navigator.userAgent.includes('Mobile') ? 'Mobile Device' : 'Desktop Browser'
+            });
+            localStorage.setItem(key, JSON.stringify(logs.slice(0, 50)));
+        } catch (e) {}
+    }
     finally { btn.textContent = 'Access Portal'; btn.disabled = false; }
 });
 
 document.getElementById('sign-out-btn').addEventListener('click', () => {
-    stopHeartbeatLoop();
-    currentUser = null;
-    localStorage.removeItem('uog_session'); // Clear saved session on logout
-    document.getElementById('workspace-view').classList.remove('active');
-    document.getElementById('auth-view').classList.add('active');
-    document.getElementById('login-form').reset();
+    logoutUser(false);
 });
 
 document.getElementById('faculty-link').addEventListener('click', () =>
@@ -441,6 +628,7 @@ function initApp() {
     renderAvatar(document.getElementById('compose-avatar'), currentUser);
     updateStats();
     startHeartbeatLoop();
+    initInactivityTracker();
     switchView('feed');
     // Populate mobile profile sheet & avatar
     if (typeof updateMobileProfileSheet === 'function') updateMobileProfileSheet();
@@ -664,6 +852,11 @@ async function renderPosts(filterView) {
     
     listContainer.innerHTML = '';
     
+    // Inject Academic Status / Stories bubbles at the top of the feed
+    if (filterView === 'feed') {
+        renderStatusStories(listContainer);
+    }
+    
     // Inject Sort Bar for Feed and Records
     if (filterView === 'feed' || filterView === 'records') {
         const sortBar = document.createElement('div');
@@ -795,20 +988,34 @@ async function renderPosts(filterView) {
                 </div>
             `;
         });
+        
+
+
+
 
         const mediaHtml = imagesHtml + filesHtml;
+        let pollHtml = '';
+        if (post.poll) {
+            const totalVotes = post.poll.options.reduce((sum, opt) => sum + (opt.votes || []).length, 0);
+            const userVotedOptionIndex = post.poll.options.findIndex(opt => (opt.votes || []).includes(currentUser.username));
+            const hasVoted = userVotedOptionIndex !== -1;
+            const optionsHtml = post.poll.options.map((opt, optIdx) => {
+                const optVotes = (opt.votes || []).length;
+                const percentage = totalVotes > 0 ? Math.round((optVotes / totalVotes) * 100) : 0;
+                if (hasVoted) {
+                    const isMyVote = optIdx === userVotedOptionIndex;
+                    return `<div class="post-poll-option voted-option"><div class="post-poll-bar" style="width: ${percentage}%;"></div><span class="post-poll-text">${opt.text} ${isMyVote ? '<strong style="color:var(--uog-orange); font-size:0.75rem;">(Your Vote)</strong>' : ''}</span><span class="post-poll-percent">${percentage}% (${optVotes} vote${optVotes !== 1 ? 's' : ''})</span></div>`;
+                } else {
+                    return `<div class="post-poll-option" onclick="window.castPollVote('${post.id}', ${optIdx})"><span class="post-poll-text">${opt.text}</span></div>`;
+                }
+            }).join('');
+            pollHtml = `<div class="post-poll-container"><div class="post-poll-question"><i class="fas fa-poll-h"></i> ${post.poll.question}</div><div class="post-poll-options">${optionsHtml}</div><div class="post-poll-meta">${totalVotes} total vote${totalVotes !== 1 ? 's' : ''}</div></div>`;
+        }
         const commentsArr = post.comments || [];
         const reactions = post.reactions || [];
         const myReaction = reactions.find(r => r.username === currentUser.username);
         const hasReacted = !!myReaction;
-        
-        const emojiMap = {
-            like: '👍',
-            love: '❤️',
-            celebrate: '👏',
-            insight: '💡',
-            respect: '🎓'
-        };
+        const emojiMap = { like: '👍', love: '❤️', celebrate: '👏', insight: '💡', respect: '🎓' };
         const currentReactionEmoji = hasReacted ? emojiMap[myReaction.type] : '<i class="fa-solid fa-thumbs-up"></i>';
         const reactionLabel = hasReacted ? myReaction.type.charAt(0).toUpperCase() + myReaction.type.slice(1) : 'Appreciate';
         const isBookmarked = getBookmarks().includes(String(post.id));
@@ -909,6 +1116,7 @@ async function renderPosts(filterView) {
             </div>
             <div class="post-text">${post.text}</div>
             ${mediaHtml}
+            ${pollHtml}
             
             ${reactionsDisplayHtml}
             
@@ -1196,9 +1404,61 @@ document.getElementById('open-compose-sw').addEventListener('click',  () => { re
 document.getElementById('close-compose').addEventListener('click', () => { composeModal.classList.remove('active'); resetCompose('Feed'); });
 postCategory.addEventListener('change', toggleSoftwareFields);
 
+// Poll Composer Event Handlers
+document.getElementById('poll-compose-trigger').addEventListener('click', () => {
+    document.getElementById('poll-builder-ui').style.display = 'block';
+    document.getElementById('poll-compose-trigger').style.display = 'none';
+});
+
+document.getElementById('remove-poll').addEventListener('click', () => {
+    document.getElementById('poll-builder-ui').style.display = 'none';
+    document.getElementById('poll-compose-trigger').style.display = 'block';
+    document.getElementById('poll-question').value = '';
+    const container = document.getElementById('poll-options-container');
+    container.innerHTML = `
+        <div class="poll-builder-option-row">
+            <input type="text" class="edu-input poll-option-input" placeholder="Option 1">
+        </div>
+        <div class="poll-builder-option-row">
+            <input type="text" class="edu-input poll-option-input" placeholder="Option 2">
+        </div>
+    `;
+});
+
+document.getElementById('add-poll-option').addEventListener('click', () => {
+    const container = document.getElementById('poll-options-container');
+    const existingCount = container.querySelectorAll('.poll-builder-option-row').length;
+    if (existingCount >= 5) {
+        showToast('Maximum of 5 poll options allowed.', true);
+        return;
+    }
+    const row = document.createElement('div');
+    row.className = 'poll-builder-option-row';
+    row.innerHTML = `<input type="text" class="edu-input poll-option-input" placeholder="Option ${existingCount + 1}">`;
+    container.appendChild(row);
+});
+
+
 function resetCompose(cat) {
     uploadForm.reset(); previewArea.innerHTML = ''; uploadedFiles = [];
     postCategory.value = cat || 'Feed'; toggleSoftwareFields();
+    
+    // Reset and hide poll builder
+    const pollBuilder = document.getElementById('poll-builder-ui');
+    if (pollBuilder) {
+        pollBuilder.style.display = 'none';
+        document.getElementById('poll-question').value = '';
+        document.getElementById('poll-options-container').innerHTML = `
+            <div class="poll-builder-option-row">
+                <input type="text" class="edu-input poll-option-input" placeholder="Option 1">
+            </div>
+            <div class="poll-builder-option-row">
+                <input type="text" class="edu-input poll-option-input" placeholder="Option 2">
+            </div>
+        `;
+    }
+    const trigger = document.getElementById('poll-compose-trigger');
+    if (trigger) trigger.style.display = 'block';
 }
 function toggleSoftwareFields() {
     const isSW = postCategory.value === 'Software';
@@ -1250,7 +1510,27 @@ uploadForm.addEventListener('submit', async (e) => {
             const postRole = isAnon ? 'Hidden' : currentUser.role;
             const visibility = document.getElementById('post-visibility') ? document.getElementById('post-visibility').value : 'everyone';
             
-            await dbPost('posts', { author: postAuthor, name: postName, role: postRole, category: catText, text, files: [...uploadedFiles], originalAuthor: currentUser.username, authorBatch: currentUser.batch, visibility });
+            // Extract Poll details if built
+            let poll = null;
+            const pollBuilder = document.getElementById('poll-builder-ui');
+            if (pollBuilder && pollBuilder.style.display !== 'none') {
+                const question = document.getElementById('poll-question').value.trim();
+                const optionInputs = Array.from(document.querySelectorAll('.poll-option-input'));
+                const options = optionInputs
+                    .map(inp => inp.value.trim())
+                    .filter(val => val !== '')
+                    .map(val => ({ text: val, votes: [] }));
+                
+                if (question && options.length >= 2) {
+                    poll = { question, options };
+                } else if (question || optionInputs.some(inp => inp.value.trim() !== '')) {
+                    showToast('A poll must have a question and at least 2 non-empty options.', true);
+                    btn.textContent = 'Publish Update'; btn.disabled = false;
+                    return;
+                }
+            }
+            
+            await dbPost('posts', { author: postAuthor, name: postName, role: postRole, category: catText, text, files: [...uploadedFiles], originalAuthor: currentUser.username, authorBatch: currentUser.batch, visibility, poll });
             showToast(isAnon ? 'Anonymous update shared securely!' : 'Update shared!');
             document.querySelector(`.sidebar-list li[data-target="${category === 'Feed' ? 'feed' : 'records'}"]`).click();
         }
@@ -1276,6 +1556,226 @@ window.reactToPost = async function(postId, reactionType) {
         updateStats();
     } catch (err) {
         showToast('Could not save reaction: ' + err.message, true);
+    }
+};
+
+// ─── SOCIAL STORIES & POLLS LOGIC ───────────────────────────────────────────
+
+function getStories() {
+    let stories = JSON.parse(localStorage.getItem('uog_stories') || '[]');
+    // Seed default stories if empty to show interactive bubbles
+    if (stories.length === 0) {
+        const now = Date.now();
+        stories = [
+            {
+                id: 'seed-1',
+                username: 'ayesha.stats',
+                name: 'Ayesha Khan',
+                profilePic: '',
+                text: 'Working on the Regression Analysis project! 📊',
+                timestamp: now - 3 * 3600 * 1000 // 3 hours ago
+            },
+            {
+                id: 'seed-2',
+                username: 'bilal.student',
+                name: 'Bilal Ahmed',
+                profilePic: '',
+                text: 'Passed the Probability Theory midterm! 🎉',
+                timestamp: now - 5 * 3600 * 1000 // 5 hours ago
+            },
+            {
+                id: 'seed-3',
+                username: 'dr.asif.faculty',
+                name: 'Dr. Asif',
+                profilePic: '',
+                text: 'Statistical inference assignments are due tomorrow by 12:00 PM. ⏳',
+                timestamp: now - 1 * 3600 * 1000 // 1 hour ago
+            },
+            {
+                id: 'seed-4',
+                username: 'zainab.stats',
+                name: 'Zainab Jameel',
+                profilePic: '',
+                text: 'Learning R-markdown for data visualization. 📈',
+                timestamp: now - 8 * 3600 * 1000 // 8 hours ago
+            }
+        ];
+        localStorage.setItem('uog_stories', JSON.stringify(stories));
+    }
+    // Filter out stories older than 24 hours
+    const oneDay = 24 * 3600 * 1000;
+    const activeStories = stories.filter(s => (Date.now() - s.timestamp) < oneDay);
+    if (activeStories.length !== stories.length) {
+        localStorage.setItem('uog_stories', JSON.stringify(activeStories));
+    }
+    return activeStories;
+}
+
+window.addUserStory = function() {
+    if (!currentUser) return;
+    const txt = prompt("What is your academic status or story for today? (Max 60 chars):");
+    if (txt === null) return;
+    const cleanTxt = txt.trim();
+    if (!cleanTxt) {
+        showToast("Status cannot be empty.", true);
+        return;
+    }
+    if (cleanTxt.length > 60) {
+        showToast("Status must be 60 characters or less.", true);
+        return;
+    }
+    
+    const stories = JSON.parse(localStorage.getItem('uog_stories') || '[]');
+    // Remove previous story from same user if any
+    const filtered = stories.filter(s => s.username !== currentUser.username);
+    
+    filtered.unshift({
+        id: 'user-' + Date.now(),
+        username: currentUser.username,
+        name: currentUser.name,
+        profilePic: currentUser.profilePic || '',
+        text: cleanTxt,
+        timestamp: Date.now()
+    });
+    
+    localStorage.setItem('uog_stories', JSON.stringify(filtered));
+    logSecurityEvent('Add Story', `Updated personal academic status to: "${cleanTxt}"`, 'success');
+    showToast("Academic status updated!");
+    
+    if (currentView === 'feed') {
+        renderPosts('feed');
+    }
+};
+
+let storyTimeout = null;
+let storyProgressInterval = null;
+
+window.viewStory = function(storyId) {
+    const stories = getStories();
+    const story = stories.find(s => String(s.id) === String(storyId));
+    if (!story) return;
+    
+    const modal = document.getElementById('story-viewer-modal');
+    if (!modal) return;
+    
+    // Set content
+    const avatarContainer = document.getElementById('story-avatar');
+    const nameEl = document.getElementById('story-username');
+    const timeEl = document.getElementById('story-time');
+    const textEl = document.getElementById('story-text-content'); // matches index.html: id="story-text-content"
+    const progressFill = document.getElementById('story-progress-fill');
+    
+    renderAvatar(avatarContainer, { name: story.name, profilePic: story.profilePic });
+    nameEl.textContent = story.name;
+    
+    // Relative time formatting
+    const diffMin = Math.round((Date.now() - story.timestamp) / 60000);
+    let timeText = 'Just now';
+    if (diffMin >= 60) {
+        const hrs = Math.round(diffMin / 60);
+        timeText = `${hrs} hr${hrs !== 1 ? 's' : ''} ago`;
+    } else if (diffMin > 0) {
+        timeText = `${diffMin} min${diffMin !== 1 ? 's' : ''} ago`;
+    }
+    timeEl.textContent = timeText;
+    textEl.textContent = story.text;
+    
+    // Show modal
+    modal.classList.add('active');
+    
+    // Progress bar animation
+    if (storyTimeout) clearTimeout(storyTimeout);
+    if (storyProgressInterval) clearInterval(storyProgressInterval);
+    
+    let progress = 0;
+    progressFill.style.width = '0%';
+    
+    const duration = 4000; // 4 seconds
+    const interval = 40; // update every 40ms
+    const step = (interval / duration) * 100;
+    
+    storyProgressInterval = setInterval(() => {
+        progress += step;
+        if (progress >= 100) {
+            progress = 100;
+            clearInterval(storyProgressInterval);
+        }
+        progressFill.style.width = progress + '%';
+    }, interval);
+    
+    storyTimeout = setTimeout(() => {
+        window.closeStoryViewer();
+    }, duration);
+};
+
+window.closeStoryViewer = function() {
+    const modal = document.getElementById('story-viewer-modal');
+    if (modal) modal.classList.remove('active');
+    if (storyTimeout) clearTimeout(storyTimeout);
+    if (storyProgressInterval) clearInterval(storyProgressInterval);
+};
+
+function renderStatusStories(container) {
+    if (!container) return;
+    const stories = getStories();
+    const myStory = stories.find(s => s.username === currentUser.username);
+    
+    const storiesWrapper = document.createElement('div');
+    storiesWrapper.className = 'status-stories-container';
+    
+    // Render My Story bubble
+    const myBubble = document.createElement('div');
+    myBubble.className = `status-bubble ${myStory ? 'active-story' : ''}`;
+    myBubble.onclick = myStory ? () => window.viewStory(myStory.id) : () => window.addUserStory();
+    
+    const myAvatarHtml = currentUser.profilePic 
+        ? `<img src="${currentUser.profilePic}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` 
+        : `<span>${currentUser.name.charAt(0).toUpperCase()}</span>`;
+        
+    myBubble.innerHTML = `
+        <div class="status-avatar-ring">
+            <div class="status-avatar" style="display: flex; align-items: center; justify-content: center; background: var(--bg-surface); font-weight: bold; color: var(--text-primary);">
+                ${myAvatarHtml}
+            </div>
+            ${!myStory ? '<div class="status-add-btn"><i class="fas fa-plus"></i></div>' : ''}
+        </div>
+        <span class="status-label">My Status</span>
+    `;
+    storiesWrapper.appendChild(myBubble);
+    
+    // Render other user stories
+    stories.forEach(story => {
+        if (story.username === currentUser.username) return; // skip self since rendered first
+        
+        const bubble = document.createElement('div');
+        bubble.className = 'status-bubble active-story';
+        bubble.onclick = () => window.viewStory(story.id);
+        
+        const avatarHtml = story.profilePic 
+            ? `<img src="${story.profilePic}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` 
+            : `<span>${story.name.charAt(0).toUpperCase()}</span>`;
+            
+        bubble.innerHTML = `
+            <div class="status-avatar-ring">
+                <div class="status-avatar" style="display: flex; align-items: center; justify-content: center; background: var(--bg-surface); font-weight: bold; color: var(--uog-blue);">
+                    ${avatarHtml}
+                </div>
+            </div>
+            <span class="status-label">${story.name.split(' ')[0]}</span>
+        `;
+        storiesWrapper.appendChild(bubble);
+    });
+    
+    container.appendChild(storiesWrapper);
+}
+
+window.castPollVote = async function(postId, optionIndex) {
+    try {
+        await dbPost(`posts/${postId}/vote`, { optionIndex, username: currentUser.username });
+        showToast('Vote cast successfully!');
+        switchView(currentView);
+    } catch (err) {
+        showToast('Could not record vote: ' + err.message, true);
     }
 };
 
@@ -1798,24 +2298,117 @@ window.renderPrivacyDashboard = function() {
             </div>
         </div>
 
-        <!-- Card 5: Danger Zone -->
-        <div class="privacy-card danger-panel">
+        <!-- Card 7: Inactivity Auto Logout -->
+        <div class="privacy-card">
+            <div class="privacy-header">
+                <div class="privacy-icon" style="color: #ef4444; background: rgba(239, 68, 68, 0.1);"><i class="fas fa-history"></i></div>
+                <div>
+                    <h3>Inactivity Auto-Logout</h3>
+                    <p>Protect your session. Automatically log out of the portal after a period of user inactivity.</p>
+                </div>
+            </div>
+            <div class="privacy-control" style="flex-direction: column; align-items: stretch; gap: 12px; width: 100%;">
+                <div style="display:flex; justify-content:space-between; align-items:center; width: 100%;">
+                    <span>Logout after inactivity</span>
+                    <select class="edu-select" style="width: auto; margin-bottom: 0; padding: 6px 12px;" onchange="window.updatePrivacySetting('autoLogoutTime', this.value)">
+                        <option value="0" ${currentUser.autoLogoutTime == '0' || !currentUser.autoLogoutTime ? 'selected' : ''}>Disabled</option>
+                        <option value="5" ${currentUser.autoLogoutTime == '5' ? 'selected' : ''}>5 Minutes</option>
+                        <option value="15" ${currentUser.autoLogoutTime == '15' ? 'selected' : ''}>15 Minutes</option>
+                        <option value="30" ${currentUser.autoLogoutTime == '30' ? 'selected' : ''}>30 Minutes</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 8: Security Audit Log -->
+        <div class="privacy-card" style="grid-column: 1 / -1; width: 100%;">
+            <div class="privacy-header" style="margin-bottom: 16px;">
+                <div class="privacy-icon" style="color: #4b5563; background: rgba(75, 85, 99, 0.1);"><i class="fas fa-shield-alt"></i></div>
+                <div>
+                    <h3>Security Activity Log</h3>
+                    <p>Audit recent security and access events on your account.</p>
+                </div>
+            </div>
+            <div class="security-logs-table-wrapper" style="width: 100%;">
+                <table class="security-logs-table" style="width: 100%;">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Action</th>
+                            <th>Details</th>
+                            <th>Device</th>
+                        </tr>
+                    </thead>
+                    <tbody id="security-logs-body">
+                        <!-- Populated via JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Card 9: GDPR Compliance Tools & Danger Zone -->
+        <div class="privacy-card danger-panel" style="grid-column: 1 / -1; width: 100%;">
             <div class="privacy-header">
                 <div class="privacy-icon red-text"><i class="fas fa-exclamation-triangle"></i></div>
                 <div>
-                    <h3 class="red-text">Danger Zone</h3>
-                    <p>Permanently remove all your data from the portal. This action is irreversible. All of your updates, announcements, slides, and attachment files will be deleted from the system.</p>
+                    <h3 class="red-text">Data Archive & Danger Zone</h3>
+                    <p>Download a complete archive of your account data (GDPR compliant) or permanently delete your account and posts from the portal.</p>
                 </div>
             </div>
-            <div class="privacy-control" style="background: rgba(254, 242, 242, 0.6); border-color: rgba(239, 68, 68, 0.1); width: 100%;">
-                <span style="font-weight: 600; color: #b91c1c;">Delete all my departmental posts</span>
-                <button class="edu-btn-post btn-danger" id="delete-all-posts-btn" onclick="window.bulkDeleteUserPosts()" style="padding: 8px 16px; margin: 0; font-size: 0.85rem;">
-                    <i class="fas fa-trash-alt" style="margin-right: 6px;"></i> Delete All My Posts
+            
+            <div class="privacy-control" style="background: rgba(243, 244, 246, 0.6); border-radius: 8px; padding: 12px; margin-bottom: 12px; border: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                <div style="text-align: left;">
+                    <strong style="color: var(--text-primary);">Export My Personal Data</strong>
+                    <p style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 2px;">Get a copy of your profile, bookmarks, and activity logs in JSON format.</p>
+                </div>
+                <button class="edu-btn-post" onclick="window.exportUserData()" style="padding: 8px 16px; margin: 0; font-size: 0.85rem; background: var(--uog-blue); width: auto;">
+                    <i class="fas fa-file-download" style="margin-right: 6px;"></i> Export Data
                 </button>
+            </div>
+            
+            <div style="display: flex; gap: 12px; width: 100%; flex-wrap: wrap;">
+                <div class="privacy-control" style="flex: 1; min-width: 200px; background: rgba(254, 242, 242, 0.6); border-color: rgba(239, 68, 68, 0.1); padding: 12px; border-radius: 8px; flex-direction: column; align-items: flex-start; gap: 8px;">
+                    <span style="font-weight: 600; color: #b91c1c; font-size: 0.85rem;">Delete All My Feed Posts</span>
+                    <button class="edu-btn-post btn-danger" id="delete-all-posts-btn" onclick="window.bulkDeleteUserPosts()" style="padding: 8px 12px; margin: 0; font-size: 0.8rem; width: 100%;">
+                        <i class="fas fa-trash-alt" style="margin-right: 6px;"></i> Delete Posts
+                    </button>
+                </div>
+                <div class="privacy-control" style="flex: 1; min-width: 200px; background: rgba(254, 242, 242, 0.6); border-color: rgba(239, 68, 68, 0.1); padding: 12px; border-radius: 8px; flex-direction: column; align-items: flex-start; gap: 8px;">
+                    <span style="font-weight: 600; color: #b91c1c; font-size: 0.85rem;">Permanently Delete Account</span>
+                    <button class="edu-btn-post btn-danger" onclick="window.eraseUserAccount()" style="padding: 8px 12px; margin: 0; font-size: 0.8rem; width: 100%; background: #dc2626;">
+                        <i class="fas fa-user-times" style="margin-right: 6px;"></i> Erase Account
+                    </button>
+                </div>
             </div>
         </div>
     `;
     listContainer.appendChild(dash);
+
+    // Populate security logs table
+    const logsBody = document.getElementById('security-logs-body');
+    if (logsBody) {
+        const key = `uog_security_log_${currentUser.username}`;
+        const logs = JSON.parse(localStorage.getItem(key) || '[]');
+        if (logs.length === 0) {
+            logsBody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:#9ca3af;padding:20px;">No recent security events logged.</td></tr>`;
+        } else {
+            logsBody.innerHTML = logs.map(log => {
+                let badgeClass = 'badge-info';
+                if (log.status === 'success') badgeClass = 'badge-success';
+                else if (log.status === 'warning') badgeClass = 'badge-warning';
+                else if (log.status === 'danger') badgeClass = 'badge-danger';
+                
+                return `
+                    <tr>
+                        <td style="white-space:nowrap;">${log.timestamp}</td>
+                        <td><span class="security-badge ${badgeClass}">${log.action}</span></td>
+                        <td>${log.details}</td>
+                        <td style="white-space:nowrap;">${log.device}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+    }
 };
 
 window.updatePrivacySetting = async function(key, value) {
@@ -1825,7 +2418,14 @@ window.updatePrivacySetting = async function(key, value) {
         const res = await dbPut(`users/${currentUser.username}/profile`, body);
         if (res && res.user) {
             currentUser = { ...currentUser, ...res.user };
+            localStorage.setItem('uog_session', JSON.stringify(currentUser));
+            logSecurityEvent('Privacy Update', `Changed ${key} to ${value}`, 'info');
             showToast('Privacy setting updated successfully!');
+            
+            // If the user changed the auto-logout time, restart the activity monitor immediately
+            if (key === 'autoLogoutTime') {
+                resetInactivityTimer();
+            }
         }
     } catch (err) {
         showToast('Failed to update settings: ' + err.message, true);
@@ -1969,22 +2569,30 @@ if (themeToggleBtn) {
 initTheme();
 
 // ─── AUTO RESTORE SESSION ON PAGE LOAD ───────────────────────────────────────
-(function autoRestoreSession() {
+(async function autoRestoreSession() {
     if (currentUser) {
-        // Re-fetch fresh user data from storage to get latest info
-        const users = JSON.parse(localStorage.getItem('uog_users') || '[]');
-        const freshUser = users.find(u => u.username === currentUser.username);
-        if (freshUser) {
-            const { password, ...safeUser } = freshUser;
-            currentUser = safeUser;
-            localStorage.setItem('uog_session', JSON.stringify(currentUser));
+        try {
+            let freshUser = null;
+            if (HAS_SERVER) {
+                const users = await dbGet('users');
+                freshUser = users.find(u => u.username === currentUser.username);
+            } else {
+                const users = JSON.parse(localStorage.getItem('uog_users') || '[]');
+                freshUser = users.find(u => u.username === currentUser.username);
+            }
+            if (freshUser) {
+                const { password, ...safeUser } = freshUser;
+                currentUser = safeUser;
+                localStorage.setItem('uog_session', JSON.stringify(currentUser));
+            }
             initApp();
             document.getElementById('auth-view').classList.remove('active');
             document.getElementById('workspace-view').classList.add('active');
-        } else {
-            // User not found (maybe data cleared), force login
-            localStorage.removeItem('uog_session');
-            currentUser = null;
+        } catch (err) {
+            console.error('Error during auto-restore session, using cache:', err);
+            initApp();
+            document.getElementById('auth-view').classList.remove('active');
+            document.getElementById('workspace-view').classList.add('active');
         }
     }
 })();

@@ -99,7 +99,19 @@ const postSchema = new mongoose.Schema({
         ],
         default: []
     },
-    comments: { type: [commentSchema], default: [] }
+    comments: { type: [commentSchema], default: [] },
+    originalAuthor: { type: String },
+    authorBatch: { type: String },
+    visibility: { type: String, default: 'everyone' },
+    poll: {
+        question: { type: String },
+        options: [
+            {
+                text: { type: String },
+                votes: { type: [String], default: [] }
+            }
+        ]
+    }
 });
 const Post = mongoose.model('Post', postSchema);
 
@@ -304,7 +316,7 @@ app.get('/api/posts', async (req, res) => {
 
 app.post('/api/posts', async (req, res) => {
     try {
-        const { author, name, role, category, text, files } = req.body;
+        const { author, name, role, category, text, files, originalAuthor, authorBatch, visibility, poll } = req.body;
         if (!text || !category) return res.status(400).json({ error: 'Missing fields' });
         
         const post = new Post({
@@ -315,13 +327,46 @@ app.post('/api/posts', async (req, res) => {
             category,
             text,
             date: new Date().toLocaleDateString('en-PK', { day:'numeric', month:'short', year:'numeric' }),
-            files: files || []
+            files: files || [],
+            originalAuthor,
+            authorBatch,
+            visibility: visibility || 'everyone',
+            poll
         });
         await post.save();
         res.json(post);
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: 'Error creating post' });
+    }
+});
+
+app.post('/api/posts/:id/vote', async (req, res) => {
+    try {
+        const { optionIndex, username } = req.body;
+        if (optionIndex === undefined || !username) {
+            return res.status(400).json({ error: 'Missing optionIndex or username' });
+        }
+        const post = await Post.findOne({ id: Number(req.params.id) });
+        if (!post) return res.status(404).json({ error: 'Post not found' });
+        if (!post.poll) return res.status(400).json({ error: 'Post has no poll' });
+        
+        // Remove username from all other options in this poll (to allow vote switching)
+        post.poll.options.forEach((opt, idx) => {
+            opt.votes = opt.votes.filter(u => u !== username);
+        });
+        
+        // Add vote to target option
+        if (post.poll.options[optionIndex]) {
+            post.poll.options[optionIndex].votes.push(username);
+        }
+        
+        post.markModified('poll');
+        await post.save();
+        res.json(post);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Error casting vote' });
     }
 });
 
