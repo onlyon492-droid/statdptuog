@@ -44,6 +44,14 @@ const userSchema = new mongoose.Schema({
 });
 const User = mongoose.model('User', userSchema);
 
+const commentSchema = new mongoose.Schema({
+    author: { type: String, required: true },
+    name: { type: String, required: true },
+    role: { type: String, required: true },
+    text: { type: String, required: true },
+    date: { type: String, required: true }
+});
+
 const postSchema = new mongoose.Schema({
     id: { type: Number, required: true, default: Date.now }, // custom ID to match frontend app.js
     author: { type: String, required: true },
@@ -58,7 +66,9 @@ const postSchema = new mongoose.Schema({
             data: { type: String },
             name: { type: String }
         }
-    ]
+    ],
+    likes: { type: [String], default: [] },
+    comments: { type: [commentSchema], default: [] }
 });
 const Post = mongoose.model('Post', postSchema);
 
@@ -242,6 +252,58 @@ app.delete('/api/posts/:id', async (req, res) => {
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: 'Error deleting post' });
+    }
+});
+
+app.post('/api/posts/:id/like', async (req, res) => {
+    try {
+        const { username } = req.body;
+        if (!username) return res.status(400).json({ error: 'Missing username' });
+        
+        const post = await Post.findOne({ id: Number(req.params.id) });
+        if (!post) return res.status(404).json({ error: 'Post not found' });
+        
+        if (!post.likes) post.likes = [];
+        
+        const idx = post.likes.indexOf(username);
+        if (idx !== -1) {
+            post.likes.splice(idx, 1); // unlike
+        } else {
+            post.likes.push(username); // like
+        }
+        
+        await post.save();
+        res.json({ likes: post.likes });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Error toggling like' });
+    }
+});
+
+app.post('/api/posts/:id/comment', async (req, res) => {
+    try {
+        const { author, name, role, text } = req.body;
+        if (!author || !name || !role || !text) return res.status(400).json({ error: 'Missing fields' });
+        
+        const post = await Post.findOne({ id: Number(req.params.id) });
+        if (!post) return res.status(404).json({ error: 'Post not found' });
+        
+        if (!post.comments) post.comments = [];
+        
+        const comment = {
+            author,
+            name,
+            role,
+            text,
+            date: new Date().toLocaleDateString('en-PK', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' })
+        };
+        post.comments.push(comment);
+        
+        await post.save();
+        res.json(post.comments);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Error adding comment' });
     }
 });
 

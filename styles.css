@@ -212,3 +212,147 @@ body { background-color: var(--bg-main); color: var(--text-primary); height: 100
 #toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 2000; display: flex; flex-direction: column; gap: 10px; }
 .toast { background: var(--text-primary); color: white; padding: 12px 20px; border-radius: 8px; font-size: 0.9rem; font-weight: 500; box-shadow: var(--shadow-md); animation: slideIn 0.3s; }
 @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+/* ─── PREMIUM COMMUNITY BOOST ────────────────────────────────────────────────── */
+
+/* Premium Post Interaction Bar */
+.post-interaction-bar {
+    display: flex;
+    gap: 15px;
+    border-top: 1px solid var(--border-color);
+    margin-top: 1rem;
+    padding-top: 0.75rem;
+}
+.interaction-btn {
+    border: none;
+    background: transparent;
+    padding: 6px 12px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s ease;
+}
+.interaction-btn:hover {
+    background: #f3f4f6;
+    color: var(--text-primary);
+}
+.interaction-btn.liked {
+    color: var(--uog-orange);
+    background: rgba(245, 130, 32, 0.08);
+}
+.interaction-btn.liked i {
+    animation: thumbsPulse 0.3s ease-out;
+}
+@keyframes thumbsPulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.4) rotate(-15deg); }
+    100% { transform: scale(1); }
+}
+
+/* Post Comments Section */
+.post-comments-section {
+    display: none;
+    margin-top: 1rem;
+    border-top: 1px dashed var(--border-color);
+    padding-top: 1rem;
+}
+.post-comments-section.active {
+    display: block;
+    animation: slideDown 0.25s ease-out;
+}
+@keyframes slideDown {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.comments-list {
+    max-height: 250px;
+    overflow-y: auto;
+    margin-bottom: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding-right: 5px;
+}
+/* Slim Scrollbar for Comments */
+.comments-list::-webkit-scrollbar { width: 4px; }
+.comments-list::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
+
+.single-comment {
+    background: #f9fafb;
+    border: 1px solid var(--border-color);
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+}
+.comment-user-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--uog-blue);
+    margin-bottom: 4px;
+}
+.comment-user-role {
+    font-weight: 400;
+    color: var(--text-secondary);
+}
+.comment-text {
+    color: var(--text-primary);
+    line-height: 1.4;
+}
+
+/* Comment Input Area */
+.comment-input-area {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+.comment-input-box {
+    flex: 1;
+    border: 1px solid var(--border-color);
+    background: #f9fafb;
+    padding: 8px 12px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    outline: none;
+    transition: 0.2s;
+}
+.comment-input-box:focus {
+    border-color: var(--uog-blue);
+    background: white;
+}
+.comment-submit-btn {
+    background: var(--uog-blue);
+    color: white;
+    border: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+.comment-submit-btn:hover {
+    background: var(--uog-blue-hover);
+    transform: scale(1.08);
+}
+
+/* Boosted Micro-interactions & Glassmorphism Transitions */
+.sidebar-list li, .sw-card, .student-card, .edu-card {
+    transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.22s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.2s ease;
+}
+.sidebar-list li:hover {
+    transform: translateX(4px);
+}
+.sw-card:hover, .student-card:hover, .edu-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+

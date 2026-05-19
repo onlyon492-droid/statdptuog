@@ -26,6 +26,40 @@ async function dbPost(endpoint, body) {
         return d;
     }
     // localStorage fallback for each endpoint
+    if (endpoint.includes('/like')) {
+        const postId = endpoint.split('/')[1];
+        const posts = JSON.parse(localStorage.getItem('uog_posts') || '[]');
+        const idx = posts.findIndex(p => String(p.id) === String(postId));
+        if (idx !== -1) {
+            if (!posts[idx].likes) posts[idx].likes = [];
+            const usernameIdx = posts[idx].likes.indexOf(body.username);
+            if (usernameIdx !== -1) {
+                posts[idx].likes.splice(usernameIdx, 1);
+            } else {
+                posts[idx].likes.push(body.username);
+            }
+            localStorage.setItem('uog_posts', JSON.stringify(posts));
+            return { likes: posts[idx].likes };
+        }
+    }
+    if (endpoint.includes('/comment')) {
+        const postId = endpoint.split('/')[1];
+        const posts = JSON.parse(localStorage.getItem('uog_posts') || '[]');
+        const idx = posts.findIndex(p => String(p.id) === String(postId));
+        if (idx !== -1) {
+            if (!posts[idx].comments) posts[idx].comments = [];
+            const comment = {
+                author: body.author,
+                name: body.name,
+                role: body.role,
+                text: body.text,
+                date: new Date().toLocaleDateString('en-PK', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+            };
+            posts[idx].comments.push(comment);
+            localStorage.setItem('uog_posts', JSON.stringify(posts));
+            return posts[idx].comments;
+        }
+    }
     if (endpoint === 'register') {
         const users = JSON.parse(localStorage.getItem('uog_users') || '[]');
         if (users.find(u => u.username === body.username.toLowerCase()))
@@ -293,6 +327,8 @@ sidebarItems.forEach(item => {
 
 function switchView(view) {
     currentView = view;
+    const searchInput = document.querySelector('.nav-search input');
+    if (searchInput) searchInput.value = '';
     listContainer.innerHTML = '<div style="padding:2rem;text-align:center;color:#9ca3af;"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';
     if (view === 'feed' || view === 'records') {
         composeCard.style.display = 'block';
@@ -338,6 +374,10 @@ async function renderPosts(filterView) {
             else filesHtml += `<div class="file-attachment doc"><i class="fas fa-file-pdf"></i><div class="file-details"><div class="file-name">${f.name}</div><div class="file-meta">Document</div></div></div>`;
         });
         const mediaHtml = (imagesHtml ? `<div class="post-images">${imagesHtml}</div>` : '') + filesHtml;
+        const likesArr = post.likes || [];
+        const commentsArr = post.comments || [];
+        const isLiked = likesArr.includes(currentUser.username);
+
         const card = document.createElement('div');
         card.className = 'edu-card post';
         card.innerHTML = `
@@ -355,7 +395,44 @@ async function renderPosts(filterView) {
                     <button class="post-action-btn delete" onclick="deletePost('${post.id}')"><i class="fas fa-trash"></i> Delete</button>` : ''}
                 </div>
             </div>
-            <div class="post-text">${post.text}</div>${mediaHtml}`;
+            <div class="post-text">${post.text}</div>
+            ${mediaHtml}
+            
+            <!-- Sleek Interaction Bar -->
+            <div class="post-interaction-bar">
+                <button class="interaction-btn ${isLiked ? 'liked' : ''}" onclick="handleLikeClick('${post.id}')">
+                    <i class="fa-solid fa-thumbs-up"></i>
+                    <span class="likes-count">${likesArr.length} Appreciation${likesArr.length !== 1 ? 's' : ''}</span>
+                </button>
+                <button class="interaction-btn" onclick="toggleCommentsSection('${post.id}')">
+                    <i class="fa-solid fa-comment"></i>
+                    <span>${commentsArr.length} Comment${commentsArr.length !== 1 ? 's' : ''}</span>
+                </button>
+            </div>
+            
+            <!-- Sleek Comments Panel -->
+            <div class="post-comments-section" id="comments-sec-${post.id}">
+                <div class="comments-list" id="comments-list-${post.id}">
+                    ${commentsArr.length === 0 
+                        ? `<div class="no-comments-msg" style="text-align:center;padding:10px;color:#9ca3af;font-size:0.8rem;">No comments yet. Start the discussion!</div>`
+                        : commentsArr.map(c => `
+                            <div class="single-comment">
+                                <div class="comment-user-header">
+                                    <span>${c.name} <span class="comment-user-role">• ${c.role}</span></span>
+                                    <span style="font-weight:400;color:#9ca3af;font-size:0.72rem;">${c.date}</span>
+                                </div>
+                                <div class="comment-text">${c.text}</div>
+                            </div>
+                        `).join('')}
+                </div>
+                <div class="comment-input-area">
+                    <input type="text" placeholder="Write an academic comment..." class="comment-input-box" id="comments-input-${post.id}" onkeydown="handleCommentKeydown(event, '${post.id}')">
+                    <button class="comment-submit-btn" onclick="submitComment('${post.id}')">
+                        <i class="fa-solid fa-paper-plane"></i>
+                    </button>
+                </div>
+            </div>
+        `;
         listContainer.appendChild(card);
     });
 }
@@ -509,3 +586,140 @@ uploadForm.addEventListener('submit', async (e) => {
     } catch (err) { showToast(err.message, true); }
     finally { btn.textContent = 'Publish Update'; btn.disabled = false; }
 });
+
+// ─── GLOBAL SOCIAL TRIGGERS ──────────────────────────────────────────────────
+
+window.handleLikeClick = async function(postId) {
+    try {
+        const data = await dbPost(`posts/${postId}/like`, { username: currentUser.username });
+        // Refresh active view to show updated like count smoothly
+        switchView(currentView);
+    } catch (err) {
+        showToast('Could not save appreciation.', true);
+    }
+};
+
+window.toggleCommentsSection = function(postId) {
+    const sec = document.getElementById(`comments-sec-${postId}`);
+    if (sec) {
+        sec.classList.toggle('active');
+    }
+};
+
+window.handleCommentKeydown = function(event, postId) {
+    if (event.key === 'Enter') {
+        submitComment(postId);
+    }
+};
+
+window.submitComment = async function(postId) {
+    const input = document.getElementById(`comments-input-${postId}`);
+    if (!input) return;
+    const text = input.value.trim();
+    if (!text) return;
+    
+    try {
+        input.disabled = true;
+        const comments = await dbPost(`posts/${postId}/comment`, {
+            author: currentUser.username,
+            name: currentUser.name,
+            role: currentUser.role,
+            text: text
+        });
+        input.value = '';
+        
+        // Dynamically re-render comments smoothly for instant feedback
+        const list = document.getElementById(`comments-list-${postId}`);
+        if (list) {
+            list.innerHTML = comments.map(c => `
+                <div class="single-comment">
+                    <div class="comment-user-header">
+                        <span>${c.name} <span class="comment-user-role">• ${c.role}</span></span>
+                        <span style="font-weight:400;color:#9ca3af;font-size:0.72rem;">${c.date}</span>
+                    </div>
+                    <div class="comment-text">${c.text}</div>
+                </div>
+            `).join('');
+            // Scroll to bottom of comments list
+            list.scrollTop = list.scrollHeight;
+        }
+        showToast('Comment published!');
+        
+        // Also refresh the counts silently
+        updateStats();
+    } catch (err) {
+        showToast('Could not post comment.', true);
+    } finally {
+        input.disabled = false;
+        input.focus();
+    }
+};
+
+// ─── INTERACTIVE REAL-TIME SEARCH ────────────────────────────────────────────
+const searchInput = document.querySelector('.nav-search input');
+if (searchInput) {
+    searchInput.addEventListener('input', (e) => {
+        const query = e.target.value.toLowerCase().trim();
+        
+        if (currentView === 'feed' || currentView === 'records') {
+            const cards = listContainer.querySelectorAll('.edu-card.post');
+            cards.forEach(card => {
+                const text = card.textContent.toLowerCase();
+                card.style.display = text.includes(query) ? 'block' : 'none';
+            });
+            // If all cards are hidden, show a nice empty state
+            const visibleCards = Array.from(cards).filter(c => c.style.display !== 'none');
+            let noResultMsg = listContainer.querySelector('.no-results-msg');
+            if (visibleCards.length === 0 && cards.length > 0) {
+                if (!noResultMsg) {
+                    noResultMsg = document.createElement('div');
+                    noResultMsg.className = 'no-results-msg';
+                    noResultMsg.style.cssText = 'padding:2rem;text-align:center;color:#6b7280;border:1px dashed #e5e7eb;border-radius:8px;grid-column:1/-1;';
+                    noResultMsg.textContent = 'No matching items found.';
+                    listContainer.appendChild(noResultMsg);
+                }
+            } else if (noResultMsg) {
+                noResultMsg.remove();
+            }
+        } else if (currentView === 'software') {
+            const cards = listContainer.querySelectorAll('.sw-card');
+            cards.forEach(card => {
+                const text = card.textContent.toLowerCase();
+                card.style.display = text.includes(query) ? 'flex' : 'none';
+            });
+            const visibleCards = Array.from(cards).filter(c => c.style.display !== 'none');
+            let noResultMsg = listContainer.querySelector('.no-results-msg');
+            if (visibleCards.length === 0 && cards.length > 0) {
+                if (!noResultMsg) {
+                    noResultMsg = document.createElement('div');
+                    noResultMsg.className = 'no-results-msg';
+                    noResultMsg.style.cssText = 'padding:2rem;text-align:center;color:#6b7280;border:1px dashed #e5e7eb;border-radius:8px;grid-column:1/-1;';
+                    noResultMsg.textContent = 'No matching software found.';
+                    listContainer.appendChild(noResultMsg);
+                }
+            } else if (noResultMsg) {
+                noResultMsg.remove();
+            }
+        } else if (currentView === 'students') {
+            const cards = listContainer.querySelectorAll('.student-card');
+            cards.forEach(card => {
+                const text = card.textContent.toLowerCase();
+                card.style.display = text.includes(query) ? 'block' : 'none';
+            });
+            const visibleCards = Array.from(cards).filter(c => c.style.display !== 'none');
+            let noResultMsg = listContainer.querySelector('.no-results-msg');
+            if (visibleCards.length === 0 && cards.length > 0) {
+                if (!noResultMsg) {
+                    noResultMsg = document.createElement('div');
+                    noResultMsg.className = 'no-results-msg';
+                    noResultMsg.style.cssText = 'padding:2rem;text-align:center;color:#6b7280;border:1px dashed #e5e7eb;border-radius:8px;grid-column:1/-1;';
+                    noResultMsg.textContent = 'No matching members found.';
+                    listContainer.appendChild(noResultMsg);
+                }
+            } else if (noResultMsg) {
+                noResultMsg.remove();
+            }
+        }
+    });
+}
+
