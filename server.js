@@ -250,7 +250,7 @@ app.get('/api/users', async (req, res) => {
 
 app.put('/api/users/:username/profile', async (req, res) => {
     try {
-        const { name, phone, password, profilePic, program, batch, phoneVisible, allowComments, allowDownloads, showAppreciations, phonePrivacy, profileStealth, statusPrivacy, connectionPolicy, tagline, designation, publicationsCount, education, jobStatus } = req.body;
+        const { name, phone, password, profilePic, program, batch, phoneVisible, allowComments, allowDownloads, showAppreciations, phonePrivacy, profileStealth, statusPrivacy, connectionPolicy, tagline, designation, publicationsCount, education, jobStatus, showIndividualGraphs, showPublicationsChart, showStandingChart, showShareChart } = req.body;
         const user = await User.findOne({ username: req.params.username.toLowerCase().trim() });
         if (!user) return res.status(404).json({ error: 'User not found' });
         
@@ -264,6 +264,10 @@ app.put('/api/users/:username/profile', async (req, res) => {
         if (publicationsCount !== undefined) user.publicationsCount = Number(publicationsCount) || 0;
         if (education !== undefined) user.education = education;
         if (jobStatus !== undefined) user.jobStatus = jobStatus;
+        if (showIndividualGraphs !== undefined) user.showIndividualGraphs = showIndividualGraphs;
+        if (showPublicationsChart !== undefined) user.showPublicationsChart = showPublicationsChart;
+        if (showStandingChart !== undefined) user.showStandingChart = showStandingChart;
+        if (showShareChart !== undefined) user.showShareChart = showShareChart;
         
         if (phoneVisible !== undefined) user.phoneVisible = phoneVisible;
         if (allowComments !== undefined) user.allowComments = allowComments;

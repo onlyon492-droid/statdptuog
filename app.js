@@ -1644,7 +1644,7 @@ function getStories() {
     return activeStories || [];
 }
 
-window.addUserStory = function() {
+window.addUserStory = async function() {
     if (!currentUser) return;
     const modal = document.getElementById('add-story-modal');
     if (modal) {
@@ -1682,7 +1682,6 @@ window.submitUserStory = async function() {
         showToast("Academic status updated!");
         
         document.getElementById('add-story-modal').classList.remove('active');
-        
         if (currentView === 'feed') {
             await renderPosts('feed');
         }
