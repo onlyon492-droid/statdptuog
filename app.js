@@ -364,13 +364,40 @@ async function dbPost(endpoint, body) {
             localStorage.setItem('uog_elections', JSON.stringify(elections));
             return election;
         }
-    }
     if (baseKey === 'transactions') {
         const txs = JSON.parse(localStorage.getItem('uog_transactions') || '[]');
         const tx = { id: Date.now(), date: new Date().toISOString(), ...body };
         txs.unshift(tx);
         localStorage.setItem('uog_transactions', JSON.stringify(txs));
         return tx;
+    }
+    if (baseKey === 'messages') {
+        if (endpoint === 'messages/mark-read') {
+            const msgs = JSON.parse(localStorage.getItem('uog_messages') || '[]');
+            let changed = false;
+            msgs.forEach(m => {
+                if (m.sender === body.sender && m.recipient === body.recipient && !m.read) {
+                    m.read = true;
+                    changed = true;
+                }
+            });
+            if (changed) {
+                localStorage.setItem('uog_messages', JSON.stringify(msgs));
+            }
+            return { success: true };
+        } else {
+            const msgs = JSON.parse(localStorage.getItem('uog_messages') || '[]');
+            const msg = { 
+                id: Date.now(), 
+                timestamp: Date.now(), 
+                read: false, 
+                media: '',
+                ...body 
+            };
+            msgs.push(msg);
+            localStorage.setItem('uog_messages', JSON.stringify(msgs));
+            return msg;
+        }
     }
 }
 async function dbPut(endpoint, body) {
@@ -4911,6 +4938,7 @@ window.handleElectionSubmit = async function(event) {
 // Direct Messaging (Chat) Logic
 let activeChatPartner = null;
 let chatRefreshInterval = null;
+let chatPendingMedia = '';
 
 async function renderMessages() {
     if (chatRefreshInterval) clearInterval(chatRefreshInterval);
@@ -4918,7 +4946,7 @@ async function renderMessages() {
     listContainer.innerHTML = `
         <div class="chat-layout">
             <div class="chat-sidebar">
-                <div class="chat-sidebar-header">Members Directory</div>
+                <div class="chat-sidebar-header">Messages</div>
                 <ul class="chat-users-list" id="chat-users-list">
                     <li style="padding: 20px; text-align: center; color: var(--text-secondary); font-size: 0.8rem;">Loading members...</li>
                 </ul>
@@ -4926,20 +4954,43 @@ async function renderMessages() {
             <div class="chat-main" id="chat-main-pane">
                 <div style="flex:1; display:flex; flex-direction:column; justify-content:center; align-items:center; color: var(--text-secondary); font-size: 0.9rem; padding: 20px; text-align: center;">
                     <i class="far fa-comments" style="font-size: 3rem; margin-bottom: 15px; opacity: 0.5;"></i>
-                    Select a member from the left pane to start chatting.
+                    Select a conversation to start chatting.
                 </div>
             </div>
         </div>
     `;
 
     try {
-        const users = await dbGet('users');
+        const [users, allMsgs] = await Promise.all([
+            dbGet('users'),
+            dbGet('messages')
+        ]);
+        
         const usersListEl = document.getElementById('chat-users-list');
         if (!usersListEl) return;
         usersListEl.innerHTML = '';
         
-        const contacts = users.filter(u => u.username !== currentUser.username);
+        let contacts = users.filter(u => u.username !== currentUser.username);
         
+        // Calculate latest message time and unread counts for sorting
+        contacts.forEach(contact => {
+            const chatMsgs = allMsgs.filter(m => 
+                (m.sender === currentUser.username && (m.recipient === contact.username || m.receiver === contact.username)) || 
+                (m.sender === contact.username && (m.recipient === currentUser.username || m.receiver === currentUser.username))
+            );
+            
+            contact.latestMsgTime = chatMsgs.length > 0 ? Math.max(...chatMsgs.map(m => m.timestamp)) : 0;
+            contact.unreadCount = chatMsgs.filter(m => m.sender === contact.username && !m.read).length;
+        });
+
+        // Sort: those with messages first (most recent), then alphabetically
+        contacts.sort((a, b) => {
+            if (b.latestMsgTime !== a.latestMsgTime) {
+                return b.latestMsgTime - a.latestMsgTime;
+            }
+            return a.name.localeCompare(b.name);
+        });
+
         if (contacts.length === 0) {
             usersListEl.innerHTML = '<li style="padding: 20px; text-align: center; color: var(--text-secondary); font-size: 0.8rem;">No other members.</li>';
             return;
@@ -4959,11 +5010,16 @@ async function renderMessages() {
                 ? `<img src="${u.profilePic}" alt="" style="width:100%;height:100%;object-fit:cover;">` 
                 : avatarChar;
 
+            const badgeHtml = u.unreadCount > 0 ? `<div class="unread-badge">${u.unreadCount}</div>` : '';
+
             li.innerHTML = `
                 <div class="chat-user-avatar">${avatarHtml}</div>
-                <div class="chat-user-info">
-                    <div class="chat-user-name">${u.name}</div>
-                    <div class="chat-user-role">${u.role || 'Member'}</div>
+                <div class="chat-user-info" style="flex:1; display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                        <div class="chat-user-name">${u.name}</div>
+                        <div class="chat-user-role">${u.role || 'Member'}</div>
+                    </div>
+                    ${badgeHtml}
                 </div>
             `;
             usersListEl.appendChild(li);
@@ -4979,10 +5035,13 @@ async function renderMessages() {
     }
 }
 
-window.selectChatPartner = function(partner) {
+window.selectChatPartner = async function(partner) {
     activeChatPartner = partner.username;
     const mainPane = document.getElementById('chat-main-pane');
     if (!mainPane) return;
+
+    // Mark messages as read immediately
+    await dbPost('messages/mark-read', { sender: activeChatPartner, recipient: currentUser.username });
 
     const partnerAvatarHtml = partner.profilePic 
         ? `<img src="${partner.profilePic}" alt="" style="width:100%;height:100%;object-fit:cover;">` 
@@ -4996,18 +5055,47 @@ window.selectChatPartner = function(partner) {
                 <div style="font-size: 0.75rem; color: var(--text-secondary);">${partner.role || 'Member'}</div>
             </div>
         </div>
-        <div class="chat-body" id="chat-messages-body">
+        <div class="chat-body" id="chat-messages-body" style="scroll-behavior: smooth;">
             <div style="text-align: center; color: var(--text-secondary); font-size: 0.8rem; padding: 20px;">Loading conversation...</div>
         </div>
+        <div id="chat-media-preview" style="display:none; padding: 10px; background: var(--bg-surface); border-top: 1px solid var(--border-color); position: relative;">
+            <img id="chat-preview-img" src="" style="max-height: 100px; border-radius: 8px;">
+            <button type="button" onclick="window.clearChatMedia()" style="position: absolute; top: 5px; right: 15px; background: rgba(0,0,0,0.5); border: none; color: white; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; display:flex; align-items:center; justify-content:center;"><i class="fas fa-times"></i></button>
+        </div>
         <form class="chat-input-row" id="chat-send-form" onsubmit="sendChatMessage(event)">
-            <input class="chat-input-field" id="chat-msg-input" placeholder="Type a message..." required autocomplete="off">
-            <button class="chat-send-btn" type="submit"><i class="fas fa-paper-plane"></i></button>
+            <label class="chat-attach-btn" style="cursor: pointer; padding: 0 10px; color: var(--text-secondary); font-size: 1.2rem; transition: color 0.2s;">
+                <i class="fas fa-paperclip"></i>
+                <input type="file" accept="image/*" style="display:none;" id="chat-media-input" onchange="window.handleChatMediaChange(event)">
+            </label>
+            <input class="chat-input-field" id="chat-msg-input" placeholder="Type a message..." autocomplete="off">
+            <button class="chat-send-btn" type="submit" id="chat-submit-btn"><i class="fas fa-paper-plane"></i></button>
         </form>
     `;
 
+    chatPendingMedia = '';
     loadChatMessages();
     if (chatRefreshInterval) clearInterval(chatRefreshInterval);
     chatRefreshInterval = setInterval(loadChatMessages, 3000);
+};
+
+window.handleChatMediaChange = function(event) {
+    const file = event.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            chatPendingMedia = e.target.result;
+            document.getElementById('chat-preview-img').src = chatPendingMedia;
+            document.getElementById('chat-media-preview').style.display = 'block';
+            document.getElementById('chat-msg-input').focus();
+        };
+        reader.readAsDataURL(file);
+    }
+};
+
+window.clearChatMedia = function() {
+    chatPendingMedia = '';
+    document.getElementById('chat-media-preview').style.display = 'none';
+    document.getElementById('chat-media-input').value = '';
 };
 
 async function loadChatMessages() {
@@ -5016,31 +5104,65 @@ async function loadChatMessages() {
 
     try {
         const msgs = await dbGet(`messages?sender=${currentUser.username}&receiver=${activeChatPartner}`);
+        
+        // Save scroll to decide whether to auto-scroll later
+        const isScrolledToBottom = chatBody.scrollHeight - chatBody.clientHeight <= chatBody.scrollTop + 10;
+        
         chatBody.innerHTML = '';
         if (msgs.length === 0) {
             chatBody.innerHTML = '<div style="text-align: center; color: var(--text-secondary); font-size: 0.8rem; padding: 20px;">No messages yet. Say hello!</div>';
             return;
         }
         
+        // Mark as read in background if new msgs arrived
+        const unreadMsgs = msgs.filter(m => m.sender === activeChatPartner && !m.read);
+        if (unreadMsgs.length > 0) {
+            await dbPost('messages/mark-read', { sender: activeChatPartner, recipient: currentUser.username });
+            // Let the interval re-fetch next tick, or just assume success.
+        }
+
+        let lastDateStr = '';
+
         msgs.forEach(m => {
+            const d = m.timestamp ? new Date(m.timestamp) : new Date();
+            const dateStr = d.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+            
+            if (dateStr !== lastDateStr) {
+                const dateDivider = document.createElement('div');
+                dateDivider.className = 'chat-date-divider';
+                dateDivider.innerHTML = `<span>${dateStr}</span>`;
+                chatBody.appendChild(dateDivider);
+                lastDateStr = dateStr;
+            }
+
             const bubble = document.createElement('div');
             const isSent = m.sender === currentUser.username;
             bubble.className = `chat-bubble ${isSent ? 'sent' : 'received'}`;
             
-            let timeStr = '';
-            if (m.timestamp) {
-                const d = new Date(m.timestamp);
-                timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            
+            let mediaHtml = '';
+            if (m.media) {
+                mediaHtml = `<img src="${m.media}" style="max-width: 100%; border-radius: 8px; margin-bottom: 5px; cursor: pointer; display:block;" onclick="window.open('${m.media}')">`;
             }
             
+            let readTicks = '';
+            if (isSent) {
+                const tickColor = m.read ? '#34B7F1' : 'rgba(255,255,255,0.4)';
+                readTicks = `<span style="color: ${tickColor}; margin-left: 5px; font-size: 0.7rem;"><i class="fas fa-check-double"></i></span>`;
+            }
+
             bubble.innerHTML = `
-                <div>${m.text}</div>
-                <div class="chat-bubble-time">${timeStr}</div>
+                ${mediaHtml}
+                <div>${m.text || ''}</div>
+                <div class="chat-bubble-time">${timeStr}${readTicks}</div>
             `;
             chatBody.appendChild(bubble);
         });
 
-        chatBody.scrollTop = chatBody.scrollHeight;
+        if (isScrolledToBottom) {
+            chatBody.scrollTop = chatBody.scrollHeight;
+        }
     } catch (err) {
         console.error(err);
     }
@@ -5049,17 +5171,27 @@ async function loadChatMessages() {
 window.sendChatMessage = async function(event) {
     event.preventDefault();
     const input = document.getElementById('chat-msg-input');
-    if (!input || !input.value.trim() || !activeChatPartner) return;
+    if (!input || !activeChatPartner) return;
+    
     const val = input.value.trim();
+    if (!val && !chatPendingMedia) return;
+
     input.value = '';
+    const mediaToSend = chatPendingMedia;
+    window.clearChatMedia();
 
     try {
         await dbPost('messages', {
             sender: currentUser.username,
             receiver: activeChatPartner,
-            text: val
+            text: val,
+            media: mediaToSend
         });
-        loadChatMessages();
+        
+        await loadChatMessages();
+        const chatBody = document.getElementById('chat-messages-body');
+        if (chatBody) chatBody.scrollTop = chatBody.scrollHeight;
+        
     } catch (err) {
         showToast('Message send failed', true);
     }

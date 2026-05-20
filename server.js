@@ -216,6 +216,8 @@ const messageSchema = new mongoose.Schema({
     sender: { type: String, required: true },
     recipient: { type: String, required: true },
     text: { type: String, required: true },
+    media: { type: String, default: '' },
+    read: { type: Boolean, default: false },
     timestamp: { type: Number, required: true, default: Date.now }
 });
 const Message = mongoose.model('Message', messageSchema);
@@ -1147,15 +1149,19 @@ app.post('/api/messages', async (req, res) => {
     try {
         const sender = req.body.sender;
         const recipient = req.body.recipient || req.body.receiver;
-        const text = req.body.text;
-        if (!sender || !recipient || !text) {
-            return res.status(400).json({ error: 'Missing sender, recipient, or text' });
+        const text = req.body.text || '';
+        const media = req.body.media || '';
+        
+        if (!sender || !recipient || (!text && !media)) {
+            return res.status(400).json({ error: 'Missing sender, recipient, or content' });
         }
         const message = new Message({
             id: Date.now(),
             sender,
             recipient,
             text,
+            media,
+            read: false,
             timestamp: Date.now()
         });
         await message.save();
@@ -1163,6 +1169,24 @@ app.post('/api/messages', async (req, res) => {
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: 'Error sending message' });
+    }
+});
+
+app.post('/api/messages/mark-read', async (req, res) => {
+    try {
+        const { sender, recipient } = req.body;
+        if (!sender || !recipient) {
+            return res.status(400).json({ error: 'Missing sender or recipient' });
+        }
+        // Mark all messages sent BY 'sender' TO 'recipient' as read
+        await Message.updateMany(
+            { sender: sender, recipient: recipient, read: false },
+            { $set: { read: true } }
+        );
+        res.json({ success: true });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Error marking messages as read' });
     }
 });
 
