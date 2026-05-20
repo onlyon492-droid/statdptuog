@@ -2253,7 +2253,7 @@ function renderStatusStories(container) {
             <div class="status-avatar" style="display: flex; align-items: center; justify-content: center; background: var(--bg-surface); font-weight: bold; color: var(--text-primary);">
                 ${myAvatarHtml}
             </div>
-            ${!myStory ? '<div class="status-add-btn"><i class="fas fa-plus"></i></div>' : ''}
+            <div class="status-add-btn" onclick="event.stopPropagation(); window.addUserStory();"><i class="fas fa-plus"></i></div>
         </div>
         <span class="status-label">My Status</span>
     `;

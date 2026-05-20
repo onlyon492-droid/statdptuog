@@ -2127,8 +2127,8 @@ body, nav, aside, main, div, input, select, textarea, button, p, span, h1, h2, h
     position: absolute;
     bottom: 22px;
     right: 6px;
-    background: var(--uog-blue);
-    color: white;
+    background: var(--zai-accent) !important;
+    color: #111827 !important;
     width: 20px;
     height: 20px;
     border-radius: 50%;
@@ -2137,7 +2137,14 @@ body, nav, aside, main, div, input, select, textarea, button, p, span, h1, h2, h
     align-items: center;
     justify-content: center;
     font-size: 0.75rem;
+    font-weight: bold;
     box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+    cursor: pointer;
+    transition: transform 0.2s ease, background 0.2s ease;
+}
+.status-add-btn:hover {
+    transform: scale(1.2);
+    background: #ffffff !important;
 }
 
 /* Story Viewer Modal */
