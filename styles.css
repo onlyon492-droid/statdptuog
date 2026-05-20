@@ -4398,17 +4398,22 @@ select.premium-input option {
         border-right: none;
     }
     .chat-main {
-        position: absolute;
+        position: fixed;
         top: 0;
         left: 0;
-        width: 100%;
-        height: 100%;
-        z-index: 10;
+        width: 100vw;
+        height: 100vh;
+        z-index: 99999;
         transform: translateX(100%);
-        transition: transform 0.3s ease-in-out;
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        border-radius: 0 !important;
+        border: none !important;
     }
     .chat-main.active {
         transform: translateX(0);
+    }
+    body.chat-active {
+        overflow: hidden !important;
     }
     .chat-back-btn {
         display: block !important;
