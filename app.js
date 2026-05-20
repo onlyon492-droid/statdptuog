@@ -19,7 +19,8 @@ async function dbGet(key) {
             console.warn(`Fetch failed for ${key}, falling back to localStorage.`, fetchErr);
         }
     }
-    if (key === 'batches') {
+    const baseKey = key.split('?')[0].split('/')[0];
+    if (baseKey === 'batches') {
         let batches = JSON.parse(localStorage.getItem('uog_batches') || '[]');
         if (batches.length === 0) {
             batches = ['2020-2024', '2021-2025', '2022-2026', '2023-2027'];
@@ -27,14 +28,14 @@ async function dbGet(key) {
         }
         return batches.map(b => ({ name: b }));
     }
-    if (key === 'stories') {
+    if (baseKey === 'stories') {
         const stories = JSON.parse(localStorage.getItem('uog_stories') || '[]');
         const oneDayAgo = Date.now() - 24 * 3600 * 1000;
         const freshStories = stories.filter(s => s.timestamp >= oneDayAgo);
         localStorage.setItem('uog_stories', JSON.stringify(freshStories));
         return freshStories;
     }
-    if (key.startsWith('messages')) {
+    if (baseKey === 'messages') {
         const msgs = JSON.parse(localStorage.getItem('uog_messages') || '[]');
         const queryStr = key.includes('?') ? key.split('?')[1] : '';
         const urlParams = new URLSearchParams(queryStr);
@@ -48,7 +49,10 @@ async function dbGet(key) {
         }
         return msgs;
     }
-    return JSON.parse(localStorage.getItem(`uog_${key}`) || '[]');
+    if (baseKey === 'transactions') {
+        return JSON.parse(localStorage.getItem('uog_transactions') || '[]');
+    }
+    return JSON.parse(localStorage.getItem(`uog_${baseKey}`) || '[]');
 }
 async function dbPost(endpoint, body) {
     if (HAS_SERVER) {
@@ -1160,6 +1164,12 @@ function switchView(view) {
         viewDesc.textContent  = 'Review and update your educational credentials, publications, and contact info.';
         listContainer.className = '';
         renderProfileTab();
+    } else if (view === 'transactions') {
+        composeCard.style.display = 'none';
+        viewTitle.textContent = 'Payment & Billing Transactions';
+        viewDesc.textContent  = 'Review your academic contribution history, membership dues, and transaction receipts.';
+        listContainer.className = '';
+        renderTransactions();
     } else if (view === 'settings-view') {
         composeCard.style.display = 'none';
         viewTitle.textContent = 'Settings & Privacy Controls';
@@ -4954,6 +4964,57 @@ window.sendChatMessage = async function(event) {
         showToast('Message send failed', true);
     }
 };
+
+// Transactions Rendering
+async function renderTransactions() {
+    listContainer.innerHTML = '<div style="padding:2rem;text-align:center;color:#9ca3af;"><i class="fas fa-spinner fa-spin"></i> Loading transactions...</div>';
+    try {
+        let txs = await dbGet(`transactions?username=${currentUser.username}`);
+        txs = txs.filter(t => t.username !== 'system');
+        listContainer.innerHTML = '';
+
+        if (txs.length === 0) {
+            listContainer.innerHTML = '<div style="text-align:center; color: var(--text-secondary); padding: 3rem;">No payment transactions recorded.</div>';
+            return;
+        }
+
+        let rowsHtml = '';
+        txs.forEach(t => {
+            const dateStr = t.date ? new Date(t.date).toLocaleDateString() : 'N/A';
+            rowsHtml += `
+                <tr>
+                    <td>#${t.id ? t.id.substring(0, 8) : (t._id ? t._id.substring(0, 8) : 'N/A')}</td>
+                    <td>${dateStr}</td>
+                    <td>${t.description}</td>
+                    <td class="tx-amount">$${parseFloat(t.amount).toFixed(2)}</td>
+                    <td><span class="tx-status ${t.status.toLowerCase()}">${t.status}</span></td>
+                </tr>
+            `;
+        });
+
+        listContainer.innerHTML = `
+            <div class="tx-container">
+                <table class="tx-table">
+                    <thead>
+                        <tr>
+                            <th>Receipt ID</th>
+                            <th>Date</th>
+                            <th>Description</th>
+                            <th>Amount</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rowsHtml}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    } catch (err) {
+        console.error(err);
+        listContainer.innerHTML = '<div style="text-align:center; color:var(--danger); padding:3rem;">Failed to load transactions.</div>';
+    }
+}
 
 // Profile Overview Rendering
 function renderProfileTab() {
