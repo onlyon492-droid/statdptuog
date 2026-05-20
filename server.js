@@ -10,10 +10,15 @@ const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/uog_st
 
 // ── Connect to MongoDB (Serverless Caching Pattern) ──────────────────────────
 let cachedConnectionPromise = null;
+let lastConnectionFailure = 0;
+const FAILURE_COOLDOWN = 60000; // 1 minute cooldown
 
-function connectToDatabase() {
+async function connectToDatabase() {
     if (mongoose.connection.readyState === 1) {
         return Promise.resolve();
+    }
+    if (Date.now() - lastConnectionFailure < FAILURE_COOLDOWN) {
+        throw new Error('Database is offline (connection cooldown active)');
     }
     if (!cachedConnectionPromise) {
         console.log('Initiating MongoDB connection...');
@@ -25,6 +30,7 @@ function connectToDatabase() {
             })
             .catch(err => {
                 cachedConnectionPromise = null; // Reset on failure so next request can retry
+                lastConnectionFailure = Date.now();
                 console.error('\n❌ MongoDB Connection Error:', err.message);
                 throw err;
             });
@@ -539,6 +545,17 @@ app.post('/api/stories', async (req, res) => {
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: 'Error creating story' });
+    }
+});
+
+app.delete('/api/stories/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        await Story.deleteOne({ id });
+        res.json({ success: true, message: 'Story deleted successfully' });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Error deleting story' });
     }
 });
 

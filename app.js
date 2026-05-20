@@ -278,6 +278,11 @@ async function dbDelete(endpoint, body) {
         const posts = JSON.parse(localStorage.getItem('uog_posts') || '[]');
         localStorage.setItem('uog_posts', JSON.stringify(posts.filter(p => String(p.id) !== String(id))));
     }
+    if (endpoint.startsWith('stories/')) {
+        const id = endpoint.split('/')[1];
+        const stories = JSON.parse(localStorage.getItem('uog_stories') || '[]');
+        localStorage.setItem('uog_stories', JSON.stringify(stories.filter(s => String(s.id) !== String(id))));
+    }
     // Offline support for user bulk post deletion
     if (endpoint.startsWith('users/') && endpoint.endsWith('/posts')) {
         const username = endpoint.split('/')[1];
@@ -1780,6 +1785,17 @@ window.viewStory = function(storyId) {
     timeEl.textContent = timeText;
     textEl.textContent = story.text;
     
+    // Show/hide delete button for own story
+    const deleteBtn = document.getElementById('story-delete-btn');
+    if (deleteBtn) {
+        if (currentUser && story.username === currentUser.username) {
+            deleteBtn.style.display = 'flex';
+            deleteBtn.onclick = () => window.deleteUserStory(story.id);
+        } else {
+            deleteBtn.style.display = 'none';
+        }
+    }
+    
     // Show modal
     modal.classList.add('active');
     
@@ -1806,6 +1822,33 @@ window.viewStory = function(storyId) {
     storyTimeout = setTimeout(() => {
         window.closeStoryViewer();
     }, duration);
+};
+
+window.deleteUserStory = async function(storyId) {
+    // Clear timeouts first so modal doesn't close mid-confirm
+    if (storyTimeout) clearTimeout(storyTimeout);
+    if (storyProgressInterval) clearInterval(storyProgressInterval);
+    
+    if (!confirm("Are you sure you want to delete your status update?")) {
+        // Resume timeout if cancelled
+        storyTimeout = setTimeout(() => window.closeStoryViewer(), 2000);
+        return;
+    }
+    
+    try {
+        await dbDelete(`stories/${storyId}`);
+        showToast("Academic status deleted!");
+        
+        // Remove from local cache array
+        activeStories = activeStories.filter(s => String(s.id) !== String(storyId));
+        
+        window.closeStoryViewer();
+        if (currentView === 'feed') {
+            await renderPosts('feed');
+        }
+    } catch (err) {
+        showToast("Could not delete status: " + err.message, true);
+    }
 };
 
 window.closeStoryViewer = function() {
