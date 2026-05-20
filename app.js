@@ -1982,6 +1982,7 @@ const previewArea        = document.getElementById('preview-area');
 const postAudience       = document.getElementById('post-visibility');
 
 ['open-compose','open-compose-text'].forEach(id => document.getElementById(id).addEventListener('click', () => { resetCompose('Feed'); new bootstrap.Modal(composeModal).show(); }));
+(document.getElementById('open-compose-media')||{addEventListener:()=>{}}).addEventListener('click', () => { resetCompose('Feed'); new bootstrap.Modal(composeModal).show(); setTimeout(()=>fileUpload.click(), 400); });
 (document.getElementById('open-compose-doc')||{addEventListener:()=>{}}).addEventListener('click', () => { resetCompose('Records'); new bootstrap.Modal(composeModal).show(); });
 (document.getElementById('open-compose-sw')||{addEventListener:()=>{}}).addEventListener('click',  () => { resetCompose('Software'); new bootstrap.Modal(composeModal).show(); });
 (document.getElementById('close-compose')||{addEventListener:()=>{}}).addEventListener('click', () => { bootstrap.Modal.getInstance(composeModal)?.hide(); resetCompose('Feed'); });
