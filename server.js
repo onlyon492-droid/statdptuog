@@ -175,7 +175,9 @@ const jobSchema = new mongoose.Schema({
     desc: { type: String, required: true },
     link: { type: String, default: '' },
     date: { type: String, required: true },
-    author: { type: String, required: true }
+    author: { type: String, required: true },
+    likes: { type: [String], default: [] },
+    comments: { type: [commentSchema], default: [] }
 });
 const Job = mongoose.model('Job', jobSchema);
 
@@ -186,7 +188,9 @@ const eventSchema = new mongoose.Schema({
     date: { type: String, required: true },
     location: { type: String, default: 'UOG Campus' },
     registeredUsers: { type: [String], default: [] }, // array of usernames
-    author: { type: String, required: true }
+    author: { type: String, required: true },
+    likes: { type: [String], default: [] },
+    comments: { type: [commentSchema], default: [] }
 });
 const Event = mongoose.model('Event', eventSchema);
 
@@ -771,13 +775,111 @@ app.post('/api/jobs', async (req, res) => {
             desc,
             link: link || '',
             date: new Date().toLocaleDateString('en-PK', { day:'numeric', month:'short', year:'numeric' }),
-            author
+            author,
+            likes: [],
+            comments: []
         });
         await job.save();
         res.json(job);
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: 'Error creating job' });
+    }
+});
+
+app.put('/api/jobs/:id', async (req, res) => {
+    try {
+        const { title, company, type, location, salary, desc, link } = req.body;
+        const job = await Job.findOne({ id: Number(req.params.id) });
+        if (!job) return res.status(404).json({ error: 'Job not found' });
+        
+        job.title = title || job.title;
+        job.company = company || job.company;
+        job.type = type || job.type;
+        job.location = location || job.location;
+        job.salary = salary || job.salary;
+        job.desc = desc || job.desc;
+        job.link = link || job.link;
+        
+        await job.save();
+        res.json(job);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Error updating job' });
+    }
+});
+
+app.delete('/api/jobs/:id', async (req, res) => {
+    try {
+        const resJob = await Job.deleteOne({ id: Number(req.params.id) });
+        if (resJob.deletedCount === 0) return res.status(404).json({ error: 'Job not found' });
+        res.json({ success: true });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Error deleting job' });
+    }
+});
+
+app.post('/api/jobs/:id/like', async (req, res) => {
+    try {
+        const { username } = req.body;
+        if (!username) return res.status(400).json({ error: 'Missing username' });
+        const job = await Job.findOne({ id: Number(req.params.id) });
+        if (!job) return res.status(404).json({ error: 'Job not found' });
+        
+        if (!job.likes) job.likes = [];
+        const idx = job.likes.indexOf(username);
+        if (idx !== -1) {
+            job.likes.splice(idx, 1);
+        } else {
+            job.likes.push(username);
+        }
+        await job.save();
+        res.json(job);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Error toggling like' });
+    }
+});
+
+app.post('/api/jobs/:id/comments', async (req, res) => {
+    try {
+        const { author, name, role, text } = req.body;
+        if (!author || !name || !role || !text) {
+            return res.status(400).json({ error: 'Missing required fields' });
+        }
+        const job = await Job.findOne({ id: Number(req.params.id) });
+        if (!job) return res.status(404).json({ error: 'Job not found' });
+        
+        const comment = {
+            author,
+            name,
+            role,
+            text,
+            date: new Date().toLocaleDateString('en-PK', { day:'numeric', month:'short', year:'numeric' })
+        };
+        if (!job.comments) job.comments = [];
+        job.comments.push(comment);
+        await job.save();
+        res.json(job);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Error adding comment' });
+    }
+});
+
+app.delete('/api/jobs/:id/comments/:commentId', async (req, res) => {
+    try {
+        const job = await Job.findOne({ id: Number(req.params.id) });
+        if (!job) return res.status(404).json({ error: 'Job not found' });
+        
+        if (!job.comments) job.comments = [];
+        job.comments = job.comments.filter(c => String(c._id || c.id) !== String(req.params.commentId));
+        await job.save();
+        res.json(job);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Error deleting comment' });
     }
 });
 
@@ -805,13 +907,45 @@ app.post('/api/events', async (req, res) => {
             date,
             location: location || 'UOG Stats Department',
             registeredUsers: [],
-            author
+            author,
+            likes: [],
+            comments: []
         });
         await event.save();
         res.json(event);
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: 'Error creating event' });
+    }
+});
+
+app.put('/api/events/:id', async (req, res) => {
+    try {
+        const { title, desc, date, location } = req.body;
+        const event = await Event.findOne({ id: Number(req.params.id) });
+        if (!event) return res.status(404).json({ error: 'Event not found' });
+        
+        event.title = title || event.title;
+        event.desc = desc || event.desc;
+        event.date = date || event.date;
+        event.location = location || event.location;
+        
+        await event.save();
+        res.json(event);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Error updating event' });
+    }
+});
+
+app.delete('/api/events/:id', async (req, res) => {
+    try {
+        const resEv = await Event.deleteOne({ id: Number(req.params.id) });
+        if (resEv.deletedCount === 0) return res.status(404).json({ error: 'Event not found' });
+        res.json({ success: true });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Error deleting event' });
     }
 });
 
@@ -833,6 +967,69 @@ app.post('/api/events/:id/register', async (req, res) => {
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: 'Error modifying event registration' });
+    }
+});
+
+app.post('/api/events/:id/like', async (req, res) => {
+    try {
+        const { username } = req.body;
+        if (!username) return res.status(400).json({ error: 'Missing username' });
+        const event = await Event.findOne({ id: Number(req.params.id) });
+        if (!event) return res.status(404).json({ error: 'Event not found' });
+        
+        if (!event.likes) event.likes = [];
+        const idx = event.likes.indexOf(username);
+        if (idx !== -1) {
+            event.likes.splice(idx, 1);
+        } else {
+            event.likes.push(username);
+        }
+        await event.save();
+        res.json(event);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Error toggling like' });
+    }
+});
+
+app.post('/api/events/:id/comments', async (req, res) => {
+    try {
+        const { author, name, role, text } = req.body;
+        if (!author || !name || !role || !text) {
+            return res.status(400).json({ error: 'Missing required fields' });
+        }
+        const event = await Event.findOne({ id: Number(req.params.id) });
+        if (!event) return res.status(404).json({ error: 'Event not found' });
+        
+        const comment = {
+            author,
+            name,
+            role,
+            text,
+            date: new Date().toLocaleDateString('en-PK', { day:'numeric', month:'short', year:'numeric' })
+        };
+        if (!event.comments) event.comments = [];
+        event.comments.push(comment);
+        await event.save();
+        res.json(event);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Error adding comment' });
+    }
+});
+
+app.delete('/api/events/:id/comments/:commentId', async (req, res) => {
+    try {
+        const event = await Event.findOne({ id: Number(req.params.id) });
+        if (!event) return res.status(404).json({ error: 'Event not found' });
+        
+        if (!event.comments) event.comments = [];
+        event.comments = event.comments.filter(c => String(c._id || c.id) !== String(req.params.commentId));
+        await event.save();
+        res.json(event);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Error deleting comment' });
     }
 });
 

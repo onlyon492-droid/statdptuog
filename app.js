@@ -248,20 +248,90 @@ async function dbPost(endpoint, body) {
                 localStorage.setItem('uog_events', JSON.stringify(events));
                 return events[idx];
             }
+        } else if (endpoint.endsWith('/like')) {
+            const eventId = endpoint.split('/')[1];
+            const events = JSON.parse(localStorage.getItem('uog_events') || '[]');
+            const idx = events.findIndex(e => String(e.id || e._id) === String(eventId));
+            if (idx !== -1) {
+                if (!events[idx].likes) events[idx].likes = [];
+                const likeIdx = events[idx].likes.indexOf(body.username);
+                if (likeIdx !== -1) {
+                    events[idx].likes.splice(likeIdx, 1);
+                } else {
+                    events[idx].likes.push(body.username);
+                }
+                localStorage.setItem('uog_events', JSON.stringify(events));
+                return events[idx];
+            }
+        } else if (endpoint.endsWith('/comments')) {
+            const eventId = endpoint.split('/')[1];
+            const events = JSON.parse(localStorage.getItem('uog_events') || '[]');
+            const idx = events.findIndex(e => String(e.id || e._id) === String(eventId));
+            if (idx !== -1) {
+                if (!events[idx].comments) events[idx].comments = [];
+                const newComment = {
+                    id: Date.now(),
+                    _id: 'local_' + Date.now(),
+                    author: body.author,
+                    name: body.name,
+                    role: body.role,
+                    text: body.text,
+                    date: new Date().toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' })
+                };
+                events[idx].comments.push(newComment);
+                localStorage.setItem('uog_events', JSON.stringify(events));
+                return events[idx];
+            }
         } else {
             const events = JSON.parse(localStorage.getItem('uog_events') || '[]');
-            const event = { id: Date.now(), registeredUsers: [], ...body };
+            const event = { id: Date.now(), registeredUsers: [], likes: [], comments: [], ...body };
             events.unshift(event);
             localStorage.setItem('uog_events', JSON.stringify(events));
             return event;
         }
     }
     if (baseKey === 'jobs') {
-        const jobs = JSON.parse(localStorage.getItem('uog_jobs') || '[]');
-        const job = { id: Date.now(), date: new Date().toLocaleDateString('en-PK', { day: 'numeric', month: 'short' }), ...body };
-        jobs.unshift(job);
-        localStorage.setItem('uog_jobs', JSON.stringify(jobs));
-        return job;
+        if (endpoint.endsWith('/like')) {
+            const jobId = endpoint.split('/')[1];
+            const jobs = JSON.parse(localStorage.getItem('uog_jobs') || '[]');
+            const idx = jobs.findIndex(j => String(j.id || j._id) === String(jobId));
+            if (idx !== -1) {
+                if (!jobs[idx].likes) jobs[idx].likes = [];
+                const likeIdx = jobs[idx].likes.indexOf(body.username);
+                if (likeIdx !== -1) {
+                    jobs[idx].likes.splice(likeIdx, 1);
+                } else {
+                    jobs[idx].likes.push(body.username);
+                }
+                localStorage.setItem('uog_jobs', JSON.stringify(jobs));
+                return jobs[idx];
+            }
+        } else if (endpoint.endsWith('/comments')) {
+            const jobId = endpoint.split('/')[1];
+            const jobs = JSON.parse(localStorage.getItem('uog_jobs') || '[]');
+            const idx = jobs.findIndex(j => String(j.id || j._id) === String(jobId));
+            if (idx !== -1) {
+                if (!jobs[idx].comments) jobs[idx].comments = [];
+                const newComment = {
+                    id: Date.now(),
+                    _id: 'local_' + Date.now(),
+                    author: body.author,
+                    name: body.name,
+                    role: body.role,
+                    text: body.text,
+                    date: new Date().toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' })
+                };
+                jobs[idx].comments.push(newComment);
+                localStorage.setItem('uog_jobs', JSON.stringify(jobs));
+                return jobs[idx];
+            }
+        } else {
+            const jobs = JSON.parse(localStorage.getItem('uog_jobs') || '[]');
+            const job = { id: Date.now(), date: new Date().toLocaleDateString('en-PK', { day: 'numeric', month: 'short' }), likes: [], comments: [], ...body };
+            jobs.unshift(job);
+            localStorage.setItem('uog_jobs', JSON.stringify(jobs));
+            return job;
+        }
     }
     if (baseKey === 'elections') {
         if (endpoint.endsWith('/vote')) {
@@ -314,6 +384,26 @@ async function dbPut(endpoint, body) {
         }
     }
     // localStorage fallback
+    if (endpoint.startsWith('jobs/')) {
+        const id = endpoint.split('/')[1];
+        const jobs = JSON.parse(localStorage.getItem('uog_jobs') || '[]');
+        const idx = jobs.findIndex(j => String(j.id || j._id) === String(id));
+        if (idx !== -1) {
+            jobs[idx] = { ...jobs[idx], ...body };
+            localStorage.setItem('uog_jobs', JSON.stringify(jobs));
+            return jobs[idx];
+        }
+    }
+    if (endpoint.startsWith('events/')) {
+        const id = endpoint.split('/')[1];
+        const events = JSON.parse(localStorage.getItem('uog_events') || '[]');
+        const idx = events.findIndex(e => String(e.id || e._id) === String(id));
+        if (idx !== -1) {
+            events[idx] = { ...events[idx], ...body };
+            localStorage.setItem('uog_events', JSON.stringify(events));
+            return events[idx];
+        }
+    }
     if (endpoint.startsWith('posts/')) {
         const id = endpoint.split('/')[1];
         const posts = JSON.parse(localStorage.getItem('uog_posts') || '[]');
@@ -364,6 +454,40 @@ async function dbDelete(endpoint, body) {
             console.warn(`Server returned error for DELETE ${endpoint}, falling back to localStorage.`);
         } catch (fetchErr) {
             console.warn(`DELETE fetch failed for ${endpoint}, falling back to localStorage.`, fetchErr);
+        }
+    }
+    if (endpoint.startsWith('jobs/')) {
+        const parts = endpoint.split('/');
+        const id = parts[1];
+        const jobs = JSON.parse(localStorage.getItem('uog_jobs') || '[]');
+        if (parts.length > 2 && parts[2] === 'comments') {
+            const commentId = parts[3];
+            const idx = jobs.findIndex(j => String(j.id || j._id) === String(id));
+            if (idx !== -1) {
+                jobs[idx].comments = (jobs[idx].comments || []).filter(c => String(c._id || c.id || c.timestamp) !== String(commentId));
+                localStorage.setItem('uog_jobs', JSON.stringify(jobs));
+                return jobs[idx];
+            }
+        } else {
+            localStorage.setItem('uog_jobs', JSON.stringify(jobs.filter(j => String(j.id || j._id) !== String(id))));
+            return { success: true };
+        }
+    }
+    if (endpoint.startsWith('events/')) {
+        const parts = endpoint.split('/');
+        const id = parts[1];
+        const events = JSON.parse(localStorage.getItem('uog_events') || '[]');
+        if (parts.length > 2 && parts[2] === 'comments') {
+            const commentId = parts[3];
+            const idx = events.findIndex(e => String(e.id || e._id) === String(id));
+            if (idx !== -1) {
+                events[idx].comments = (events[idx].comments || []).filter(c => String(c._id || c.id || c.timestamp) !== String(commentId));
+                localStorage.setItem('uog_events', JSON.stringify(events));
+                return events[idx];
+            }
+        } else {
+            localStorage.setItem('uog_events', JSON.stringify(events.filter(e => String(e.id || e._id) !== String(id))));
+            return { success: true };
         }
     }
     if (endpoint.startsWith('posts/')) {
@@ -3920,6 +4044,41 @@ async function renderEvents() {
             const count = evt.registeredUsers ? evt.registeredUsers.length : 0;
             const card = document.createElement('div');
             card.className = 'event-card';
+            
+            const isOwner = (currentUser.username === evt.author) || (currentUser.role === 'Admin' || currentUser.role === 'Faculty');
+            const likesCount = evt.likes ? evt.likes.length : 0;
+            const hasLiked = evt.likes && evt.likes.includes(currentUser.username);
+            const likedClass = hasLiked ? 'liked' : '';
+            const commentsList = evt.comments || [];
+            const commentsCount = commentsList.length;
+            
+            const commentsId = `comments-event-${evt.id || evt._id}`;
+            const commentInputId = `comment-input-event-${evt.id || evt._id}`;
+            
+            let commentsHtml = '';
+            commentsList.forEach(c => {
+                const isCommentOwner = (currentUser.username === c.author) || (currentUser.role === 'Admin' || currentUser.role === 'Faculty');
+                const commentIdStr = c._id || c.id;
+                commentsHtml += `
+                    <div class="comment-item">
+                        <div class="comment-avatar">${c.name ? c.name[0].toUpperCase() : 'U'}</div>
+                        <div class="comment-body">
+                            <div class="comment-header">
+                                <div>
+                                    <span class="comment-author-name">${c.name || c.author}</span>
+                                    <span class="comment-author-role">${c.role}</span>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <span class="comment-date">${c.date || 'Just now'}</span>
+                                    ${isCommentOwner ? `<button class="comment-delete-btn" onclick="deleteEventComment('${evt.id || evt._id}', '${commentIdStr}')"><i class="fas fa-trash-alt"></i></button>` : ''}
+                                </div>
+                            </div>
+                            <div class="comment-text">${c.text}</div>
+                        </div>
+                    </div>
+                `;
+            });
+            
             card.innerHTML = `
                 <h3 class="event-title">${evt.title}</h3>
                 <p class="event-desc">${evt.desc}</p>
@@ -3929,11 +4088,40 @@ async function renderEvents() {
                 <div class="event-info-row">
                     <i class="fas fa-map-marker-alt"></i> <span>${evt.location}</span>
                 </div>
-                <div class="event-footer">
+                <div class="event-footer" style="margin-bottom: 12px;">
                     <span class="event-attendees"><i class="fas fa-users"></i> ${count} Registered</span>
                     <button class="event-btn ${isRegistered ? 'registered' : 'register'}" onclick="toggleEventRegistration('${evt.id || evt._id}')">
                         ${isRegistered ? '<i class="fas fa-check"></i> Registered' : '<i class="fas fa-plus"></i> Register'}
                     </button>
+                </div>
+                
+                <!-- Social Bar -->
+                <div class="social-bar">
+                    <button class="action-btn ${likedClass}" onclick="toggleLikeEvent('${evt.id || evt._id}')">
+                        <i class="far fa-thumbs-up"></i> Like (${likesCount})
+                    </button>
+                    <button class="action-btn" onclick="toggleCommentsCollapse('${commentsId}')">
+                        <i class="far fa-comment"></i> Comments (${commentsCount})
+                    </button>
+                    ${isOwner ? `
+                        <button class="action-btn edit-btn" onclick="editEvent('${evt.id || evt._id}', \`${evt.title.replace(/"/g, '&quot;')}\`, \`${evt.desc.replace(/"/g, '&quot;')}\`, \`${evt.date.replace(/"/g, '&quot;')}\`, \`${evt.location.replace(/"/g, '&quot;')}\`)">
+                            <i class="fas fa-edit"></i> Edit
+                        </button>
+                        <button class="action-btn delete-btn" onclick="deleteEvent('${evt.id || evt._id}')">
+                            <i class="fas fa-trash-alt"></i> Delete
+                        </button>
+                    ` : ''}
+                </div>
+                
+                <!-- Collapsible Comments Section -->
+                <div class="comments-wrapper" id="${commentsId}" style="display: none;">
+                    <div class="comments-list">
+                        ${commentsHtml || '<div style="font-size:0.78rem;color:#9ca3af;text-align:center;padding:10px 0;">No comments yet.</div>'}
+                    </div>
+                    <div class="comment-form">
+                        <input type="text" class="comment-input" id="${commentInputId}" placeholder="Write a comment..." onkeydown="if(event.key === 'Enter') addEventComment('${evt.id || evt._id}', '${commentInputId}')">
+                        <button class="comment-submit-btn" onclick="addEventComment('${evt.id || evt._id}', '${commentInputId}')">Post</button>
+                    </div>
                 </div>
             `;
             listContainer.appendChild(card);
@@ -3978,10 +4166,7 @@ async function renderJobsBoard() {
     listContainer.innerHTML = '<div style="padding:2rem;text-align:center;color:#9ca3af;"><i class="fas fa-spinner fa-spin"></i> Loading jobs...</div>';
     try {
         let jobs = await dbGet('jobs');
-        
-        // Filter out old system-seeded dummy jobs dynamically
         jobs = jobs.filter(job => job.author !== 'system');
-
         listContainer.innerHTML = '';
 
         const headerRow = document.createElement('div');
@@ -4001,6 +4186,41 @@ async function renderJobsBoard() {
         jobs.forEach(job => {
             const card = document.createElement('div');
             card.className = 'job-board-card';
+            
+            const isOwner = (currentUser.username === job.author) || (currentUser.role === 'Admin' || currentUser.role === 'Faculty');
+            const likesCount = job.likes ? job.likes.length : 0;
+            const hasLiked = job.likes && job.likes.includes(currentUser.username);
+            const likedClass = hasLiked ? 'liked' : '';
+            const commentsList = job.comments || [];
+            const commentsCount = commentsList.length;
+            
+            const commentsId = `comments-job-${job.id || job._id}`;
+            const commentInputId = `comment-input-job-${job.id || job._id}`;
+            
+            let commentsHtml = '';
+            commentsList.forEach(c => {
+                const isCommentOwner = (currentUser.username === c.author) || (currentUser.role === 'Admin' || currentUser.role === 'Faculty');
+                const commentIdStr = c._id || c.id;
+                commentsHtml += `
+                    <div class="comment-item">
+                        <div class="comment-avatar">${c.name ? c.name[0].toUpperCase() : 'U'}</div>
+                        <div class="comment-body">
+                            <div class="comment-header">
+                                <div>
+                                    <span class="comment-author-name">${c.name || c.author}</span>
+                                    <span class="comment-author-role">${c.role}</span>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <span class="comment-date">${c.date || 'Just now'}</span>
+                                    ${isCommentOwner ? `<button class="comment-delete-btn" onclick="deleteJobComment('${job.id || job._id}', '${commentIdStr}')"><i class="fas fa-trash-alt"></i></button>` : ''}
+                                </div>
+                            </div>
+                            <div class="comment-text">${c.text}</div>
+                        </div>
+                    </div>
+                `;
+            });
+            
             card.innerHTML = `
                 <div style="display: flex; gap: 14px; align-items: flex-start; margin-bottom: 10px;">
                     <div class="job-board-logo-box">
@@ -4020,11 +4240,40 @@ async function renderJobsBoard() {
                     <span class="job-board-pill location"><i class="fas fa-map-marker-alt"></i> ${job.location}</span>
                     <span class="job-board-pill salary"><i class="fas fa-money-bill-wave"></i> ${job.salary}</span>
                 </div>
-                <div class="job-board-footer">
+                <div class="job-board-footer" style="margin-bottom: 12px;">
                     <span class="job-board-author">By @${job.author}</span>
                     <a href="${job.link || '#'}" target="_blank" class="job-board-btn">
                         Apply Now
                     </a>
+                </div>
+                
+                <!-- Social Bar -->
+                <div class="social-bar">
+                    <button class="action-btn ${likedClass}" onclick="toggleLikeJob('${job.id || job._id}')">
+                        <i class="far fa-thumbs-up"></i> Like (${likesCount})
+                    </button>
+                    <button class="action-btn" onclick="toggleCommentsCollapse('${commentsId}')">
+                        <i class="far fa-comment"></i> Comments (${commentsCount})
+                    </button>
+                    ${isOwner ? `
+                        <button class="action-btn edit-btn" onclick="editJob('${job.id || job._id}', \`${job.title.replace(/"/g, '&quot;')}\`, \`${job.company.replace(/"/g, '&quot;')}\`, \`${job.type.replace(/"/g, '&quot;')}\`, \`${job.location.replace(/"/g, '&quot;')}\`, \`${job.salary.replace(/"/g, '&quot;')}\`, \`${job.desc.replace(/"/g, '&quot;')}\`, \`${job.link ? job.link.replace(/"/g, '&quot;') : ''}\`)">
+                            <i class="fas fa-edit"></i> Edit
+                        </button>
+                        <button class="action-btn delete-btn" onclick="deleteJob('${job.id || job._id}')">
+                            <i class="fas fa-trash-alt"></i> Delete
+                        </button>
+                    ` : ''}
+                </div>
+                
+                <!-- Collapsible Comments Section -->
+                <div class="comments-wrapper" id="${commentsId}" style="display: none;">
+                    <div class="comments-list">
+                        ${commentsHtml || '<div style="font-size:0.78rem;color:#9ca3af;text-align:center;padding:10px 0;">No comments yet.</div>'}
+                    </div>
+                    <div class="comment-form">
+                        <input type="text" class="comment-input" id="${commentInputId}" placeholder="Write a comment..." onkeydown="if(event.key === 'Enter') addJobComment('${job.id || job._id}', '${commentInputId}')">
+                        <button class="comment-submit-btn" onclick="addJobComment('${job.id || job._id}', '${commentInputId}')">Post</button>
+                    </div>
                 </div>
             `;
             listContainer.appendChild(card);
@@ -4058,6 +4307,166 @@ window.triggerAddJob = async function() {
         fetchAndRenderRightJobsWidget();
     } catch (err) {
         showToast('Error sharing job opening', true);
+    }
+};
+
+window.editJob = async function(jobId, title, company, type, location, salary, desc, link) {
+    const newTitle = prompt('Edit Job Title:', title);
+    if (newTitle === null) return;
+    const newCompany = prompt('Edit Company Name:', company);
+    if (newCompany === null) return;
+    const newType = prompt('Edit Job Type:', type);
+    if (newType === null) return;
+    const newLocation = prompt('Edit Location:', location);
+    if (newLocation === null) return;
+    const newSalary = prompt('Edit Salary Package:', salary);
+    if (newSalary === null) return;
+    const newDesc = prompt('Edit Short Description:', desc);
+    if (newDesc === null) return;
+    const newLink = prompt('Edit Link to Apply:', link);
+    if (newLink === null) return;
+    
+    try {
+        await dbPut(`jobs/${jobId}`, {
+            title: newTitle, company: newCompany, type: newType,
+            location: newLocation, salary: newSalary, desc: newDesc, link: newLink
+        });
+        showToast('Job updated successfully!');
+        renderJobsBoard();
+        fetchAndRenderRightJobsWidget();
+    } catch (err) {
+        showToast('Failed to update job', true);
+    }
+};
+
+window.deleteJob = async function(jobId) {
+    if (!confirm('Are you sure you want to delete this job posting?')) return;
+    try {
+        await dbDelete(`jobs/${jobId}`);
+        showToast('Job deleted successfully!');
+        renderJobsBoard();
+        fetchAndRenderRightJobsWidget();
+    } catch (err) {
+        showToast('Failed to delete job', true);
+    }
+};
+
+window.toggleLikeJob = async function(jobId) {
+    try {
+        await dbPost(`jobs/${jobId}/like`, { username: currentUser.username });
+        renderJobsBoard();
+    } catch (err) {
+        showToast('Failed to toggle like', true);
+    }
+};
+
+window.addJobComment = async function(jobId, inputId) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    const text = input.value.trim();
+    if (!text) return;
+    try {
+        await dbPost(`jobs/${jobId}/comments`, {
+            author: currentUser.username,
+            name: currentUser.name,
+            role: currentUser.role,
+            text: text
+        });
+        input.value = '';
+        renderJobsBoard();
+    } catch (err) {
+        showToast('Failed to add comment', true);
+    }
+};
+
+window.deleteJobComment = async function(jobId, commentId) {
+    if (!confirm('Delete this comment?')) return;
+    try {
+        await dbDelete(`jobs/${jobId}/comments/${commentId}`);
+        renderJobsBoard();
+    } catch (err) {
+        showToast('Failed to delete comment', true);
+    }
+};
+
+window.editEvent = async function(eventId, title, desc, date, location) {
+    const newTitle = prompt('Edit Event Title:', title);
+    if (newTitle === null) return;
+    const newDesc = prompt('Edit Description:', desc);
+    if (newDesc === null) return;
+    const newDate = prompt('Edit Date:', date);
+    if (newDate === null) return;
+    const newLocation = prompt('Edit Location:', location);
+    if (newLocation === null) return;
+    
+    try {
+        await dbPut(`events/${eventId}`, {
+            title: newTitle, desc: newDesc, date: newDate, location: newLocation
+        });
+        showToast('Event updated successfully!');
+        renderEvents();
+    } catch (err) {
+        showToast('Failed to update event', true);
+    }
+};
+
+window.deleteEvent = async function(eventId) {
+    if (!confirm('Are you sure you want to delete this event?')) return;
+    try {
+        await dbDelete(`events/${eventId}`);
+        showToast('Event deleted successfully!');
+        renderEvents();
+    } catch (err) {
+        showToast('Failed to delete event', true);
+    }
+};
+
+window.toggleLikeEvent = async function(eventId) {
+    try {
+        await dbPost(`events/${eventId}/like`, { username: currentUser.username });
+        renderEvents();
+    } catch (err) {
+        showToast('Failed to toggle like', true);
+    }
+};
+
+window.addEventComment = async function(eventId, inputId) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    const text = input.value.trim();
+    if (!text) return;
+    try {
+        await dbPost(`events/${eventId}/comments`, {
+            author: currentUser.username,
+            name: currentUser.name,
+            role: currentUser.role,
+            text: text
+        });
+        input.value = '';
+        renderEvents();
+    } catch (err) {
+        showToast('Failed to add comment', true);
+    }
+};
+
+window.deleteEventComment = async function(eventId, commentId) {
+    if (!confirm('Delete this comment?')) return;
+    try {
+        await dbDelete(`events/${eventId}/comments/${commentId}`);
+        renderEvents();
+    } catch (err) {
+        showToast('Failed to delete comment', true);
+    }
+};
+
+window.toggleCommentsCollapse = function(id) {
+    const wrapper = document.getElementById(id);
+    if (wrapper) {
+        if (wrapper.style.display === 'none') {
+            wrapper.style.display = 'block';
+        } else {
+            wrapper.style.display = 'none';
+        }
     }
 };
 
