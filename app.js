@@ -527,8 +527,8 @@ document.addEventListener('click', (e) => {
 });
 
 // ─── REGISTRATION ─────────────────────────────────────────────────────────────
-document.getElementById('open-signup').addEventListener('click', () => new bootstrap.Modal(document.getElementById('signup-modal')).show(););
-document.getElementById('close-signup').addEventListener('click', () => bootstrap.Modal.getInstance(document.getElementById('signup-modal'))?.hide(););
+document.getElementById('open-signup').addEventListener('click', () => new bootstrap.Modal(document.getElementById('signup-modal')).show());
+document.getElementById('close-signup').addEventListener('click', () => bootstrap.Modal.getInstance(document.getElementById('signup-modal'))?.hide());
 
 const regRole = document.getElementById('reg-role');
 const regUsername = document.getElementById('reg-username');
@@ -731,7 +731,7 @@ document.getElementById('open-edit-profile').addEventListener('click', () => {
     new bootstrap.Modal(document.getElementById('edit-profile-modal')).show();
 });
 document.getElementById('close-edit-profile').addEventListener('click', () =>
-    bootstrap.Modal.getInstance(document.getElementById('edit-profile-modal'))?.hide(););
+    bootstrap.Modal.getInstance(document.getElementById('edit-profile-modal'))?.hide());
 
 document.getElementById('edit-profile-form').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -1256,7 +1256,7 @@ async function openEditPost(postId) {
     new bootstrap.Modal(document.getElementById('edit-post-modal')).show();
 }
 document.getElementById('close-edit-post').addEventListener('click', () =>
-    bootstrap.Modal.getInstance(document.getElementById('edit-post-modal'))?.hide(););
+    bootstrap.Modal.getInstance(document.getElementById('edit-post-modal'))?.hide());
 document.getElementById('save-edit-post').addEventListener('click', async () => {
     const id = document.getElementById('edit-post-id').value;
     const newText = document.getElementById('edit-post-text').value.trim();
