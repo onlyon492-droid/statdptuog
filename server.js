@@ -1075,18 +1075,28 @@ app.post('/api/elections', async (req, res) => {
 
 app.post('/api/elections/:id/vote', async (req, res) => {
     try {
-        const { candidateIndex, username } = req.body;
-        if (candidateIndex === undefined || !username) {
-            return res.status(400).json({ error: 'Missing candidateIndex or username' });
+        const { candidateIndex, candidateName, username } = req.body;
+        if (!username) {
+            return res.status(400).json({ error: 'Missing username' });
         }
         const election = await Election.findOne({ id: Number(req.params.id) });
         if (!election) return res.status(404).json({ error: 'Election not found' });
         if (election.status !== 'active') return res.status(400).json({ error: 'Election is closed' });
 
+        // Resolve candidate index
+        let resolvedIdx = candidateIndex;
+        if (resolvedIdx === undefined && candidateName) {
+            resolvedIdx = election.candidates.findIndex(c => c.name === candidateName);
+        }
+
+        if (resolvedIdx === undefined || resolvedIdx === -1) {
+            return res.status(400).json({ error: 'Missing or invalid candidate' });
+        }
+
         // Ensure user hasn't voted for ANY candidate in this election
         let alreadyVoted = false;
         election.candidates.forEach(cand => {
-            if (cand.votes.includes(username)) {
+            if (cand.votes && cand.votes.includes(username)) {
                 alreadyVoted = true;
             }
         });
@@ -1096,8 +1106,11 @@ app.post('/api/elections/:id/vote', async (req, res) => {
         }
 
         // Add vote to the chosen candidate
-        if (election.candidates[candidateIndex]) {
-            election.candidates[candidateIndex].votes.push(username);
+        if (election.candidates[resolvedIdx]) {
+            if (!election.candidates[resolvedIdx].votes) {
+                election.candidates[resolvedIdx].votes = [];
+            }
+            election.candidates[resolvedIdx].votes.push(username);
         }
         election.markModified('candidates');
         await election.save();

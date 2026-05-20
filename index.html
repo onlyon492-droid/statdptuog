@@ -985,6 +985,51 @@
     </div>
 </div>
 </div>
+
+<!-- Custom Premium Election Modal -->
+<div aria-hidden="true" class="modal fade" id="election-modal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 500px;">
+        <div class="modal-content premium-modal-content">
+            <div class="modal-header premium-modal-header">
+                <h5 class="modal-title" id="election-modal-title"><i class="fas fa-vote-yea text-accent"></i> Create Custom Election</h5>
+                <button aria-label="Close" class="btn-close btn-close-white" data-bs-dismiss="modal" type="button" id="close-election-modal-btn"></button>
+            </div>
+            <form class="modal-body premium-modal-body" id="election-modal-form" onsubmit="window.handleElectionSubmit(event)">
+                <div class="form-group mb-3">
+                    <label class="form-label" for="election-title-input">Election Title</label>
+                    <input type="text" class="form-control premium-input" id="election-title-input" required placeholder="e.g. CR Selection - Batch 22-26">
+                </div>
+                
+                <div class="form-group mb-3">
+                    <label class="form-label" style="display:flex; justify-content:space-between; align-items:center; width: 100%;">
+                        <span>Candidates</span>
+                        <button type="button" class="btn btn-sm" style="font-size:0.75rem; border: 1px solid var(--zai-accent); color: var(--zai-accent); background: transparent;" onclick="window.addCandidateInputRow()">
+                            <i class="fas fa-plus"></i> Add Candidate
+                        </button>
+                    </label>
+                    <div id="candidates-input-container">
+                        <!-- Candidate row 1 -->
+                        <div class="candidate-input-row mb-2" style="display:flex; gap:8px;">
+                            <input type="text" class="form-control premium-input cand-name" required placeholder="Candidate 1 Name" style="flex:1;">
+                            <input type="text" class="form-control premium-input cand-role" placeholder="Role (e.g. CR Candidate)" style="flex:1;">
+                        </div>
+                        <!-- Candidate row 2 -->
+                        <div class="candidate-input-row mb-2" style="display:flex; gap:8px;">
+                            <input type="text" class="form-control premium-input cand-name" required placeholder="Candidate 2 Name" style="flex:1;">
+                            <input type="text" class="form-control premium-input cand-role" placeholder="Role (e.g. CR Candidate)" style="flex:1;">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="modal-footer premium-modal-footer px-0 pb-0 pt-3">
+                    <button class="btn btn-secondary-premium" data-bs-dismiss="modal" type="button">Cancel</button>
+                    <button class="btn btn-primary-premium" type="submit" id="election-modal-submit-btn">Launch Election</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script src="app.js"></script>
 </body>
 </html>

@@ -4734,15 +4734,35 @@ window.activateMembership = async function(tierKey, priceStr) {
 };
 
 // Election Dashboard Rendering
+// Election Dashboard Rendering
 async function renderElection() {
     listContainer.innerHTML = '<div style="padding:2rem;text-align:center;color:#9ca3af;"><i class="fas fa-spinner fa-spin"></i> Loading active elections...</div>';
     try {
         let elections = await dbGet('elections');
         elections = elections.filter(el => el.author !== 'system');
+        
         listContainer.innerHTML = '';
 
+        // Render Create Election Card first (always visible so users can launch custom elections)
+        const headerCard = document.createElement('div');
+        headerCard.className = 'create-post-card';
+        headerCard.style = 'margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center; padding: 1.5rem; border-radius: 16px; background: rgba(255,255,255,0.02); border: 1px dashed rgba(188, 250, 117, 0.2);';
+        headerCard.innerHTML = `
+            <div>
+                <h4 style="margin: 0 0 4px; color: var(--text-primary); font-size: 1.1rem; font-weight: 700;">Launch an Election</h4>
+                <p style="margin: 0; font-size: 0.85rem; color: var(--text-secondary);">Start a new voting poll for CR, GR, or student societies.</p>
+            </div>
+            <button class="btn-primary-premium" data-bs-toggle="modal" data-bs-target="#election-modal" style="padding: 10px 20px; font-weight: 600;" onclick="window.resetElectionForm()">
+                <i class="fas fa-plus"></i> Create Election
+            </button>
+        `;
+        listContainer.appendChild(headerCard);
+
         if (elections.length === 0) {
-            listContainer.innerHTML = '<div style="text-align:center; color: var(--text-secondary); padding: 3rem;">No active department elections.</div>';
+            const emptyMsg = document.createElement('div');
+            emptyMsg.style = 'text-align:center; color: var(--text-secondary); padding: 3rem;';
+            emptyMsg.textContent = 'No active department elections.';
+            listContainer.appendChild(emptyMsg);
             return;
         }
 
@@ -4750,12 +4770,20 @@ async function renderElection() {
             const card = document.createElement('div');
             card.className = 'election-card';
             
-            const totalVotes = elec.candidates.reduce((sum, c) => sum + c.votes, 0) || 1;
-            const hasVoted = elec.votedUsers && elec.votedUsers.includes(currentUser.username);
+            // Calculate total votes across candidates handling either Array or Number schema
+            const totalVotes = elec.candidates.reduce((sum, c) => {
+                const votesCount = Array.isArray(c.votes) ? c.votes.length : (parseInt(c.votes) || 0);
+                return sum + votesCount;
+            }, 0) || 1;
+
+            // Check if current user voted (either in votedUsers or in candidates' votes arrays)
+            const hasVoted = (elec.votedUsers && elec.votedUsers.includes(currentUser.username)) || 
+                              elec.candidates.some(c => Array.isArray(c.votes) && c.votes.includes(currentUser.username));
             
             let candidateRowsHtml = '';
             elec.candidates.forEach(cand => {
-                const pct = Math.round((cand.votes / totalVotes) * 100);
+                const votesCount = Array.isArray(cand.votes) ? cand.votes.length : (parseInt(cand.votes) || 0);
+                const pct = Math.round((votesCount / totalVotes) * 100);
                 candidateRowsHtml += `
                     <div class="candidate-row">
                         <div class="candidate-results-bar" style="width: ${pct}%"></div>
@@ -4765,8 +4793,8 @@ async function renderElection() {
                             <div class="candidate-role">${cand.role}</div>
                         </div>
                         <div style="display: flex; align-items: center; gap: 15px; z-index: 2;">
-                            <span class="vote-count-label">${pct}% (${cand.votes} votes)</span>
-                            ${!hasVoted ? `
+                            <span class="vote-count-label">${pct}% (${votesCount} votes)</span>
+                            ${!hasVoted && elec.status === 'active' ? `
                                 <button class="vote-btn" onclick="castVote('${elec.id || elec._id}', '${cand.name}')">
                                     Vote
                                 </button>
@@ -4777,15 +4805,15 @@ async function renderElection() {
             });
 
             card.innerHTML = `
-                <div class="election-header">
-                    <h3 class="election-title"><i class="fas fa-vote-yea"></i> ${elec.title}</h3>
-                    <span class="election-status-badge">${elec.status}</span>
+                <div class="election-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+                    <h3 class="election-title" style="margin:0; font-size:1.1rem; font-weight:700;"><i class="fas fa-vote-yea text-accent" style="margin-right:8px;"></i> ${elec.title}</h3>
+                    <span class="election-status-badge ${elec.status}">${elec.status}</span>
                 </div>
-                <div class="candidates-list">
+                <div class="candidates-list" style="display:flex; flex-direction:column; gap:12px;">
                     ${candidateRowsHtml}
                 </div>
                 ${hasVoted ? `
-                    <div style="margin-top: 15px; text-align: center; font-size: 0.85rem; color: #059669; font-weight: 600;">
+                    <div style="margin-top: 15px; text-align: center; font-size: 0.85rem; color: #bcfa75; font-weight: 600;">
                         <i class="fas fa-check-circle"></i> Thank you! Your vote has been recorded.
                     </div>
                 ` : ''}
@@ -4805,6 +4833,78 @@ window.castVote = async function(electionId, candidateName) {
         renderElection();
     } catch (err) {
         showToast(err.message || 'Voting failed', true);
+    }
+};
+
+// Form helpers for launching a custom election
+window.addCandidateInputRow = function() {
+    const container = document.getElementById('candidates-input-container');
+    const index = container.children.length + 1;
+    const row = document.createElement('div');
+    row.className = 'candidate-input-row mb-2';
+    row.style = 'display:flex; gap:8px; align-items:center;';
+    row.innerHTML = `
+        <input type="text" class="form-control premium-input cand-name" required placeholder="Candidate ${index} Name" style="flex:1;">
+        <input type="text" class="form-control premium-input cand-role" placeholder="Role (e.g. CR Candidate)" style="flex:1;">
+        <button type="button" class="btn btn-sm btn-outline-danger" style="padding: 0.375rem 0.75rem; border-color: rgba(239, 68, 68, 0.4); color: #ef4444; background:transparent;" onclick="this.parentElement.remove()"><i class="fas fa-trash"></i></button>
+    `;
+    container.appendChild(row);
+};
+
+window.resetElectionForm = function() {
+    document.getElementById('election-modal-form').reset();
+    const container = document.getElementById('candidates-input-container');
+    container.innerHTML = `
+        <div class="candidate-input-row mb-2" style="display:flex; gap:8px;">
+            <input type="text" class="form-control premium-input cand-name" required placeholder="Candidate 1 Name" style="flex:1;">
+            <input type="text" class="form-control premium-input cand-role" placeholder="Role (e.g. CR Candidate)" style="flex:1;">
+        </div>
+        <div class="candidate-input-row mb-2" style="display:flex; gap:8px;">
+            <input type="text" class="form-control premium-input cand-name" required placeholder="Candidate 2 Name" style="flex:1;">
+            <input type="text" class="form-control premium-input cand-role" placeholder="Role (e.g. CR Candidate)" style="flex:1;">
+        </div>
+    `;
+};
+
+window.handleElectionSubmit = async function(event) {
+    event.preventDefault();
+    const title = document.getElementById('election-title-input').value.trim();
+    
+    const rows = document.querySelectorAll('.candidate-input-row');
+    const candidates = [];
+    rows.forEach(row => {
+        const nameInput = row.querySelector('.cand-name');
+        const roleInput = row.querySelector('.cand-role');
+        if (nameInput && nameInput.value.trim()) {
+            candidates.push({
+                name: nameInput.value.trim(),
+                role: roleInput ? (roleInput.value.trim() || 'Candidate') : 'Candidate',
+                photo: ''
+            });
+        }
+    });
+
+    if (candidates.length < 2) {
+        showToast('Please add at least 2 candidates.', true);
+        return;
+    }
+
+    try {
+        await dbPost('elections', {
+            title,
+            candidates
+        });
+        showToast('Election launched successfully!');
+        
+        // Hide modal
+        const modalEl = document.getElementById('election-modal');
+        const modal = bootstrap.Modal.getInstance(modalEl);
+        if (modal) modal.hide();
+        
+        renderElection();
+    } catch (err) {
+        console.error(err);
+        showToast('Failed to create election.', true);
     }
 };
 
