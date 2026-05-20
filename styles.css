@@ -3699,3 +3699,102 @@ body.forced-mobile-mode .mobile-search-bar {
     background: #a3e054;
 }
 
+/* Premium Modal Styles for Job & Event Forms */
+.premium-modal-content {
+    background: #121b10 !important;
+    border: 1px solid rgba(188, 250, 117, 0.2) !important;
+    border-radius: 16px !important;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6) !important;
+    color: #f3f4f6 !important;
+    overflow: hidden;
+}
+.premium-modal-header {
+    border-bottom: 1px solid rgba(188, 250, 117, 0.15) !important;
+    padding: 1.2rem 1.5rem !important;
+    background: rgba(188, 250, 117, 0.02);
+}
+.premium-modal-header .modal-title {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.premium-modal-header .modal-title i {
+    color: #bcfa75;
+}
+.premium-modal-body {
+    padding: 1.5rem !important;
+}
+.premium-modal-body .form-label {
+    font-size: 0.82rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #bcfa75;
+    margin-bottom: 6px;
+}
+.premium-input {
+    background: rgba(255, 255, 255, 0.04) !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    border-radius: 10px !important;
+    color: #ffffff !important;
+    padding: 10px 14px !important;
+    font-size: 0.9rem !important;
+    transition: all 0.25s ease !important;
+}
+.premium-input::placeholder {
+    color: #94a3b8 !important;
+    opacity: 0.7;
+}
+.premium-input:focus {
+    background: rgba(255, 255, 255, 0.08) !important;
+    border-color: #bcfa75 !important;
+    box-shadow: 0 0 0 3px rgba(188, 250, 117, 0.25) !important;
+    outline: none !important;
+}
+select.premium-input option {
+    background: #121b10;
+    color: #ffffff;
+}
+.premium-modal-footer {
+    border-top: 1px solid rgba(188, 250, 117, 0.15) !important;
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+}
+.btn-secondary-premium {
+    background: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    color: #e2e8f0 !important;
+    font-weight: 600 !important;
+    padding: 10px 20px !important;
+    border-radius: 10px !important;
+    font-size: 0.85rem !important;
+    transition: all 0.2s ease !important;
+}
+.btn-secondary-premium:hover {
+    background: rgba(255, 255, 255, 0.1) !important;
+    color: #ffffff !important;
+}
+.btn-primary-premium {
+    background: #bcfa75 !important;
+    border: none !important;
+    color: #111a0c !important;
+    font-weight: 750 !important;
+    padding: 10px 24px !important;
+    border-radius: 10px !important;
+    font-size: 0.85rem !important;
+    box-shadow: 0 4px 12px rgba(188, 250, 117, 0.25) !important;
+    transition: all 0.2s ease !important;
+}
+.btn-primary-premium:hover {
+    background: #a3e054 !important;
+    box-shadow: 0 6px 16px rgba(188, 250, 117, 0.4) !important;
+    transform: translateY(-1px);
+}
+.btn-primary-premium:active {
+    transform: translateY(0);
+}
+

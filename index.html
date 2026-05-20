@@ -277,10 +277,7 @@
 <div class="mob-drawer-icon" style="background:rgba(59,130,246,0.15);"><i class="far fa-comments" style="color:#3b82f6;"></i></div>
 <span>Messages</span>
 </button>
-<button class="mob-drawer-item" onclick="mobileNavClick(null,'transactions');closeMobileDrawers()">
-<div class="mob-drawer-icon" style="background:rgba(16,185,129,0.15);"><i class="fas fa-receipt" style="color:#10b981;"></i></div>
-<span>Payments</span>
-</button>
+
 <button class="mob-drawer-item" onclick="mobileNavClick(null,'software');closeMobileDrawers()">
 <div class="mob-drawer-icon" style="background:#f0fdf4;"><i class="fas fa-laptop-code" style="color:#10b981;"></i></div>
 <span>Software</span>
@@ -357,7 +354,7 @@
 <li data-target="students"><i class="fas fa-user-graduate"></i> <span>Alumni</span></li>
 <li data-target="election" style="color: #ef4444; font-weight: bold;"><i class="fas fa-vote-yea"></i> <span>Election (Addon)</span> <i class="fas fa-chevron-right chevron-right" style="margin-left: auto; font-size: 0.8rem; opacity: 0.7;"></i></li>
 <li data-target="messages"><i class="fas fa-comments"></i> <span>Messages</span></li>
-<li data-target="transactions"><i class="fas fa-receipt"></i> <span>Transaction List</span></li>
+
 <li data-target="profile-view"><i class="fas fa-user"></i> <span>Profile</span></li>
 <li data-target="settings-view"><i class="fas fa-cog"></i> <span>Settings</span></li>
 <hr style="border: 0; border-top: 1px solid rgba(255, 255, 255, 0.1); margin: 10px 0;">
@@ -821,6 +818,107 @@
 <img class="lightbox-content" id="lightbox-img" onclick="event.stopPropagation()"/>
 <div id="lightbox-caption"></div>
 </div>
+</div>
+
+<!-- Custom Premium Job Modal -->
+<div aria-hidden="true" class="modal fade" id="job-modal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 500px;">
+        <div class="modal-content premium-modal-content">
+            <div class="modal-header premium-modal-header">
+                <h5 class="modal-title" id="job-modal-title"><i class="fas fa-briefcase text-accent"></i> Share Job Opening</h5>
+                <button aria-label="Close" class="btn-close btn-close-white" data-bs-dismiss="modal" type="button" id="close-job-modal-btn"></button>
+            </div>
+            <form class="modal-body premium-modal-body" id="job-modal-form" onsubmit="window.handleJobSubmit(event)">
+                <input type="hidden" id="job-modal-id" value="">
+                
+                <div class="form-group mb-3">
+                    <label class="form-label" for="job-title-input">Job Title</label>
+                    <input type="text" class="form-control premium-input" id="job-title-input" required placeholder="e.g. Junior Data Analyst">
+                </div>
+                
+                <div class="form-group mb-3">
+                    <label class="form-label" for="job-company-input">Company Name</label>
+                    <input type="text" class="form-control premium-input" id="job-company-input" required placeholder="e.g. Google, Systems Ltd">
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label" for="job-type-input">Job Type</label>
+                        <select class="form-control premium-input" id="job-type-input">
+                            <option value="Full Time">Full Time</option>
+                            <option value="Part Time">Part Time</option>
+                            <option value="Contractual">Contractual</option>
+                            <option value="Internship">Internship</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="job-location-input">Location</label>
+                        <input type="text" class="form-control premium-input" id="job-location-input" required placeholder="e.g. Lahore, Pakistan">
+                    </div>
+                </div>
+                
+                <div class="form-group mb-3">
+                    <label class="form-label" for="job-salary-input">Salary Package (Optional)</label>
+                    <input type="text" class="form-control premium-input" id="job-salary-input" placeholder="e.g. PKR 80,000/mo or Competitive">
+                </div>
+                
+                <div class="form-group mb-3">
+                    <label class="form-label" for="job-desc-input">Short Description of Role</label>
+                    <textarea class="form-control premium-input" id="job-desc-input" rows="3" required placeholder="Describe requirements, tech stack, etc."></textarea>
+                </div>
+                
+                <div class="form-group mb-3">
+                    <label class="form-label" for="job-link-input">Link to Apply (Optional)</label>
+                    <input type="text" class="form-control premium-input" id="job-link-input" placeholder="e.g. https://apply-link.com">
+                </div>
+                
+                <div class="modal-footer premium-modal-footer px-0 pb-0 pt-3">
+                    <button class="btn btn-secondary-premium" data-bs-dismiss="modal" type="button">Cancel</button>
+                    <button class="btn btn-primary-premium" type="submit" id="job-modal-submit-btn">Post Job</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Custom Premium Event Modal -->
+<div aria-hidden="true" class="modal fade" id="event-modal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 500px;">
+        <div class="modal-content premium-modal-content">
+            <div class="modal-header premium-modal-header">
+                <h5 class="modal-title" id="event-modal-title"><i class="fas fa-calendar-alt text-accent"></i> Post Department Event</h5>
+                <button aria-label="Close" class="btn-close btn-close-white" data-bs-dismiss="modal" type="button" id="close-event-modal-btn"></button>
+            </div>
+            <form class="modal-body premium-modal-body" id="event-modal-form" onsubmit="window.handleEventSubmit(event)">
+                <input type="hidden" id="event-modal-id" value="">
+                
+                <div class="form-group mb-3">
+                    <label class="form-label" for="event-title-input">Event Title</label>
+                    <input type="text" class="form-control premium-input" id="event-title-input" required placeholder="e.g. Python Workshop / Guest Lecture">
+                </div>
+                
+                <div class="form-group mb-3">
+                    <label class="form-label" for="event-desc-input">Event Description</label>
+                    <textarea class="form-control premium-input" id="event-desc-input" rows="4" required placeholder="Describe what the event is about, guest speakers, etc."></textarea>
+                </div>
+                
+                <div class="form-group mb-3">
+                    <label class="form-label" for="event-date-input">Date & Time</label>
+                    <input type="text" class="form-control premium-input" id="event-date-input" required placeholder="e.g. June 15, 2026 at 10:00 AM">
+                </div>
+                
+                <div class="form-group mb-3">
+                    <label class="form-label" for="event-location-input">Location</label>
+                    <input type="text" class="form-control premium-input" id="event-location-input" required placeholder="e.g. UOG Stats Block / Seminar Hall">
+                </div>
+                
+                <div class="modal-footer premium-modal-footer px-0 pb-0 pt-3">
+                    <button class="btn btn-secondary-premium" data-bs-dismiss="modal" type="button">Cancel</button>
+                    <button class="btn btn-primary-premium" type="submit" id="event-modal-submit-btn">Post Event</button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
 </div>
 <script src="app.js"></script>

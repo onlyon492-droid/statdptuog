@@ -1152,12 +1152,6 @@ function switchView(view) {
         viewDesc.textContent  = 'Direct messages and networking chats with stats department members.';
         listContainer.className = '';
         renderMessages();
-    } else if (view === 'transactions') {
-        composeCard.style.display = 'none';
-        viewTitle.textContent = 'Transaction History';
-        viewDesc.textContent  = 'Review your paid membership dues, event tickets, and donation receipts.';
-        listContainer.className = '';
-        renderTransactions();
     } else if (view === 'profile-view') {
         composeCard.style.display = 'none';
         viewTitle.textContent = 'My Academic Profile';
@@ -4132,22 +4126,44 @@ async function renderEvents() {
     }
 }
 
-window.triggerAddEvent = async function() {
-    const title = prompt('Event Title:');
-    if (!title) return;
-    const desc = prompt('Description:');
-    if (!desc) return;
-    const date = prompt('Date (e.g. June 15, 2026):');
-    if (!date) return;
-    const location = prompt('Location:', 'UOG Stats Block');
-    if (!location) return;
+window.triggerAddEvent = function() {
+    const form = document.getElementById('event-modal-form');
+    if (form) form.reset();
+    document.getElementById('event-modal-id').value = '';
+    document.getElementById('event-modal-title').innerHTML = '<i class="fas fa-calendar-alt text-accent"></i> Post Department Event';
+    document.getElementById('event-modal-submit-btn').innerText = 'Post Event';
 
+    const modalEl = document.getElementById('event-modal');
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    modal.show();
+};
+
+window.handleEventSubmit = async function(event) {
+    event.preventDefault();
+    const eventId = document.getElementById('event-modal-id').value;
+    const title = document.getElementById('event-title-input').value;
+    const desc = document.getElementById('event-desc-input').value;
+    const date = document.getElementById('event-date-input').value;
+    const location = document.getElementById('event-location-input').value;
+    
+    const data = { title, desc, date, location, author: currentUser.username };
+    
     try {
-        await dbPost('events', { title, desc, date, location, author: currentUser.username });
-        showToast('Event created successfully!');
+        if (eventId) {
+            await dbPut(`events/${eventId}`, data);
+            showToast('Event updated successfully!');
+        } else {
+            await dbPost('events', data);
+            showToast('Event created successfully!');
+        }
+        
+        const modalEl = document.getElementById('event-modal');
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        modal.hide();
+        
         renderEvents();
     } catch (err) {
-        showToast('Failed to create event', true);
+        showToast(eventId ? 'Failed to update event' : 'Failed to create event', true);
     }
 };
 
@@ -4284,58 +4300,70 @@ async function renderJobsBoard() {
     }
 }
 
-window.triggerAddJob = async function() {
-    const title = prompt('Job Title (e.g. Junior Data Analyst):');
-    if (!title) return;
-    const company = prompt('Company Name:');
-    if (!company) return;
-    const type = prompt('Job Type (Full Time, Part Time, Contractual, Internship):', 'Full Time');
-    if (!type) return;
-    const location = prompt('Location (e.g. Lahore, Pakistan):', 'Lahore, Pakistan');
-    if (!location) return;
-    const salary = prompt('Salary Package (e.g. PKR 80,000/mo):', 'Competitive');
-    if (!salary) return;
-    const desc = prompt('Short Description of Role & Requirements:');
-    if (!desc) return;
-    const link = prompt('Link to Apply (Optional):', 'https://');
-    if (!link) return;
+window.triggerAddJob = function() {
+    const form = document.getElementById('job-modal-form');
+    if (form) form.reset();
+    document.getElementById('job-modal-id').value = '';
+    document.getElementById('job-modal-title').innerHTML = '<i class="fas fa-briefcase text-accent"></i> Share Job Opening';
+    document.getElementById('job-modal-submit-btn').innerText = 'Post Job';
 
-    try {
-        await dbPost('jobs', { title, company, type, location, salary, desc, link, author: currentUser.username });
-        showToast('Job opening posted successfully!');
-        renderJobsBoard();
-        fetchAndRenderRightJobsWidget();
-    } catch (err) {
-        showToast('Error sharing job opening', true);
-    }
+    const modalEl = document.getElementById('job-modal');
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    modal.show();
 };
 
-window.editJob = async function(jobId, title, company, type, location, salary, desc, link) {
-    const newTitle = prompt('Edit Job Title:', title);
-    if (newTitle === null) return;
-    const newCompany = prompt('Edit Company Name:', company);
-    if (newCompany === null) return;
-    const newType = prompt('Edit Job Type:', type);
-    if (newType === null) return;
-    const newLocation = prompt('Edit Location:', location);
-    if (newLocation === null) return;
-    const newSalary = prompt('Edit Salary Package:', salary);
-    if (newSalary === null) return;
-    const newDesc = prompt('Edit Short Description:', desc);
-    if (newDesc === null) return;
-    const newLink = prompt('Edit Link to Apply:', link);
-    if (newLink === null) return;
+window.editJob = function(jobId, title, company, type, location, salary, desc, link) {
+    document.getElementById('job-modal-id').value = jobId;
+    document.getElementById('job-title-input').value = title;
+    document.getElementById('job-company-input').value = company;
+    document.getElementById('job-type-input').value = type;
+    document.getElementById('job-location-input').value = location;
+    document.getElementById('job-salary-input').value = salary || '';
+    document.getElementById('job-desc-input').value = desc;
+    document.getElementById('job-link-input').value = (link && link !== '#') ? link : '';
+    
+    document.getElementById('job-modal-title').innerHTML = '<i class="fas fa-edit text-accent"></i> Edit Job Opening';
+    document.getElementById('job-modal-submit-btn').innerText = 'Save Changes';
+    
+    const modalEl = document.getElementById('job-modal');
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    modal.show();
+};
+
+window.handleJobSubmit = async function(event) {
+    event.preventDefault();
+    const jobId = document.getElementById('job-modal-id').value;
+    const title = document.getElementById('job-title-input').value;
+    const company = document.getElementById('job-company-input').value;
+    const type = document.getElementById('job-type-input').value;
+    const location = document.getElementById('job-location-input').value;
+    const salary = document.getElementById('job-salary-input').value || 'Competitive';
+    const desc = document.getElementById('job-desc-input').value;
+    let link = document.getElementById('job-link-input').value || '#';
+    
+    if (link !== '#' && !link.startsWith('http://') && !link.startsWith('https://')) {
+        link = 'https://' + link;
+    }
+    
+    const data = { title, company, type, location, salary, desc, link, author: currentUser.username };
     
     try {
-        await dbPut(`jobs/${jobId}`, {
-            title: newTitle, company: newCompany, type: newType,
-            location: newLocation, salary: newSalary, desc: newDesc, link: newLink
-        });
-        showToast('Job updated successfully!');
+        if (jobId) {
+            await dbPut(`jobs/${jobId}`, data);
+            showToast('Job updated successfully!');
+        } else {
+            await dbPost('jobs', data);
+            showToast('Job opening posted successfully!');
+        }
+        
+        const modalEl = document.getElementById('job-modal');
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        modal.hide();
+        
         renderJobsBoard();
         fetchAndRenderRightJobsWidget();
     } catch (err) {
-        showToast('Failed to update job', true);
+        showToast(jobId ? 'Failed to update job' : 'Error sharing job opening', true);
     }
 };
 
@@ -4389,25 +4417,19 @@ window.deleteJobComment = async function(jobId, commentId) {
     }
 };
 
-window.editEvent = async function(eventId, title, desc, date, location) {
-    const newTitle = prompt('Edit Event Title:', title);
-    if (newTitle === null) return;
-    const newDesc = prompt('Edit Description:', desc);
-    if (newDesc === null) return;
-    const newDate = prompt('Edit Date:', date);
-    if (newDate === null) return;
-    const newLocation = prompt('Edit Location:', location);
-    if (newLocation === null) return;
+window.editEvent = function(eventId, title, desc, date, location) {
+    document.getElementById('event-modal-id').value = eventId;
+    document.getElementById('event-title-input').value = title;
+    document.getElementById('event-desc-input').value = desc;
+    document.getElementById('event-date-input').value = date;
+    document.getElementById('event-location-input').value = location;
     
-    try {
-        await dbPut(`events/${eventId}`, {
-            title: newTitle, desc: newDesc, date: newDate, location: newLocation
-        });
-        showToast('Event updated successfully!');
-        renderEvents();
-    } catch (err) {
-        showToast('Failed to update event', true);
-    }
+    document.getElementById('event-modal-title').innerHTML = '<i class="fas fa-edit text-accent"></i> Edit Event';
+    document.getElementById('event-modal-submit-btn').innerText = 'Save Changes';
+    
+    const modalEl = document.getElementById('event-modal');
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    modal.show();
 };
 
 window.deleteEvent = async function(eventId) {
@@ -4841,57 +4863,6 @@ window.sendChatMessage = async function(event) {
         showToast('Message send failed', true);
     }
 };
-
-// Transactions Rendering
-async function renderTransactions() {
-    listContainer.innerHTML = '<div style="padding:2rem;text-align:center;color:#9ca3af;"><i class="fas fa-spinner fa-spin"></i> Loading transactions...</div>';
-    try {
-        let txs = await dbGet(`transactions?username=${currentUser.username}`);
-        txs = txs.filter(t => t.username !== 'system');
-        listContainer.innerHTML = '';
-
-        if (txs.length === 0) {
-            listContainer.innerHTML = '<div style="text-align:center; color: var(--text-secondary); padding: 3rem;">No payment transactions recorded.</div>';
-            return;
-        }
-
-        let rowsHtml = '';
-        txs.forEach(t => {
-            const dateStr = t.date ? new Date(t.date).toLocaleDateString() : 'N/A';
-            rowsHtml += `
-                <tr>
-                    <td>#${t.id ? t.id.substring(0, 8) : (t._id ? t._id.substring(0, 8) : 'N/A')}</td>
-                    <td>${dateStr}</td>
-                    <td>${t.description}</td>
-                    <td class="tx-amount">$${parseFloat(t.amount).toFixed(2)}</td>
-                    <td><span class="tx-status ${t.status.toLowerCase()}">${t.status}</span></td>
-                </tr>
-            `;
-        });
-
-        listContainer.innerHTML = `
-            <div class="tx-container">
-                <table class="tx-table">
-                    <thead>
-                        <tr>
-                            <th>Receipt ID</th>
-                            <th>Date</th>
-                            <th>Description</th>
-                            <th>Amount</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${rowsHtml}
-                    </tbody>
-                </table>
-            </div>
-        `;
-    } catch (err) {
-        console.error(err);
-        listContainer.innerHTML = '<div style="text-align:center; color:var(--danger); padding:3rem;">Failed to load transactions.</div>';
-    }
-}
 
 // Profile Overview Rendering
 function renderProfileTab() {
