@@ -4392,6 +4392,9 @@ select.premium-input option {
 @media (max-width: 768px) {
     .chat-layout {
         position: relative;
+        height: calc(100vh - 160px);
+        border: none;
+        border-radius: 0;
     }
     .chat-sidebar {
         width: 100%;

@@ -1419,10 +1419,24 @@ async function renderPosts(filterView) {
     
     // Inject Sort Bar for Feed and Records
     if (filterView === 'feed' || filterView === 'records') {
+        if (filterView === 'records') {
+            const banner = document.createElement('div');
+            banner.innerHTML = `
+                <div style="background: linear-gradient(135deg, rgba(59,130,246,0.1), rgba(16,185,129,0.1)); padding: 16px; border-radius: 12px; margin-bottom: 20px; border: 1px solid rgba(59,130,246,0.2); display: flex; align-items: center; gap: 16px;">
+                    <i class="fas fa-archive" style="font-size: 2.2rem; color: var(--uog-blue);"></i>
+                    <div>
+                        <h4 style="margin: 0 0 6px 0; color: var(--text-primary); font-size: 1.15rem; font-family: 'Outfit', sans-serif;">Academic Records Archive</h4>
+                        <p style="margin: 0; font-size: 0.88rem; color: var(--text-secondary); line-height: 1.4;">This space is exclusively for official department documents, past papers, event records, and shared files. Unlike the social Feed, posts here are categorized as permanent resources.</p>
+                    </div>
+                </div>
+            `;
+            listContainer.appendChild(banner);
+        }
+
         const sortBar = document.createElement('div');
         sortBar.className = 'feed-sort-bar';
         sortBar.innerHTML = `
-            <span><i class="fas fa-sliders-h"></i> Sort Department Feed</span>
+            <span><i class="fas fa-sliders-h"></i> Sort ${filterView === 'records' ? 'Records' : 'Department Feed'}</span>
             <button class="sort-btn ${window.feedSortOrder !== 'trending' ? 'active' : ''}" onclick="window.changeFeedSort('latest', '${filterView}')">
                 <i class="fas fa-clock"></i> Latest
             </button>
