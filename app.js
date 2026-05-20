@@ -3849,7 +3849,10 @@ async function fetchAndRenderRightJobsWidget() {
     const container = document.getElementById('right-jobs-list');
     if (!container) return;
     try {
-        const jobs = await dbGet('jobs');
+        let jobs = await dbGet('jobs');
+        // Filter out system-seeded dummy jobs dynamically
+        jobs = jobs.filter(job => job.author !== 'system');
+
         if (!jobs || jobs.length === 0) {
             container.innerHTML = '<div style="text-align: center; color: var(--text-secondary); font-size: 0.8rem; padding: 10px 0;">No active job postings.</div>';
             return;
@@ -3892,7 +3895,8 @@ async function fetchAndRenderRightJobsWidget() {
 async function renderEvents() {
     listContainer.innerHTML = '<div style="padding:2rem;text-align:center;color:#9ca3af;"><i class="fas fa-spinner fa-spin"></i> Loading events...</div>';
     try {
-        const events = await dbGet('events');
+        let events = await dbGet('events');
+        events = events.filter(e => e.author !== 'system');
         listContainer.innerHTML = '';
 
         if (currentUser.role === 'Faculty' || currentUser.role === 'Admin') {
@@ -3973,7 +3977,11 @@ window.toggleEventRegistration = async function(eventId) {
 async function renderJobsBoard() {
     listContainer.innerHTML = '<div style="padding:2rem;text-align:center;color:#9ca3af;"><i class="fas fa-spinner fa-spin"></i> Loading jobs...</div>';
     try {
-        const jobs = await dbGet('jobs');
+        let jobs = await dbGet('jobs');
+        
+        // Filter out old system-seeded dummy jobs dynamically
+        jobs = jobs.filter(job => job.author !== 'system');
+
         listContainer.innerHTML = '';
 
         const headerRow = document.createElement('div');
@@ -3992,29 +4000,29 @@ async function renderJobsBoard() {
 
         jobs.forEach(job => {
             const card = document.createElement('div');
-            card.className = 'event-card';
+            card.className = 'job-board-card';
             card.innerHTML = `
-                <div style="display: flex; gap: 12px; align-items: flex-start; margin-bottom: 10px;">
-                    <div style="background: rgba(188, 235, 117, 0.2); width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #4a7c10; font-size: 1.25rem; font-weight: 700;">
-                        ${job.company[0].toUpperCase()}
+                <div style="display: flex; gap: 14px; align-items: flex-start; margin-bottom: 10px;">
+                    <div class="job-board-logo-box">
+                        ${job.company ? job.company[0].toUpperCase() : 'J'}
                     </div>
                     <div style="min-width: 0; flex: 1;">
-                        <h3 class="event-title" style="margin: 0; font-size: 1.05rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${job.title}</h3>
-                        <div style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${job.company}</div>
+                        <h3 class="job-board-title">${job.title}</h3>
+                        <div class="job-board-company">${job.company}</div>
                     </div>
                 </div>
-                <p class="event-desc" style="font-size: 0.85rem; line-height: 1.45;">${job.desc}</p>
-                <div class="event-info-row" style="font-size: 0.78rem;">
+                <p class="job-board-desc">${job.desc}</p>
+                <div class="job-board-meta">
                     <i class="far fa-calendar-alt"></i> <span>Shared on ${job.date}</span>
                 </div>
-                <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px;">
-                    <span class="job-tag">${job.type}</span>
-                    <span class="job-tag location"><i class="fas fa-map-marker-alt"></i> ${job.location}</span>
-                    <span class="job-tag salary"><i class="fas fa-money-bill-wave"></i> ${job.salary}</span>
+                <div class="job-board-tags">
+                    <span class="job-board-pill type">${job.type}</span>
+                    <span class="job-board-pill location"><i class="fas fa-map-marker-alt"></i> ${job.location}</span>
+                    <span class="job-board-pill salary"><i class="fas fa-money-bill-wave"></i> ${job.salary}</span>
                 </div>
-                <div class="event-footer" style="margin-top: 12px; padding-top: 10px;">
-                    <span style="font-size: 0.72rem; color: var(--text-secondary);">By @${job.author}</span>
-                    <a href="${job.link || '#'}" target="_blank" class="event-btn register" style="text-decoration: none; display: inline-block; text-align: center;">
+                <div class="job-board-footer">
+                    <span class="job-board-author">By @${job.author}</span>
+                    <a href="${job.link || '#'}" target="_blank" class="job-board-btn">
                         Apply Now
                     </a>
                 </div>
@@ -4197,7 +4205,8 @@ window.activateMembership = async function(tierKey, priceStr) {
 async function renderElection() {
     listContainer.innerHTML = '<div style="padding:2rem;text-align:center;color:#9ca3af;"><i class="fas fa-spinner fa-spin"></i> Loading active elections...</div>';
     try {
-        const elections = await dbGet('elections');
+        let elections = await dbGet('elections');
+        elections = elections.filter(el => el.author !== 'system');
         listContainer.innerHTML = '';
 
         if (elections.length === 0) {
@@ -4428,7 +4437,8 @@ window.sendChatMessage = async function(event) {
 async function renderTransactions() {
     listContainer.innerHTML = '<div style="padding:2rem;text-align:center;color:#9ca3af;"><i class="fas fa-spinner fa-spin"></i> Loading transactions...</div>';
     try {
-        const txs = await dbGet(`transactions?username=${currentUser.username}`);
+        let txs = await dbGet(`transactions?username=${currentUser.username}`);
+        txs = txs.filter(t => t.username !== 'system');
         listContainer.innerHTML = '';
 
         if (txs.length === 0) {
