@@ -856,12 +856,7 @@ regRole.addEventListener('change', () => {
         document.getElementById('otp-message-text').innerHTML = `A 6-digit verification code has been sent to:<br><strong>${res.email}</strong>`;
         
         const devHelper = document.getElementById('otp-dev-helper');
-        if (res.devMode) {
-            devHelper.style.display = 'flex';
-            document.getElementById('otp-dev-code').textContent = res.otp || '123456';
-        } else {
-            devHelper.style.display = 'none';
-        }
+        if (devHelper) devHelper.style.display = 'none';
     } catch (err) { 
         showToast(err.message, true); 
     } finally {
@@ -5205,12 +5200,15 @@ window.selectChatPartner = async function(partner) {
     // Mark messages as read immediately
     await dbPost('messages/mark-read', { sender: activeChatPartner, recipient: currentUser.username });
 
+    mainPane.classList.add('active');
+
     const partnerAvatarHtml = partner.profilePic 
         ? `<img src="${partner.profilePic}" alt="" style="width:100%;height:100%;object-fit:cover;">` 
         : partner.name.charAt(0).toUpperCase();
 
     mainPane.innerHTML = `
         <div class="chat-header">
+            <button class="chat-back-btn" onclick="document.getElementById('chat-main-pane').classList.remove('active')" style="background:none; border:none; margin-right: 10px; font-size: 1.2rem; cursor: pointer; color: var(--text-secondary);"><i class="fas fa-arrow-left"></i></button>
             <div class="chat-user-avatar">${partnerAvatarHtml}</div>
             <div>
                 <div style="font-size: 0.9rem; font-weight: 700; color: var(--text-primary);">${partner.name}</div>

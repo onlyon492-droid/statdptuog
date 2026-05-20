@@ -4375,4 +4375,34 @@ select.premium-input option {
     transform: scale(1.2);
 }
 
+/* WhatsApp Style Mobile Chat View */
+@media (max-width: 768px) {
+    .chat-layout {
+        position: relative;
+    }
+    .chat-sidebar {
+        width: 100%;
+        border-right: none;
+    }
+    .chat-main {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 10;
+        transform: translateX(100%);
+        transition: transform 0.3s ease-in-out;
+    }
+    .chat-main.active {
+        transform: translateX(0);
+    }
+    .chat-back-btn {
+        display: block !important;
+    }
+}
+.chat-back-btn {
+    display: none;
+}
+
 
