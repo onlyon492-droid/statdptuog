@@ -264,8 +264,11 @@
 <button class="mob-nav-btn" data-target="records" onclick="mobileNavClick(this,'records')">
 <i class="fas fa-archive"></i><span>Records</span>
 </button>
-<button class="mob-nav-btn mob-compose-btn" onclick="new bootstrap.Modal(document.getElementById('compose-modal')).show()">
+<button class="mob-nav-btn mob-compose-btn" onclick="document.getElementById('open-compose').click()">
 <i class="fas fa-plus"></i>
+</button>
+<button class="mob-nav-btn" data-target="messages" onclick="mobileNavClick(this,'messages')">
+<i class="fas fa-comment-dots"></i><span style="font-size: 0.65rem;">Chat</span>
 </button>
 <button class="mob-nav-btn" onclick="document.getElementById('mobile-more-drawer').classList.add('active')">
 <i class="fas fa-th"></i><span>More</span>
