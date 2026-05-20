@@ -1,802 +1,759 @@
 <!DOCTYPE html>
+
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Department of Statistics - UOG</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Chart.js for Analytics -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Department of Statistics - UOG</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link crossorigin="anonymous" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" rel="stylesheet"/>
+<link href="styles.css" rel="stylesheet"/>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
+<!-- Chart.js for Analytics -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script crossorigin="anonymous" defer="" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </head>
 <body>
-    <div id="toast-container"></div>
+<div id="toast-container"></div>
+<div id="app">
+<!-- Educational Login View -->
+<div class="view active auth-bg" id="auth-view">
+<div class="floating-glass-bubble bubble-1"></div>
+<div class="floating-glass-bubble bubble-2"></div>
+<div class="floating-glass-bubble bubble-3"></div>
+<div class="floating-glass-bubble bubble-4"></div>
+<div class="edu-login-container">
+<div class="edu-left">
+<img alt="UOG Logo" class="uog-logo" onerror="this.src='https://via.placeholder.com/80?text=UOG'" src="https://uog.edu.pk/assets/images/logo.png"/>
+<h1 class="edu-logo">Department Portal</h1>
+<h2>A secure and private academic network for Statistics students, alumni, and faculty.</h2>
+<ul class="edu-features">
+<li><i class="fas fa-shield-alt"></i> <span>Privacy First: Only verified members can access the portal.</span></li>
+<li><i class="fas fa-book-reader"></i> <span>Academic Focus: Share knowledge, research, and departmental updates.</span></li>
+<li><i class="fas fa-laptop-code"></i> <span>Software Lab: Download statistical software and tools directly.</span></li>
+</ul>
+</div>
+<div class="edu-right">
+<div class="edu-login-box">
+<form id="login-form">
+<h3 style="margin-bottom: 20px; font-weight: 600; color: #1f2937;">Secure Login</h3>
+<input autocomplete="off" class="form-control" id="login-username" placeholder="Roll Number or UOG Email" required="" type="text"/>
+<input class="form-control" id="login-password" placeholder="Password" required="" type="password"/>
+<button class="btn btn-primary w-100" type="submit">Access Portal</button>
+<div class="edu-divider"><span>OR</span></div>
+<button class="btn btn-outline-primary w-100" id="open-signup" type="button">Register New Account</button>
+</form>
+</div>
+</div>
+</div>
+</div>
+<!-- Registration Modal -->
+<div aria-hidden="true" class="modal fade" id="signup-modal" tabindex="-1">
+<div class="modal-dialog"><div class="modal-content">
+<div class="modal-header">
+<div>
+<h2>Member Registration</h2>
+<p>Join the secure departmental network.</p>
+</div>
+<button aria-label="Close" class="btn-close" data-bs-dismiss="modal" id="close-signup" type="button"></button>
+</div>
+<form class="modal-body" id="signup-form">
+<div class="edu-row">
+<input class="form-control" id="reg-firstname" placeholder="First Name" required="" type="text"/>
+<input class="form-control" id="reg-lastname" placeholder="Last Name" required="" type="text"/>
+</div>
+<div class="edu-row">
+<select class="form-select" id="reg-role" required="">
+<option disabled="" selected="" value="">Select Role...</option>
+<option value="Student">Current Student / Alumni</option>
+<option value="Faculty">Faculty Member</option>
+</select>
+</div>
+<div class="edu-row">
+<select class="form-select" id="reg-gender" required="" style="margin-bottom: 12px;">
+<option disabled="" selected="" value="">Select Gender...</option>
+<option value="Male">Male</option>
+<option value="Female">Female</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<!-- Conditional Student Fields -->
+<div id="reg-student-fields" style="display: none; margin-bottom: 12px; border-left: 3px solid var(--uog-orange); padding-left: 10px;">
+<select class="form-select" id="reg-program" style="margin-bottom: 10px;">
+<option disabled="" selected="" value="">Select Program...</option>
+<option value="BS Statistics">BS Statistics</option>
+<option value="BS Data Analytics">BS Data Analytics</option>
+<option value="M.Phil Statistics">M.Phil Statistics</option>
+<option value="Ph.D Statistics">Ph.D Statistics</option>
+</select>
+<div class="edu-row" style="margin-bottom: 10px;">
+<input class="form-control" id="reg-area" placeholder="City/Area (e.g. Gujrat)" style="margin-bottom: 0;" type="text"/>
+<input class="form-control" id="reg-age" max="60" min="15" placeholder="Age" style="margin-bottom: 0;" type="number"/>
+</div>
+<div class="edu-row" style="margin-bottom: 10px;">
+<select class="form-select" id="reg-semester" style="margin-bottom: 0;">
+<option disabled="" selected="" value="">Select Semester...</option>
+<option value="1">1st Semester</option>
+<option value="2">2nd Semester</option>
+<option value="3">3rd Semester</option>
+<option value="4">4th Semester</option>
+<option value="5">5th Semester</option>
+<option value="6">6th Semester</option>
+<option value="7">7th Semester</option>
+<option value="8">8th Semester</option>
+<option value="Graduated">Graduated/Alumni</option>
+</select>
+<div style="display: flex; gap: 8px; align-items: center; flex: 1;">
+<select class="form-select" id="reg-batch" style="flex: 1; margin-bottom: 0;">
+<option disabled="" selected="" value="">Select Batch...</option>
+</select>
+<button class="add-batch-inline-btn" onclick="triggerAddBatch()" title="Add New Batch" type="button">
+<i class="fas fa-plus"></i>
+</button>
+</div>
+</div>
+</div>
+<!-- Conditional Faculty Fields -->
+<div id="reg-faculty-fields" style="display: none; margin-bottom: 12px; border-left: 3px solid var(--uog-blue); padding-left: 10px;">
+<div class="edu-row" style="margin-bottom: 10px;">
+<select class="form-select" id="reg-designation" style="margin-bottom: 0; flex: 1;">
+<option disabled="" selected="" value="">Select Designation...</option>
+<option value="Professor">Professor</option>
+<option value="Associate Professor">Associate Professor</option>
+<option value="Assistant Professor">Assistant Professor</option>
+<option value="Lecturer">Lecturer</option>
+</select>
+<input class="form-control" id="reg-publications" min="0" placeholder="Publications (Optional)" style="margin-bottom: 0; flex: 1;" type="number"/>
+</div>
+<div class="edu-row" style="margin-bottom: 0;">
+<select class="form-select" id="reg-faculty-education" style="margin-bottom: 0; flex: 1;">
+<option disabled="" selected="" value="">Select Education...</option>
+<option value="BS / Master">BS / Master</option>
+<option value="M.Phil">M.Phil</option>
+<option value="Ph.D">Ph.D</option>
+<option value="Post-Doc">Post-Doc</option>
+</select>
+<select class="form-select" id="reg-faculty-status" style="margin-bottom: 0; flex: 1;">
+<option disabled="" selected="" value="">Select Job Status...</option>
+<option value="Active">Active</option>
+<option value="On Leave">On Leave</option>
+<option value="Visiting">Visiting</option>
+<option value="Retired">Retired</option>
+</select>
+</div>
+</div>
+<input class="form-control" id="reg-tagline" placeholder="Academic Tagline (e.g. 🚀 Learning Statistics)" style="margin-bottom:12px;" type="text"/>
+<input class="form-control" id="reg-username" placeholder="Roll No (e.g. 20-UOG-102) or UOG Email" required="" type="text"/>
+<input class="form-control" id="reg-phone" placeholder="Mobile Number (Private)" required="" type="text"/>
+<input class="form-control" id="reg-password" placeholder="Create Password" required="" type="password"/>
+<p class="edu-privacy-note"><i class="fas fa-lock"></i> Your data is kept private and is only visible within the department.</p>
+<button class="btn btn-success" type="submit">Complete Registration</button>
+</form>
+</div></div>
+</div>
+<!-- Main Academic Workspace -->
+<div class="view" id="workspace-view">
+<!-- Top Navbar -->
+<nav class="edu-navbar">
+<div class="nav-left">
+<img alt="UOG" class="nav-logo-img" onerror="this.src='https://via.placeholder.com/40?text=U'" src="https://uog.edu.pk/assets/images/logo.png"/>
+<span class="nav-title">Statistics Dept.</span>
+</div>
+<div class="nav-middle">
+<button class="btn" style="background-color: var(--zai-accent); color: #111827; font-weight: 600; padding: 6px 16px; border-radius: 8px;">Find an Alumni</button>
+</div>
+<div class="nav-right">
+<div class="nav-icon" id="notif-btn" title="Notifications">
+<i class="fas fa-bell"></i><span class="badge" id="notif-badge" style="display:none;">0</span>
+<div class="notif-dropdown" id="notif-dropdown">
+<h4>Recent Notifications</h4>
+<ul id="notif-list">
+<li style="text-align:center; color:#6b7280;">No new notifications.</li>
+</ul>
+</div>
+</div>
+<div class="theme-switch-btn" id="theme-toggle-btn" title="Toggle Theme">
+<i class="fas fa-moon"></i>
+</div>
+<div class="theme-switch-btn" id="layout-toggle-btn" style="margin-right: 10px;" title="Toggle Desktop/Mobile View Mode">
+<i class="fas fa-mobile-alt"></i>
+</div>
+<div class="profile-chip" id="profile-chip">
+<div class="avatar-small" id="nav-avatar"></div>
+<span id="nav-name" style="font-weight: 500;">Name</span>
+</div>
+<div class="circle-icon" id="sign-out-btn" title="Secure Logout"><i class="fas fa-power-off"></i></div>
+</div>
+</nav>
+<!-- Mobile Top Bar (only on mobile) -->
+<div class="mobile-topbar">
+<div class="mobile-topbar-left">
+<img alt="UOG" onerror="this.src='https://via.placeholder.com/34?text=U'" src="https://uog.edu.pk/assets/images/logo.png" style="width:34px;height:34px;border-radius:50%;object-fit:cover;box-shadow:0 2px 6px rgba(0,0,0,0.15);"/>
+<div>
+<div style="font-weight:700;font-size:0.95rem;color:var(--uog-blue);line-height:1.1;">Stats Dept.</div>
+<div style="font-size:0.68rem;color:#9ca3af;line-height:1;">University of Gujrat</div>
+</div>
+</div>
+<div class="mobile-topbar-right">
+<button class="mobile-icon-btn" id="mobile-layout-toggle-btn" style="margin-right: 4px;" title="Toggle Desktop/Mobile View Mode"><i class="fas fa-desktop"></i></button>
+<button class="mobile-icon-btn" onclick="document.getElementById('mobile-search-bar').classList.toggle('active')"><i class="fas fa-search"></i></button>
+<button class="mobile-icon-btn" id="mobile-notif-btn" onclick="document.getElementById('notif-btn').click()">
+<i class="fas fa-bell"></i>
+<span class="mob-badge" id="mob-notif-badge" style="display:none;">0</span>
+</button>
+<div class="avatar-small mob-avatar-top" id="mob-avatar" onclick="document.getElementById('mobile-profile-sheet').classList.add('active')" style="cursor:pointer;"></div>
+</div>
+</div>
+<!-- Mobile Search Bar (slides down) -->
+<div class="mobile-search-bar" id="mobile-search-bar">
+<i class="fas fa-search" style="color:#9ca3af;"></i>
+<input class="" id="mob-search-input" placeholder="Search records, people, updates..." style="border:none;outline:none;flex:1;font-size:0.95rem;background:transparent;font-family:'Outfit',sans-serif;" type="text"/>
+<button class="" onclick="document.getElementById('mobile-search-bar').classList.remove('active')" style="background:none;border:none;color:#9ca3af;cursor:pointer;"><i class="fas fa-times"></i></button>
+</div>
+<!-- Mobile Bottom Navigation -->
+<nav class="mobile-bottom-nav" id="mobile-bottom-nav">
+<button class="mob-nav-btn active-mob" data-target="feed" onclick="mobileNavClick(this,'feed')">
+<i class="fas fa-home"></i><span>Feed</span>
+</button>
+<button class="mob-nav-btn" data-target="records" onclick="mobileNavClick(this,'records')">
+<i class="fas fa-archive"></i><span>Records</span>
+</button>
+<button class="mob-nav-btn mob-compose-btn" onclick="document.getElementById('compose-modal').classList.add('active')">
+<i class="fas fa-plus"></i>
+</button>
+<button class="mob-nav-btn" onclick="document.getElementById('mobile-more-drawer').classList.add('active')">
+<i class="fas fa-th"></i><span>More</span>
+</button>
+<button class="mob-nav-btn" onclick="document.getElementById('mobile-profile-sheet').classList.add('active')">
+<i class="fas fa-user-circle"></i><span>Me</span>
+</button>
+</nav>
+<!-- Mobile "More" Drawer (slides up from bottom) -->
+<div class="mobile-overlay" id="mobile-more-overlay" onclick="document.getElementById('mobile-more-drawer').classList.remove('active');this.classList.remove('active')"></div>
+<div class="mobile-drawer" id="mobile-more-drawer">
+<div class="mobile-drawer-handle"></div>
+<div class="mobile-drawer-title">All Features</div>
+<div class="mobile-drawer-grid">
+<button class="mob-drawer-item" onclick="mobileNavClick(null,'students');closeMobileDrawers()">
+<div class="mob-drawer-icon" style="background:#eff6ff;"><i class="fas fa-user-graduate" style="color:#3b82f6;"></i></div>
+<span>Directory</span>
+</button>
+<button class="mob-drawer-item" onclick="mobileNavClick(null,'software');closeMobileDrawers()">
+<div class="mob-drawer-icon" style="background:#f0fdf4;"><i class="fas fa-laptop-code" style="color:#10b981;"></i></div>
+<span>Software</span>
+</button>
+<button class="mob-drawer-item" onclick="mobileNavClick(null,'analytics');closeMobileDrawers()">
+<div class="mob-drawer-icon" style="background:#fdf4ff;"><i class="fas fa-chart-bar" style="color:#8b5cf6;"></i></div>
+<span>Analytics</span>
+</button>
+<button class="mob-drawer-item" onclick="mobileNavClick(null,'saved');closeMobileDrawers()">
+<div class="mob-drawer-icon" style="background:#fffbeb;"><i class="fas fa-bookmark" style="color:#f59e0b;"></i></div>
+<span>Saved</span>
+</button>
+<button class="mob-drawer-item" onclick="mobileNavClick(null,'privacy');closeMobileDrawers()">
+<div class="mob-drawer-icon" style="background:#fff1f2;"><i class="fas fa-user-shield" style="color:#f43f5e;"></i></div>
+<span>Privacy</span>
+</button>
 
-    <div id="app">
-        <!-- Educational Login View -->
-        <div id="auth-view" class="view active auth-bg">
-            <div class="floating-glass-bubble bubble-1"></div>
-            <div class="floating-glass-bubble bubble-2"></div>
-            <div class="floating-glass-bubble bubble-3"></div>
-            <div class="floating-glass-bubble bubble-4"></div>
-            
-            <div class="edu-login-container">
-                <div class="edu-left">
-                    <img src="https://uog.edu.pk/assets/images/logo.png" alt="UOG Logo" class="uog-logo" onerror="this.src='https://via.placeholder.com/80?text=UOG'">
-                    <h1 class="edu-logo">Department Portal</h1>
-                    <h2>A secure and private academic network for Statistics students, alumni, and faculty.</h2>
-                    <ul class="edu-features">
-                        <li><i class="fas fa-shield-alt"></i> <span>Privacy First: Only verified members can access the portal.</span></li>
-                        <li><i class="fas fa-book-reader"></i> <span>Academic Focus: Share knowledge, research, and departmental updates.</span></li>
-                        <li><i class="fas fa-laptop-code"></i> <span>Software Lab: Download statistical software and tools directly.</span></li>
-                    </ul>
-                </div>
-                <div class="edu-right">
-                    <div class="edu-login-box">
-                        <form id="login-form">
-                            <h3 style="margin-bottom: 20px; font-weight: 600; color: #1f2937;">Secure Login</h3>
-                            <input type="text" id="login-username" class="edu-input" placeholder="Roll Number or UOG Email" required autocomplete="off">
-                            <input type="password" id="login-password" class="edu-input" placeholder="Password" required>
-                            <button type="submit" class="edu-btn-login">Access Portal</button>
-                            <div class="edu-divider"><span>OR</span></div>
-                            <button type="button" class="edu-btn-create" id="open-signup">Register New Account</button>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Registration Modal -->
-        <div class="edu-modal-overlay" id="signup-modal">
-            <div class="edu-modal-content">
-                <div class="edu-modal-header">
-                    <div>
-                        <h2>Member Registration</h2>
-                        <p>Join the secure departmental network.</p>
-                    </div>
-                    <i class="fas fa-times close-modal" id="close-signup"></i>
-                </div>
-                <form id="signup-form" class="edu-modal-body">
-                    <div class="edu-row">
-                        <input type="text" id="reg-firstname" class="edu-input" placeholder="First Name" required>
-                        <input type="text" id="reg-lastname" class="edu-input" placeholder="Last Name" required>
-                    </div>
-                    <div class="edu-row">
-                        <select id="reg-role" required class="edu-select">
-                            <option value="" disabled selected>Select Role...</option>
-                            <option value="Student">Current Student / Alumni</option>
-                            <option value="Faculty">Faculty Member</option>
-                        </select>
-                    </div>
-                    <div class="edu-row">
-                        <select id="reg-gender" required class="edu-select" style="margin-bottom: 12px;">
-                            <option value="" disabled selected>Select Gender...</option>
-                            <option value="Male">Male</option>
-                            <option value="Female">Female</option>
-                            <option value="Other">Other</option>
-                        </select>
-                    </div>
-                    <!-- Conditional Student Fields -->
-                    <div id="reg-student-fields" style="display: none; margin-bottom: 12px; border-left: 3px solid var(--uog-orange); padding-left: 10px;">
-                        <select id="reg-program" class="edu-select" style="margin-bottom: 10px;">
-                            <option value="" disabled selected>Select Program...</option>
-                            <option value="BS Statistics">BS Statistics</option>
-                            <option value="BS Data Analytics">BS Data Analytics</option>
-                            <option value="M.Phil Statistics">M.Phil Statistics</option>
-                            <option value="Ph.D Statistics">Ph.D Statistics</option>
-                        </select>
-                        <div class="edu-row" style="margin-bottom: 10px;">
-                            <input type="text" id="reg-area" class="edu-input" placeholder="City/Area (e.g. Gujrat)" style="margin-bottom: 0;">
-                            <input type="number" id="reg-age" class="edu-input" placeholder="Age" min="15" max="60" style="margin-bottom: 0;">
-                        </div>
-                        <div class="edu-row" style="margin-bottom: 10px;">
-                            <select id="reg-semester" class="edu-select" style="margin-bottom: 0;">
-                                <option value="" disabled selected>Select Semester...</option>
-                                <option value="1">1st Semester</option>
-                                <option value="2">2nd Semester</option>
-                                <option value="3">3rd Semester</option>
-                                <option value="4">4th Semester</option>
-                                <option value="5">5th Semester</option>
-                                <option value="6">6th Semester</option>
-                                <option value="7">7th Semester</option>
-                                <option value="8">8th Semester</option>
-                                <option value="Graduated">Graduated/Alumni</option>
-                            </select>
-                            <div style="display: flex; gap: 8px; align-items: center; flex: 1;">
-                                <select id="reg-batch" class="edu-select" style="flex: 1; margin-bottom: 0;">
-                                    <option value="" disabled selected>Select Batch...</option>
-                                </select>
-                                <button type="button" class="add-batch-inline-btn" title="Add New Batch" onclick="triggerAddBatch()">
-                                    <i class="fas fa-plus"></i>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                    <!-- Conditional Faculty Fields -->
-                    <div id="reg-faculty-fields" style="display: none; margin-bottom: 12px; border-left: 3px solid var(--uog-blue); padding-left: 10px;">
-                        <div class="edu-row" style="margin-bottom: 10px;">
-                            <select id="reg-designation" class="edu-select" style="margin-bottom: 0; flex: 1;">
-                                <option value="" disabled selected>Select Designation...</option>
-                                <option value="Professor">Professor</option>
-                                <option value="Associate Professor">Associate Professor</option>
-                                <option value="Assistant Professor">Assistant Professor</option>
-                                <option value="Lecturer">Lecturer</option>
-                            </select>
-                            <input type="number" id="reg-publications" class="edu-input" placeholder="Publications (Optional)" min="0" style="margin-bottom: 0; flex: 1;">
-                        </div>
-                        <div class="edu-row" style="margin-bottom: 0;">
-                            <select id="reg-faculty-education" class="edu-select" style="margin-bottom: 0; flex: 1;">
-                                <option value="" disabled selected>Select Education...</option>
-                                <option value="BS / Master">BS / Master</option>
-                                <option value="M.Phil">M.Phil</option>
-                                <option value="Ph.D">Ph.D</option>
-                                <option value="Post-Doc">Post-Doc</option>
-                            </select>
-                            <select id="reg-faculty-status" class="edu-select" style="margin-bottom: 0; flex: 1;">
-                                <option value="" disabled selected>Select Job Status...</option>
-                                <option value="Active">Active</option>
-                                <option value="On Leave">On Leave</option>
-                                <option value="Visiting">Visiting</option>
-                                <option value="Retired">Retired</option>
-                            </select>
-                        </div>
-                    </div>
-                    <input type="text" id="reg-tagline" class="edu-input" placeholder="Academic Tagline (e.g. 🚀 Learning Statistics)" style="margin-bottom:12px;">
-                    <input type="text" id="reg-username" class="edu-input" placeholder="Roll No (e.g. 20-UOG-102) or UOG Email" required>
-                    <input type="text" id="reg-phone" class="edu-input" placeholder="Mobile Number (Private)" required>
-                    <input type="password" id="reg-password" class="edu-input" placeholder="Create Password" required>
-                    
-                    <p class="edu-privacy-note"><i class="fas fa-lock"></i> Your data is kept private and is only visible within the department.</p>
-                    <button type="submit" class="edu-btn-signup">Complete Registration</button>
-                </form>
-            </div>
-        </div>
-
-        <!-- Main Academic Workspace -->
-        <div id="workspace-view" class="view">
-            <!-- Top Navbar -->
-            <nav class="edu-navbar">
-                <div class="nav-left">
-                    <img src="https://uog.edu.pk/assets/images/logo.png" alt="UOG" class="nav-logo-img" onerror="this.src='https://via.placeholder.com/40?text=U'">
-                    <span class="nav-title">Statistics Dept.</span>
-                </div>
-                <div class="nav-middle">
-                    <div class="nav-search">
-                        <i class="fas fa-search"></i>
-                        <input type="text" placeholder="Search records, software, updates...">
-                    </div>
-                </div>
-                <div class="nav-right">
-                    <div class="nav-icon" id="notif-btn" title="Notifications">
-                        <i class="fas fa-bell"></i><span class="badge" id="notif-badge" style="display:none;">0</span>
-                        <div class="notif-dropdown" id="notif-dropdown">
-                            <h4>Recent Notifications</h4>
-                            <ul id="notif-list">
-                                <li style="text-align:center; color:#6b7280;">No new notifications.</li>
-                            </ul>
-                        </div>
-                    </div>
-                    <div class="theme-switch-btn" id="theme-toggle-btn" title="Toggle Theme">
-                        <i class="fas fa-moon"></i>
-                    </div>
-                    <div class="theme-switch-btn" id="layout-toggle-btn" title="Toggle Desktop/Mobile View Mode" style="margin-right: 10px;">
-                        <i class="fas fa-mobile-alt"></i>
-                    </div>
-                    <div class="profile-chip" id="profile-chip">
-                        <div class="avatar-small" id="nav-avatar"></div>
-                        <span id="nav-name" style="font-weight: 500;">Name</span>
-                    </div>
-                    <div class="circle-icon" id="sign-out-btn" title="Secure Logout"><i class="fas fa-power-off"></i></div>
-                </div>
-            </nav>
-
-            <!-- Mobile Top Bar (only on mobile) -->
-            <div class="mobile-topbar">
-                <div class="mobile-topbar-left">
-                    <img src="https://uog.edu.pk/assets/images/logo.png" alt="UOG" style="width:34px;height:34px;border-radius:50%;object-fit:cover;box-shadow:0 2px 6px rgba(0,0,0,0.15);" onerror="this.src='https://via.placeholder.com/34?text=U'">
-                    <div>
-                        <div style="font-weight:700;font-size:0.95rem;color:var(--uog-blue);line-height:1.1;">Stats Dept.</div>
-                        <div style="font-size:0.68rem;color:#9ca3af;line-height:1;">University of Gujrat</div>
-                    </div>
-                </div>
-                <div class="mobile-topbar-right">
-                    <button class="mobile-icon-btn" id="mobile-layout-toggle-btn" title="Toggle Desktop/Mobile View Mode" style="margin-right: 4px;"><i class="fas fa-desktop"></i></button>
-                    <button class="mobile-icon-btn" onclick="document.getElementById('mobile-search-bar').classList.toggle('active')"><i class="fas fa-search"></i></button>
-                    <button class="mobile-icon-btn" id="mobile-notif-btn" onclick="document.getElementById('notif-btn').click()">
-                        <i class="fas fa-bell"></i>
-                        <span class="mob-badge" id="mob-notif-badge" style="display:none;">0</span>
+</div>
+</div>
+<!-- Mobile Profile Sheet -->
+<div class="mobile-overlay" id="mobile-profile-overlay" onclick="document.getElementById('mobile-profile-sheet').classList.remove('active');this.classList.remove('active')"></div>
+<div class="mobile-drawer" id="mobile-profile-sheet">
+<div class="mobile-drawer-handle"></div>
+<div class="mob-profile-header">
+<div class="avatar-large mob-profile-avatar" id="mob-profile-avatar"></div>
+<div>
+<div class="mob-profile-name" id="mob-profile-name">Name</div>
+<div class="mob-profile-role" id="mob-profile-role">Role</div>
+</div>
+</div>
+<div class="mob-profile-actions">
+<button class="mob-profile-btn" onclick="document.getElementById('open-edit-profile').click();closeMobileDrawers()">
+<i class="fas fa-user-edit"></i> Edit Profile
                     </button>
-                    <div class="avatar-small mob-avatar-top" id="mob-avatar" onclick="document.getElementById('mobile-profile-sheet').classList.add('active')" style="cursor:pointer;"></div>
-                </div>
-            </div>
-
-            <!-- Mobile Search Bar (slides down) -->
-            <div class="mobile-search-bar" id="mobile-search-bar">
-                <i class="fas fa-search" style="color:#9ca3af;"></i>
-                <input type="text" id="mob-search-input" placeholder="Search records, people, updates..." style="border:none;outline:none;flex:1;font-size:0.95rem;background:transparent;font-family:'Outfit',sans-serif;">
-                <button onclick="document.getElementById('mobile-search-bar').classList.remove('active')" style="background:none;border:none;color:#9ca3af;cursor:pointer;"><i class="fas fa-times"></i></button>
-            </div>
-
-            <!-- Mobile Bottom Navigation -->
-            <nav class="mobile-bottom-nav" id="mobile-bottom-nav">
-                <button class="mob-nav-btn active-mob" data-target="feed" onclick="mobileNavClick(this,'feed')">
-                    <i class="fas fa-home"></i><span>Feed</span>
-                </button>
-                <button class="mob-nav-btn" data-target="records" onclick="mobileNavClick(this,'records')">
-                    <i class="fas fa-archive"></i><span>Records</span>
-                </button>
-                <button class="mob-nav-btn mob-compose-btn" onclick="document.getElementById('compose-modal').classList.add('active')">
-                    <i class="fas fa-plus"></i>
-                </button>
-                <button class="mob-nav-btn" onclick="document.getElementById('mobile-more-drawer').classList.add('active')">
-                    <i class="fas fa-th"></i><span>More</span>
-                </button>
-                <button class="mob-nav-btn" onclick="document.getElementById('mobile-profile-sheet').classList.add('active')">
-                    <i class="fas fa-user-circle"></i><span>Me</span>
-                </button>
-            </nav>
-
-            <!-- Mobile "More" Drawer (slides up from bottom) -->
-            <div class="mobile-overlay" id="mobile-more-overlay" onclick="document.getElementById('mobile-more-drawer').classList.remove('active');this.classList.remove('active')"></div>
-            <div class="mobile-drawer" id="mobile-more-drawer">
-                <div class="mobile-drawer-handle"></div>
-                <div class="mobile-drawer-title">All Features</div>
-                <div class="mobile-drawer-grid">
-                    <button class="mob-drawer-item" onclick="mobileNavClick(null,'students');closeMobileDrawers()">
-                        <div class="mob-drawer-icon" style="background:#eff6ff;"><i class="fas fa-user-graduate" style="color:#3b82f6;"></i></div>
-                        <span>Directory</span>
+<button class="mob-profile-btn" onclick="document.getElementById('open-edit-profile').click();closeMobileDrawers()">
+<i class="fas fa-camera"></i> Change Photo
                     </button>
-                    <button class="mob-drawer-item" onclick="mobileNavClick(null,'software');closeMobileDrawers()">
-                        <div class="mob-drawer-icon" style="background:#f0fdf4;"><i class="fas fa-laptop-code" style="color:#10b981;"></i></div>
-                        <span>Software</span>
+<button class="mob-profile-btn" onclick="mobileNavClick(null,'privacy');closeMobileDrawers()">
+<i class="fas fa-user-shield"></i> Privacy Settings
                     </button>
-                    <button class="mob-drawer-item" onclick="mobileNavClick(null,'analytics');closeMobileDrawers()">
-                        <div class="mob-drawer-icon" style="background:#fdf4ff;"><i class="fas fa-chart-bar" style="color:#8b5cf6;"></i></div>
-                        <span>Analytics</span>
+<button class="mob-profile-btn danger" onclick="document.getElementById('sign-out-btn').click()">
+<i class="fas fa-power-off"></i> Sign Out
                     </button>
-                    <button class="mob-drawer-item" onclick="mobileNavClick(null,'saved');closeMobileDrawers()">
-                        <div class="mob-drawer-icon" style="background:#fffbeb;"><i class="fas fa-bookmark" style="color:#f59e0b;"></i></div>
-                        <span>Saved</span>
-                    </button>
-                    <button class="mob-drawer-item" onclick="mobileNavClick(null,'privacy');closeMobileDrawers()">
-                        <div class="mob-drawer-icon" style="background:#fff1f2;"><i class="fas fa-user-shield" style="color:#f43f5e;"></i></div>
-                        <span>Privacy</span>
-                    </button>
-                    </button>
-                </div>
-            </div>
-
-            <!-- Mobile Profile Sheet -->
-            <div class="mobile-overlay" id="mobile-profile-overlay" onclick="document.getElementById('mobile-profile-sheet').classList.remove('active');this.classList.remove('active')"></div>
-            <div class="mobile-drawer" id="mobile-profile-sheet">
-                <div class="mobile-drawer-handle"></div>
-                <div class="mob-profile-header">
-                    <div class="avatar-large mob-profile-avatar" id="mob-profile-avatar"></div>
-                    <div>
-                        <div class="mob-profile-name" id="mob-profile-name">Name</div>
-                        <div class="mob-profile-role" id="mob-profile-role">Role</div>
-                    </div>
-                </div>
-                <div class="mob-profile-actions">
-                    <button class="mob-profile-btn" onclick="document.getElementById('open-edit-profile').click();closeMobileDrawers()">
-                        <i class="fas fa-user-edit"></i> Edit Profile
-                    </button>
-                    <button class="mob-profile-btn" onclick="document.getElementById('open-edit-profile').click();closeMobileDrawers()">
-                        <i class="fas fa-camera"></i> Change Photo
-                    </button>
-                    <button class="mob-profile-btn" onclick="mobileNavClick(null,'privacy');closeMobileDrawers()">
-                        <i class="fas fa-user-shield"></i> Privacy Settings
-                    </button>
-                    <button class="mob-profile-btn danger" onclick="document.getElementById('sign-out-btn').click()">
-                        <i class="fas fa-power-off"></i> Sign Out
-                    </button>
-                </div>
-            </div>
-
-            <div class="edu-body">
-                <!-- Left Sidebar -->
-                <aside class="edu-sidebar-left">
-                    <div class="profile-summary">
-                        <div class="profile-cover-banner"></div>
-                        <!-- Profile Picture Upload Area -->
-                        <div class="avatar-upload-container" id="avatar-upload-container">
-                            <div class="avatar-large" id="side-avatar"></div>
-                            <label for="profile-pic-input" class="avatar-edit-btn" title="Change Profile Picture">
-                                <i class="fas fa-camera"></i>
-                            </label>
-                            <input type="file" id="profile-pic-input" accept="image/*" style="display:none;">
-                        </div>
-                        <h3 id="side-name">Name</h3>
-                        <p id="side-role">Student</p>
-                        <p class="profile-tagline" id="side-tagline"></p>
-                        <button class="edit-profile-btn" id="open-edit-profile" style="margin-top: 12px;"><i class="fas fa-user-edit"></i> Edit Profile</button>
-                    </div>
-                    <ul class="sidebar-list">
-                        <li class="active-item" data-target="feed"><i class="fas fa-chalkboard"></i> <span>Department Feed</span></li>
-                        <li data-target="records"><i class="fas fa-archive"></i> <span>Academic Records</span> <span class="sidebar-badge" id="badge-records">0</span></li>
-                        <li data-target="software"><i class="fas fa-laptop-code"></i> <span>Software Repository</span> <span class="sidebar-badge" id="badge-software">0</span></li>
-                        <li data-target="students"><i class="fas fa-user-graduate"></i> <span>Alumni Directory</span></li>
-                        <li data-target="analytics"><i class="fas fa-chart-bar"></i> <span>Analytics & Stats</span></li>
-                        <li data-target="saved"><i class="fas fa-bookmark"></i> <span>Saved Items</span> <span class="sidebar-badge" id="badge-saved">0</span></li>
-                        <li data-target="privacy" style="margin-top: 20px;"><i class="fas fa-user-shield"></i> <span>Privacy Settings</span></li>
-                    </ul>
-                </aside>
-
-                <!-- Middle Content Area -->
-                <main class="edu-main" id="main-content">
-                    <div class="view-header">
-                        <h2 id="view-title">Department Feed</h2>
-                        <p id="view-desc">Latest updates, notices, and academic discussions.</p>
-                    </div>
-
-                    <!-- Create Post Box -->
-                    <div class="edu-card create-post-card" id="compose-card">
-                        <div class="create-top">
-                            <div class="avatar-small" id="post-avatar"></div>
-                            <input type="text" id="open-compose" placeholder="Share an update, document, or software with the department..." readonly>
-                        </div>
-                        <div class="create-bottom">
-                            <div class="create-action" id="open-compose-text"><i class="fas fa-file-alt" style="color: #0f4c81;"></i> Share Update</div>
-                            <div class="create-action" id="open-compose-doc"><i class="fas fa-paperclip" style="color: #10b981;"></i> Attach File</div>
-                            <div class="create-action" id="open-compose-sw"><i class="fas fa-laptop-code" style="color: #f58220;"></i> Add Software</div>
-                        </div>
-                    </div>
-
-                    <!-- Directory Advanced Filter Bar -->
-                    <div id="directory-filter-bar" class="directory-filter-bar" style="display: none;">
-                        <div class="directory-tabs">
-                            <button class="dir-tab active" data-tab="All">All Members</button>
-                            <button class="dir-tab" data-tab="BS Statistics">BS Statistics</button>
-                            <button class="dir-tab" data-tab="BS Data Analytics">BS Data Analytics</button>
-                            <button class="dir-tab" data-tab="Faculty">Faculty</button>
-                        </div>
-                        <div class="directory-selects">
-                            <select id="dir-batch-select" class="dir-filter-select">
-                                <option value="All">All Sessions</option>
-                            </select>
-                            <button class="dir-add-batch-btn" onclick="triggerAddBatch()" title="Add New Session/Batch">
-                                <i class="fas fa-plus"></i> Add Batch
+</div>
+</div>
+<div class="edu-body">
+<!-- Left Sidebar -->
+<aside class="edu-sidebar-left">
+<div class="profile-summary">
+<div class="profile-cover-banner"></div>
+<!-- Profile Picture Upload Area -->
+<div class="avatar-upload-container" id="avatar-upload-container">
+<div class="avatar-large" id="side-avatar"></div>
+<label class="avatar-edit-btn" for="profile-pic-input" title="Change Profile Picture">
+<i class="fas fa-camera"></i>
+</label>
+<input accept="image/*" class="" id="profile-pic-input" style="display:none;" type="file"/>
+</div>
+<h3 id="side-name">Name</h3>
+<p id="side-role">Student</p>
+<p class="profile-tagline" id="side-tagline"></p>
+<button class="edit-profile-btn" id="open-edit-profile" style="margin-top: 12px;"><i class="fas fa-user-edit"></i> Edit Profile</button>
+</div>
+<ul class="sidebar-list">
+<li class="active-item" data-target="feed"><i class="fas fa-chalkboard"></i> <span>Department Feed</span></li>
+<li data-target="records"><i class="fas fa-archive"></i> <span>Academic Records</span> <span class="sidebar-badge" id="badge-records">0</span></li>
+<li data-target="software"><i class="fas fa-laptop-code"></i> <span>Software Repository</span> <span class="sidebar-badge" id="badge-software">0</span></li>
+<li data-target="students"><i class="fas fa-user-graduate"></i> <span>Alumni Directory</span></li>
+<li data-target="analytics"><i class="fas fa-chart-bar"></i> <span>Analytics &amp; Stats</span></li>
+<li data-target="saved"><i class="fas fa-bookmark"></i> <span>Saved Items</span> <span class="sidebar-badge" id="badge-saved">0</span></li>
+<li data-target="privacy" style="margin-top: 20px;"><i class="fas fa-user-shield"></i> <span>Privacy Settings</span></li>
+</ul>
+</aside>
+<main class="edu-main" id="main-content">
+<div class="view-header">
+<h2 id="view-title">Department Feed</h2>
+<p id="view-desc">Latest updates, notices, and academic discussions.</p>
+</div>
+<div class="edu-card create-post-card" id="compose-card">
+<h3 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 1rem;">Create Post</h3>
+<div style="display: flex; align-items: center; gap: 12px; margin-bottom: 1rem;">
+<div class="avatar-small" id="post-avatar"></div>
+<span id="post-user-name" style="font-weight: 600;">User Name</span>
+</div>
+<div class="create-top" id="open-compose" style="cursor: pointer;">
+<input placeholder="What's on your mind?" readonly="" style="pointer-events: none;" type="text"/>
+</div>
+<div class="create-bottom">
+<div class="create-actions-left">
+<span style="color: var(--text-secondary); font-size: 0.9rem; margin-right: 8px;">Add to your post:</span>
+<div class="create-action" id="open-compose-doc"><i class="fas fa-image"></i></div>
+<div class="create-action" id="open-compose-sw"><i class="fas fa-video"></i></div>
+</div>
+<button class="btn" id="open-compose-text" style="background-color: var(--zai-accent); color: #1f2937; font-weight: 600; padding: 8px 24px; border-radius: 8px;">Post Now</button>
+</div>
+</div>
+<!-- Directory Advanced Filter Bar -->
+<div class="directory-filter-bar" id="directory-filter-bar" style="display: none;">
+<div class="directory-tabs">
+<button class="dir-tab active" data-tab="All">All Members</button>
+<button class="dir-tab" data-tab="BS Statistics">BS Statistics</button>
+<button class="dir-tab" data-tab="BS Data Analytics">BS Data Analytics</button>
+<button class="dir-tab" data-tab="Faculty">Faculty</button>
+</div>
+<div class="directory-selects">
+<select class="dir-filter-select" id="dir-batch-select">
+<option value="All">All Sessions</option>
+</select>
+<button class="dir-add-batch-btn" onclick="triggerAddBatch()" title="Add New Session/Batch">
+<i class="fas fa-plus"></i> Add Batch
                             </button>
-                        </div>
-                    </div>
-
-                    <!-- Glassmorphic Broadcast Ticker -->
-                    <div id="broadcast-ticker-container" style="display: none; margin-bottom: 16px;"></div>
-
-                    <!-- Dynamic Content Container -->
-                    <div id="list-container">
-                        <!-- Content populated via JS -->
-                    </div>
-
-                    <!-- Analytics View Container -->
-                    <div id="analytics-container" style="display: none; width: 100%; padding: 1rem;">
-                        <div class="analytics-header" style="margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
-                            <div>
-                                <h2 style="font-size: 1.5rem; color: var(--uog-blue); margin: 0;"><i class="fas fa-chart-bar"></i> Department Analytics</h2>
-                                <p style="color: var(--text-secondary); margin: 4px 0 0 0;">Real-time statistical overview of the department.</p>
-                            </div>
-                            <div class="analytics-tabs" style="display: flex; gap: 8px; background: rgba(15, 76, 129, 0.05); padding: 4px; border-radius: 8px;">
-                                <button class="analytics-tab active" onclick="window.switchAnalyticsTab('overview')" id="btn-analytics-overview">Overview</button>
-                                <button class="analytics-tab" onclick="window.switchAnalyticsTab('statistics')" id="btn-analytics-statistics">BS Statistics</button>
-                                <button class="analytics-tab" onclick="window.switchAnalyticsTab('analytics-program')" id="btn-analytics-program">BS Data Analytics</button>
-                                <button class="analytics-tab" onclick="window.switchAnalyticsTab('faculty')" id="btn-analytics-faculty">Faculty Portfolio</button>
-                            </div>
-                        </div>
-
-                        <!-- 1. Overview Tab -->
-                        <div id="analytics-tab-overview" class="analytics-tab-content">
-                            <div class="charts-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem;">
-                                <!-- Overview charts -->
-                            </div>
-                        </div>
-
-                        <!-- 2. BS Statistics Tab -->
-                        <div id="analytics-tab-statistics" class="analytics-tab-content" style="display: none;">
-                            <div class="analytics-kpi-row" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
-                                <div class="edu-card kpi-card" style="padding: 1rem; text-align: center; border-left: 4px solid var(--uog-blue); background: var(--bg-surface);">
-                                    <div style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary);">Total BS Stats Students</div>
-                                    <div id="kpi-stats-total" style="font-size: 1.8rem; font-weight: 700; color: var(--uog-blue); margin-top: 4px;">0</div>
-                                </div>
-                                <div class="edu-card kpi-card" style="padding: 1rem; text-align: center; border-left: 4px solid var(--uog-orange); background: var(--bg-surface);">
-                                    <div style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary);">Active Batches</div>
-                                    <div id="kpi-stats-batches" style="font-size: 1.8rem; font-weight: 700; color: var(--uog-orange); margin-top: 4px;">4 Batches</div>
-                                </div>
-                                <div class="edu-card kpi-card" style="padding: 1rem; text-align: center; border-left: 4px solid #10b981; background: var(--bg-surface);">
-                                    <div style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary);">Average Batch Size</div>
-                                    <div id="kpi-stats-avg-size" style="font-size: 1.8rem; font-weight: 700; color: #10b981; margin-top: 4px;">0</div>
-                                </div>
-                            </div>
-                            <div class="charts-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem;">
-                                <div class="analytics-card" style="background: var(--bg-surface); padding: 16px; border-radius: 12px; border: 1px solid var(--border-color);"><canvas id="statsBatchChart" height="260"></canvas></div>
-                                <div class="analytics-card" style="background: var(--bg-surface); padding: 16px; border-radius: 12px; border: 1px solid var(--border-color);"><canvas id="statsSemesterChart" height="260"></canvas></div>
-                            </div>
-                        </div>
-
-                        <!-- 3. BS Data Analytics Tab -->
-                        <div id="analytics-tab-analytics-program" class="analytics-tab-content" style="display: none;">
-                            <div class="analytics-kpi-row" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
-                                <div class="edu-card kpi-card" style="padding: 1rem; text-align: center; border-left: 4px solid var(--uog-blue); background: var(--bg-surface);">
-                                    <div style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary);">Total BS Analytics Students</div>
-                                    <div id="kpi-analytics-total" style="font-size: 1.8rem; font-weight: 700; color: var(--uog-blue); margin-top: 4px;">0</div>
-                                </div>
-                                <div class="edu-card kpi-card" style="padding: 1rem; text-align: center; border-left: 4px solid var(--uog-orange); background: var(--bg-surface);">
-                                    <div style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary);">Active Batches</div>
-                                    <div id="kpi-analytics-batches" style="font-size: 1.8rem; font-weight: 700; color: var(--uog-orange); margin-top: 4px;">3 Batches</div>
-                                </div>
-                                <div class="edu-card kpi-card" style="padding: 1rem; text-align: center; border-left: 4px solid #10b981; background: var(--bg-surface);">
-                                    <div style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary);">Average Batch Size</div>
-                                    <div id="kpi-analytics-avg-size" style="font-size: 1.8rem; font-weight: 700; color: #10b981; margin-top: 4px;">0</div>
-                                </div>
-                            </div>
-                            <div class="charts-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem;">
-                                <div class="analytics-card" style="background: var(--bg-surface); padding: 16px; border-radius: 12px; border: 1px solid var(--border-color);"><canvas id="analyticsBatchChart" height="260"></canvas></div>
-                                <div class="analytics-card" style="background: var(--bg-surface); padding: 16px; border-radius: 12px; border: 1px solid var(--border-color);"><canvas id="analyticsSemesterChart" height="260"></canvas></div>
-                            </div>
-                        </div>
-
-                        <!-- 4. Faculty Tab -->
-                        <div id="analytics-tab-faculty" class="analytics-tab-content" style="display: none;">
-                            <div class="analytics-kpi-row" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
-                                <div class="edu-card kpi-card" style="padding: 1rem; text-align: center; border-left: 4px solid var(--uog-blue); background: var(--bg-surface);">
-                                    <div style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary);">Total Faculty Members</div>
-                                    <div id="kpi-faculty-total" style="font-size: 1.8rem; font-weight: 700; color: var(--uog-blue); margin-top: 4px;">0</div>
-                                </div>
-                                <div class="edu-card kpi-card" style="padding: 1rem; text-align: center; border-left: 4px solid var(--uog-orange); background: var(--bg-surface);">
-                                    <div style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary);">Total Publications</div>
-                                    <div id="kpi-faculty-pubs" style="font-size: 1.8rem; font-weight: 700; color: var(--uog-orange); margin-top: 4px;">140+</div>
-                                </div>
-                                <div class="edu-card kpi-card" style="padding: 1rem; text-align: center; border-left: 4px solid #10b981; background: var(--bg-surface);">
-                                    <div style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary);">Ph.D. Qualified</div>
-                                    <div id="kpi-faculty-phd" style="font-size: 1.8rem; font-weight: 700; color: #10b981; margin-top: 4px;">4 Faculty</div>
-                                </div>
-                            </div>
-                            <div class="charts-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem;">
-                                <div class="analytics-card" style="background: var(--bg-surface); padding: 16px; border-radius: 12px; border: 1px solid var(--border-color);"><canvas id="facultyDesignationChart" height="260"></canvas></div>
-                                <div class="analytics-card" style="background: var(--bg-surface); padding: 16px; border-radius: 12px; border: 1px solid var(--border-color);"><canvas id="facultyPublicationsChart" height="260"></canvas></div>
-                                <div class="analytics-card" style="background: var(--bg-surface); padding: 16px; border-radius: 12px; border: 1px solid var(--border-color);"><canvas id="facultyGenderChart" height="260"></canvas></div>
-                                <div class="analytics-card" style="background: var(--bg-surface); padding: 16px; border-radius: 12px; border: 1px solid var(--border-color);"><canvas id="facultyEducationChart" height="260"></canvas></div>
-                                <div class="analytics-card" style="background: var(--bg-surface); padding: 16px; border-radius: 12px; border: 1px solid var(--border-color);"><canvas id="facultyJobStatusChart" height="260"></canvas></div>
-                            </div>
-                        </div>
-                    </div>
-
-                </main>
-
-                <!-- Right Sidebar -->
-                <aside class="edu-sidebar-right">
-                    <div class="notice-board">
-                        <div class="notice-header">
-                            <h4><i class="fas fa-bullhorn"></i> Important Notices</h4>
-                        </div>
-                        <ul class="notice-list" id="notice-list-container">
-                            <li style="text-align:center; color:#6b7280; font-size:0.85rem;">No recent notices.</li>
-                        </ul>
-                    </div>
-
-                    <div class="stats-card mt-4">
-                        <h4>Department Stats</h4>
-                        <div class="stat-item">
-                            <span><i class="fas fa-calculator" style="color: var(--uog-blue); margin-right: 6px;"></i> Statistics Students</span>
-                            <strong id="stat-student-count">0</strong>
-                        </div>
-                        <div class="stat-item">
-                            <span><i class="fas fa-chart-pie" style="color: #8b5cf6; margin-right: 6px;"></i> Data Analytics Students</span>
-                            <strong id="analytics-student-count">0</strong>
-                        </div>
-                        <div class="stat-item">
-                            <span><i class="fas fa-chalkboard-teacher" style="color: var(--uog-orange); margin-right: 6px;"></i> Faculty Members</span>
-                            <strong id="faculty-count">0</strong>
-                        </div>
-                        <div class="stat-item">
-                            <span><i class="fas fa-laptop-code" style="color: #3b82f6; margin-right: 6px;"></i> Software Tools</span>
-                            <strong id="sw-count">0</strong>
-                        </div>
-                        <div class="stat-item">
-                            <span><i class="fas fa-file-alt" style="color: #10b981; margin-right: 6px;"></i> Shared Records</span>
-                            <strong id="record-count">0</strong>
-                        </div>
-                    </div>
-                </aside>
-            </div>
-        </div>
-
-        <!-- Compose Post/Software Modal -->
-        <div class="edu-modal-overlay" id="compose-modal">
-            <div class="edu-modal-content" style="max-width: 550px;">
-                <div class="edu-modal-header">
-                    <h2 style="font-size: 18px;">Upload Record / Software</h2>
-                    <i class="fas fa-times close-modal" id="close-compose"></i>
-                </div>
-                <form id="upload-form" class="edu-modal-body">
-                    <div class="post-user-info">
-                        <div class="avatar-small" id="compose-avatar"></div>
-                        <div>
-                            <strong><span id="compose-name">Name</span></strong>
-                            <div class="post-privacy"><i class="fas fa-shield-alt"></i> Visible to Department Only</div>
-                        </div>
-                    </div>
-                    
-                    <div class="edu-row" style="margin-bottom: 10px; gap: 10px;">
-                        <select id="post-category" required class="edu-select" style="margin-bottom: 0; flex: 1;">
-                            <option value="Feed">General Update / Notice</option>
-                            <option value="Records">Academic Record / Media Files</option>
-                            <option value="Software">Software Repository Tool</option>
-                        </select>
-                        <select id="post-visibility" class="edu-select" style="margin-bottom: 0; flex: 1;">
-                            <option value="everyone">Visible to Everyone</option>
-                            <option value="batch_faculty">My Batch & Faculty Only</option>
-                            <option value="faculty">Faculty Only</option>
-                        </select>
-                    </div>
-
-                    <!-- Target Audience for Academic Records -->
-                    <div id="record-targeting-container" style="display: none; border-left: 3px solid var(--uog-blue); padding-left: 10px; margin-bottom: 12px;">
-                        <p style="font-size:0.8rem; font-weight:600; color:#4b5563; margin-bottom:6px;"><i class="fas fa-bullseye"></i> Target Audience Filters (Visible to matching students, Faculty see all)</p>
-                        <div class="edu-row" style="margin-bottom: 8px; gap: 8px;">
-                            <select id="target-program" class="edu-select" style="margin-bottom: 0; flex: 1; font-size: 0.8rem; padding: 6px 8px;">
-                                <option value="all">All Programs</option>
-                                <option value="BS Statistics">BS Statistics</option>
-                                <option value="BS Data Analytics">BS Data Analytics</option>
-                                <option value="M.Phil Statistics">M.Phil Statistics</option>
-                                <option value="Ph.D Statistics">Ph.D Statistics</option>
-                            </select>
-                            <select id="target-batch" class="edu-select" style="margin-bottom: 0; flex: 1; font-size: 0.8rem; padding: 6px 8px;">
-                                <option value="all">All Batches</option>
-                            </select>
-                            <select id="target-semester" class="edu-select" style="margin-bottom: 0; flex: 1; font-size: 0.8rem; padding: 6px 8px;">
-                                <option value="all">All Semesters</option>
-                                <option value="1">1st Semester</option>
-                                <option value="2">2nd Semester</option>
-                                <option value="3">3rd Semester</option>
-                                <option value="4">4th Semester</option>
-                                <option value="5">5th Semester</option>
-                                <option value="6">6th Semester</option>
-                                <option value="7">7th Semester</option>
-                                <option value="8">8th Semester</option>
-                                <option value="Graduated">Graduated/Alumni</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <input type="text" id="software-title" class="edu-input" placeholder="Software Name (e.g. SPSS v26)" style="display: none; margin-bottom: 10px;">
-                    <input type="url" id="software-link" class="edu-input" placeholder="External Download Link (Optional, e.g. Google Drive)" style="display: none; margin-bottom: 10px;">
-
-                    <textarea id="upload-desc" class="edu-textarea" placeholder="Write description or details here..." required></textarea>
-                    
-                    <div class="image-preview-container" id="preview-area"></div>
-
-                    <!-- Post Poll Composer -->
-                    <button type="button" class="poll-compose-trigger" id="poll-compose-trigger">
-                        <i class="fas fa-poll-h"></i> Create a Poll
+</div>
+</div>
+<!-- Glassmorphic Broadcast Ticker -->
+<div id="broadcast-ticker-container" style="display: none; margin-bottom: 16px;"></div>
+<!-- Dynamic Content Container -->
+<div id="list-container">
+<!-- Content populated via JS -->
+</div>
+<!-- Analytics View Container -->
+<div id="analytics-container" style="display: none; width: 100%; padding: 1rem;">
+<div class="analytics-header" style="margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+<div>
+<h2 style="font-size: 1.5rem; color: var(--uog-blue); margin: 0;"><i class="fas fa-chart-bar"></i> Department Analytics</h2>
+<p style="color: var(--text-secondary); margin: 4px 0 0 0;">Real-time statistical overview of the department.</p>
+</div>
+<div class="analytics-tabs" style="display: flex; gap: 8px; background: rgba(15, 76, 129, 0.05); padding: 4px; border-radius: 8px;">
+<button class="analytics-tab active" id="btn-analytics-overview" onclick="window.switchAnalyticsTab('overview')">Overview</button>
+<button class="analytics-tab" id="btn-analytics-statistics" onclick="window.switchAnalyticsTab('statistics')">BS Statistics</button>
+<button class="analytics-tab" id="btn-analytics-program" onclick="window.switchAnalyticsTab('analytics-program')">BS Data Analytics</button>
+<button class="analytics-tab" id="btn-analytics-faculty" onclick="window.switchAnalyticsTab('faculty')">Faculty Portfolio</button>
+</div>
+</div>
+<!-- 1. Overview Tab -->
+<div class="analytics-tab-content" id="analytics-tab-overview">
+<div class="charts-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem;">
+<!-- Overview charts -->
+</div>
+</div>
+<!-- 2. BS Statistics Tab -->
+<div class="analytics-tab-content" id="analytics-tab-statistics" style="display: none;">
+<div class="analytics-kpi-row" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+<div class="edu-card kpi-card" style="padding: 1rem; text-align: center; border-left: 4px solid var(--uog-blue); background: var(--bg-surface);">
+<div style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary);">Total BS Stats Students</div>
+<div id="kpi-stats-total" style="font-size: 1.8rem; font-weight: 700; color: var(--uog-blue); margin-top: 4px;">0</div>
+</div>
+<div class="edu-card kpi-card" style="padding: 1rem; text-align: center; border-left: 4px solid var(--uog-orange); background: var(--bg-surface);">
+<div style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary);">Active Batches</div>
+<div id="kpi-stats-batches" style="font-size: 1.8rem; font-weight: 700; color: var(--uog-orange); margin-top: 4px;">4 Batches</div>
+</div>
+<div class="edu-card kpi-card" style="padding: 1rem; text-align: center; border-left: 4px solid #10b981; background: var(--bg-surface);">
+<div style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary);">Average Batch Size</div>
+<div id="kpi-stats-avg-size" style="font-size: 1.8rem; font-weight: 700; color: #10b981; margin-top: 4px;">0</div>
+</div>
+</div>
+<div class="charts-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem;">
+<div class="analytics-card" style="background: var(--bg-surface); padding: 16px; border-radius: 12px; border: 1px solid var(--border-color);"><canvas height="260" id="statsBatchChart"></canvas></div>
+<div class="analytics-card" style="background: var(--bg-surface); padding: 16px; border-radius: 12px; border: 1px solid var(--border-color);"><canvas height="260" id="statsSemesterChart"></canvas></div>
+</div>
+</div>
+<!-- 3. BS Data Analytics Tab -->
+<div class="analytics-tab-content" id="analytics-tab-analytics-program" style="display: none;">
+<div class="analytics-kpi-row" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+<div class="edu-card kpi-card" style="padding: 1rem; text-align: center; border-left: 4px solid var(--uog-blue); background: var(--bg-surface);">
+<div style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary);">Total BS Analytics Students</div>
+<div id="kpi-analytics-total" style="font-size: 1.8rem; font-weight: 700; color: var(--uog-blue); margin-top: 4px;">0</div>
+</div>
+<div class="edu-card kpi-card" style="padding: 1rem; text-align: center; border-left: 4px solid var(--uog-orange); background: var(--bg-surface);">
+<div style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary);">Active Batches</div>
+<div id="kpi-analytics-batches" style="font-size: 1.8rem; font-weight: 700; color: var(--uog-orange); margin-top: 4px;">3 Batches</div>
+</div>
+<div class="edu-card kpi-card" style="padding: 1rem; text-align: center; border-left: 4px solid #10b981; background: var(--bg-surface);">
+<div style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary);">Average Batch Size</div>
+<div id="kpi-analytics-avg-size" style="font-size: 1.8rem; font-weight: 700; color: #10b981; margin-top: 4px;">0</div>
+</div>
+</div>
+<div class="charts-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem;">
+<div class="analytics-card" style="background: var(--bg-surface); padding: 16px; border-radius: 12px; border: 1px solid var(--border-color);"><canvas height="260" id="analyticsBatchChart"></canvas></div>
+<div class="analytics-card" style="background: var(--bg-surface); padding: 16px; border-radius: 12px; border: 1px solid var(--border-color);"><canvas height="260" id="analyticsSemesterChart"></canvas></div>
+</div>
+</div>
+<!-- 4. Faculty Tab -->
+<div class="analytics-tab-content" id="analytics-tab-faculty" style="display: none;">
+<div class="analytics-kpi-row" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+<div class="edu-card kpi-card" style="padding: 1rem; text-align: center; border-left: 4px solid var(--uog-blue); background: var(--bg-surface);">
+<div style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary);">Total Faculty Members</div>
+<div id="kpi-faculty-total" style="font-size: 1.8rem; font-weight: 700; color: var(--uog-blue); margin-top: 4px;">0</div>
+</div>
+<div class="edu-card kpi-card" style="padding: 1rem; text-align: center; border-left: 4px solid var(--uog-orange); background: var(--bg-surface);">
+<div style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary);">Total Publications</div>
+<div id="kpi-faculty-pubs" style="font-size: 1.8rem; font-weight: 700; color: var(--uog-orange); margin-top: 4px;">140+</div>
+</div>
+<div class="edu-card kpi-card" style="padding: 1rem; text-align: center; border-left: 4px solid #10b981; background: var(--bg-surface);">
+<div style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary);">Ph.D. Qualified</div>
+<div id="kpi-faculty-phd" style="font-size: 1.8rem; font-weight: 700; color: #10b981; margin-top: 4px;">4 Faculty</div>
+</div>
+</div>
+<div class="charts-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem;">
+<div class="analytics-card" style="background: var(--bg-surface); padding: 16px; border-radius: 12px; border: 1px solid var(--border-color);"><canvas height="260" id="facultyDesignationChart"></canvas></div>
+<div class="analytics-card" style="background: var(--bg-surface); padding: 16px; border-radius: 12px; border: 1px solid var(--border-color);"><canvas height="260" id="facultyPublicationsChart"></canvas></div>
+<div class="analytics-card" style="background: var(--bg-surface); padding: 16px; border-radius: 12px; border: 1px solid var(--border-color);"><canvas height="260" id="facultyGenderChart"></canvas></div>
+<div class="analytics-card" style="background: var(--bg-surface); padding: 16px; border-radius: 12px; border: 1px solid var(--border-color);"><canvas height="260" id="facultyEducationChart"></canvas></div>
+<div class="analytics-card" style="background: var(--bg-surface); padding: 16px; border-radius: 12px; border: 1px solid var(--border-color);"><canvas height="260" id="facultyJobStatusChart"></canvas></div>
+</div>
+</div>
+</div>
+</main>
+<!-- Right Sidebar -->
+<aside class="edu-sidebar-right">
+<div class="notice-board">
+<div class="notice-header">
+<h4><i class="fas fa-bullhorn"></i> Important Notices</h4>
+</div>
+<ul class="notice-list" id="notice-list-container">
+<li style="text-align:center; color:#6b7280; font-size:0.85rem;">No recent notices.</li>
+</ul>
+</div>
+<div class="stats-card mt-4">
+<h4>Department Stats</h4>
+<div class="stat-item">
+<span><i class="fas fa-calculator" style="color: var(--uog-blue); margin-right: 6px;"></i> Statistics Students</span>
+<strong id="stat-student-count">0</strong>
+</div>
+<div class="stat-item">
+<span><i class="fas fa-chart-pie" style="color: #8b5cf6; margin-right: 6px;"></i> Data Analytics Students</span>
+<strong id="analytics-student-count">0</strong>
+</div>
+<div class="stat-item">
+<span><i class="fas fa-chalkboard-teacher" style="color: var(--uog-orange); margin-right: 6px;"></i> Faculty Members</span>
+<strong id="faculty-count">0</strong>
+</div>
+<div class="stat-item">
+<span><i class="fas fa-laptop-code" style="color: #3b82f6; margin-right: 6px;"></i> Software Tools</span>
+<strong id="sw-count">0</strong>
+</div>
+<div class="stat-item">
+<span><i class="fas fa-file-alt" style="color: #10b981; margin-right: 6px;"></i> Shared Records</span>
+<strong id="record-count">0</strong>
+</div>
+</div>
+</aside>
+</div>
+</div>
+<!-- Compose Post/Software Modal -->
+<div aria-hidden="true" class="modal fade" id="compose-modal" tabindex="-1">
+<div class="modal-dialog" style="max-width: 550px;"><div class="modal-content">
+<div class="modal-header">
+<h2 style="font-size: 18px;">Upload Record / Software</h2>
+<button aria-label="Close" class="btn-close" data-bs-dismiss="modal" id="close-compose" type="button"></button>
+</div>
+<form class="modal-body" id="upload-form">
+<div class="post-user-info">
+<div class="avatar-small" id="compose-avatar"></div>
+<div>
+<strong><span id="compose-name">Name</span></strong>
+<div class="post-privacy"><i class="fas fa-shield-alt"></i> Visible to Department Only</div>
+</div>
+</div>
+<div class="edu-row" style="margin-bottom: 10px; gap: 10px;">
+<select class="form-select" id="post-category" required="" style="margin-bottom: 0; flex: 1;">
+<option value="Feed">General Update / Notice</option>
+<option value="Records">Academic Record / Media Files</option>
+<option value="Software">Software Repository Tool</option>
+</select>
+<select class="form-select" id="post-visibility" style="margin-bottom: 0; flex: 1;">
+<option value="everyone">Visible to Everyone</option>
+<option value="batch_faculty">My Batch &amp; Faculty Only</option>
+<option value="faculty">Faculty Only</option>
+</select>
+</div>
+<!-- Target Audience for Academic Records -->
+<div id="record-targeting-container" style="display: none; border-left: 3px solid var(--uog-blue); padding-left: 10px; margin-bottom: 12px;">
+<p style="font-size:0.8rem; font-weight:600; color:#4b5563; margin-bottom:6px;"><i class="fas fa-bullseye"></i> Target Audience Filters (Visible to matching students, Faculty see all)</p>
+<div class="edu-row" style="margin-bottom: 8px; gap: 8px;">
+<select class="form-select" id="target-program" style="margin-bottom: 0; flex: 1; font-size: 0.8rem; padding: 6px 8px;">
+<option value="all">All Programs</option>
+<option value="BS Statistics">BS Statistics</option>
+<option value="BS Data Analytics">BS Data Analytics</option>
+<option value="M.Phil Statistics">M.Phil Statistics</option>
+<option value="Ph.D Statistics">Ph.D Statistics</option>
+</select>
+<select class="form-select" id="target-batch" style="margin-bottom: 0; flex: 1; font-size: 0.8rem; padding: 6px 8px;">
+<option value="all">All Batches</option>
+</select>
+<select class="form-select" id="target-semester" style="margin-bottom: 0; flex: 1; font-size: 0.8rem; padding: 6px 8px;">
+<option value="all">All Semesters</option>
+<option value="1">1st Semester</option>
+<option value="2">2nd Semester</option>
+<option value="3">3rd Semester</option>
+<option value="4">4th Semester</option>
+<option value="5">5th Semester</option>
+<option value="6">6th Semester</option>
+<option value="7">7th Semester</option>
+<option value="8">8th Semester</option>
+<option value="Graduated">Graduated/Alumni</option>
+</select>
+</div>
+</div>
+<input class="form-control" id="software-title" placeholder="Software Name (e.g. SPSS v26)" style="display: none; margin-bottom: 10px;" type="text"/>
+<input class="form-control" id="software-link" placeholder="External Download Link (Optional, e.g. Google Drive)" style="display: none; margin-bottom: 10px;" type="url"/>
+<textarea class="form-control" id="upload-desc" placeholder="Write description or details here..." required=""></textarea>
+<div class="image-preview-container" id="preview-area"></div>
+<!-- Post Poll Composer -->
+<button class="poll-compose-trigger" id="poll-compose-trigger" type="button">
+<i class="fas fa-poll-h"></i> Create a Poll
                     </button>
-                    <div class="poll-builder-ui" id="poll-builder-ui" style="display: none;">
-                        <input type="text" id="poll-question" class="edu-input" placeholder="Poll Question (e.g. Makeup class timing?)" style="margin-bottom: 8px;">
-                        <div id="poll-options-container">
-                            <div class="poll-builder-option-row">
-                                <input type="text" class="edu-input poll-option-input" placeholder="Option 1">
-                            </div>
-                            <div class="poll-builder-option-row">
-                                <input type="text" class="edu-input poll-option-input" placeholder="Option 2">
-                            </div>
-                        </div>
-                        <div style="display: flex; justify-content: space-between; margin-top: 8px;">
-                            <button type="button" class="edu-btn-post" id="add-poll-option" style="padding: 6px 12px; font-size: 0.75rem; width: auto; background: var(--uog-blue); margin: 0;">+ Add Option</button>
-                            <button type="button" class="edu-btn-post" id="remove-poll" style="padding: 6px 12px; font-size: 0.75rem; width: auto; background: #ef4444; margin: 0;">Remove Poll</button>
-                        </div>
-                    </div>
-                    
-                    <div class="add-to-post">
-                        <span>Attach Document/Setup File</span>
-                        <div class="add-actions">
-                            <label for="file-upload" class="upload-btn"><i class="fas fa-cloud-upload-alt"></i> Select Files</label>
-                            <input type="file" id="file-upload" accept="image/*,video/*,.pdf,.doc,.docx,.zip,.rar,.exe" multiple style="display:none;">
-                        </div>
-                    </div>
-                    
-                    <button type="submit" class="edu-btn-post">Publish Update</button>
-                </form>
-            </div>
-        </div>
-
-        <!-- Read Receipts View Modal -->
-        <div class="edu-modal-overlay" id="views-receipts-modal">
-            <div class="edu-modal-content" style="max-width: 450px;">
-                <div class="edu-modal-header">
-                    <h2 style="font-size: 18px;"><i class="fas fa-eye"></i> Read Receipts</h2>
-                    <i class="fas fa-times close-modal" id="close-views-receipts"></i>
-                </div>
-                <div class="edu-modal-body" style="padding-top: 10px;">
-                    <p style="font-size: 0.85rem; color: #6b7280; margin-bottom: 12px;">The following department members have viewed this shared item:</p>
-                    <div id="views-receipts-list" style="max-height: 300px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;">
-                        <!-- Dynamically filled with view receipts -->
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Edit Post Modal -->
-        <div class="edu-modal-overlay" id="edit-post-modal">
-            <div class="edu-modal-content" style="max-width: 500px;">
-                <div class="edu-modal-header">
-                    <h2 style="font-size: 18px;"><i class="fas fa-edit"></i> Edit Post</h2>
-                    <i class="fas fa-times close-modal" id="close-edit-post"></i>
-                </div>
-                <div class="edu-modal-body">
-                    <input type="hidden" id="edit-post-id">
-                    <textarea id="edit-post-text" class="edu-textarea" style="height: 140px;" placeholder="Edit your post text..."></textarea>
-                    <button id="save-edit-post" class="edu-btn-post">Save Changes</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Edit Profile Modal -->
-        <div class="edu-modal-overlay" id="edit-profile-modal">
-            <div class="edu-modal-content" style="max-width: 450px;">
-                <div class="edu-modal-header">
-                    <div>
-                        <h2>Edit My Profile</h2>
-                        <p>Update your public information.</p>
-                    </div>
-                    <i class="fas fa-times close-modal" id="close-edit-profile"></i>
-                </div>
-                <form id="edit-profile-form" class="edu-modal-body">
-                    <label style="font-size:0.85rem; font-weight:600; color:#4b5563; margin-bottom:5px; display:block;">Full Name</label>
-                    <input type="text" id="edit-name" class="edu-input" placeholder="Full Name" required style="margin-bottom:12px;">
-                    <label style="font-size:0.85rem; font-weight:600; color:#4b5563; margin-bottom:5px; display:block;">Phone Number (Private)</label>
-                    <input type="text" id="edit-phone" class="edu-input" placeholder="Phone Number" style="margin-bottom:12px;">
-                    <label style="font-size:0.85rem; font-weight:600; color:#4b5563; margin-bottom:5px; display:block;">Academic Tagline / Bio</label>
-                    <input type="text" id="edit-tagline" class="edu-input" placeholder="e.g. 🚀 Learning Statistics" style="margin-bottom:12px;">
-                    
-                    <!-- Student Specific Profile Fields -->
-                    <div id="edit-student-fields" style="display: none; border-left: 3px solid var(--uog-orange); padding-left: 10px; margin-bottom: 12px;">
-                        <label style="font-size:0.85rem; font-weight:600; color:#4b5563; margin-bottom:5px; display:block;">Academic Program</label>
-                        <select id="edit-program" class="edu-select" style="margin-bottom: 12px;">
-                            <option value="" disabled>Select Program...</option>
-                            <option value="BS Statistics">BS Statistics</option>
-                            <option value="BS Data Analytics">BS Data Analytics</option>
-                            <option value="M.Phil Statistics">M.Phil Statistics</option>
-                            <option value="Ph.D Statistics">Ph.D Statistics</option>
-                        </select>
-                        <label style="font-size:0.85rem; font-weight:600; color:#4b5563; margin-bottom:5px; display:block;">Academic Batch</label>
-                        <div style="display: flex; gap: 8px; align-items: center;">
-                            <select id="edit-batch" class="edu-select" style="flex: 1; margin-bottom: 0;">
-                                <option value="" disabled>Select Batch...</option>
-                            </select>
-                            <button type="button" class="add-batch-inline-btn" title="Add New Batch" onclick="triggerAddBatch()">
-                                <i class="fas fa-plus"></i>
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Faculty Specific Profile Fields -->
-                    <div id="edit-faculty-fields" style="display: none; border-left: 3px solid var(--uog-blue); padding-left: 10px; margin-bottom: 12px;">
-                        <label style="font-size:0.85rem; font-weight:600; color:#4b5563; margin-bottom:5px; display:block;">Faculty Designation</label>
-                        <select id="edit-designation" class="edu-select" style="margin-bottom: 12px;">
-                            <option value="Professor">Professor</option>
-                            <option value="Associate Professor">Associate Professor</option>
-                            <option value="Assistant Professor">Assistant Professor</option>
-                            <option value="Lecturer">Lecturer</option>
-                        </select>
-                        <label style="font-size:0.85rem; font-weight:600; color:#4b5563; margin-bottom:5px; display:block;">Faculty Education Level</label>
-                        <select id="edit-faculty-education" class="edu-select" style="margin-bottom: 12px;">
-                            <option value="BS / Master">BS / Master</option>
-                            <option value="M.Phil">M.Phil</option>
-                            <option value="Ph.D">Ph.D</option>
-                            <option value="Post-Doc">Post-Doc</option>
-                        </select>
-
-                        <label style="font-size:0.85rem; font-weight:600; color:#4b5563; margin-bottom:5px; display:block;">Faculty Job Status</label>
-                        <select id="edit-faculty-status" class="edu-select" style="margin-bottom: 12px;">
-                            <option value="Active">Active</option>
-                            <option value="On Leave">On Leave</option>
-                            <option value="Visiting">Visiting</option>
-                            <option value="Retired">Retired</option>
-                        </select>
-
-                        <label style="font-size:0.85rem; font-weight:600; color:#4b5563; margin-bottom:5px; display:block;">Research Publications Count (Optional)</label>
-                        <input type="number" id="edit-publications" class="edu-input" placeholder="Publications Count (e.g. 15)" min="0" style="margin-bottom: 12px;">
-                    </div>
-
-                    <label style="font-size:0.85rem; font-weight:600; color:#4b5563; margin-bottom:5px; display:block;">New Password (leave blank to keep current)</label>
-                    <input type="password" id="edit-password" class="edu-input" placeholder="New Password (optional)" style="margin-bottom:20px;">
-                    <button type="submit" class="edu-btn-post">Save Profile</button>
-                </form>
-            </div>
-        </div>
-        
-        <!-- Add Batch Modal -->
-        <div class="edu-modal-overlay" id="batch-modal">
-            <div class="edu-modal-content" style="max-width: 380px;">
-                <div class="edu-modal-header">
-                    <h2>Add Academic Batch</h2>
-                    <i class="fas fa-times close-modal" id="close-batch-modal" onclick="closeBatchModal()"></i>
-                </div>
-                <form id="batch-form" class="edu-modal-body" onsubmit="submitNewBatch(event)">
-                    <p style="font-size:0.8rem; color:#6b7280; margin-bottom:12px;">Enter a new batch/session (e.g. 2024-2028):</p>
-                    <input type="text" id="new-batch-name" class="edu-input" placeholder="e.g. 2024-2028" required pattern="\d{4}-\d{4}">
-                    <button type="submit" class="edu-btn-post" style="margin-top:12px;">Add Session</button>
-                </form>
-            </div>
-        </div>
-
-        <!-- Add Story Modal -->
-        <div class="edu-modal-overlay" id="add-story-modal">
-            <div class="edu-modal-content" style="max-width: 400px;">
-                <div class="edu-modal-header">
-                    <h3>Add Academic Status</h3>
-                    <i class="fas fa-times close-modal" onclick="document.getElementById('add-story-modal').classList.remove('active')"></i>
-                </div>
-                <div class="edu-modal-body">
-                    <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 12px;">What is your academic status or story for today? (Max 60 chars)</p>
-                    <input type="text" id="story-input-text" class="edu-input" maxlength="60" placeholder="e.g. Studying for Midterms..." style="margin-bottom: 16px;">
-                    <button type="button" class="edu-btn-post" onclick="submitUserStory()">Share Status</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Academic Status Story Viewer Modal -->
-        <div id="story-viewer-modal" class="story-viewer-modal" onclick="window.closeStoryViewer()">
-            <div class="story-viewer-card" onclick="event.stopPropagation()">
-                <button class="story-close-btn" onclick="window.closeStoryViewer()">&times;</button>
-                <div class="story-progress-bar">
-                    <div class="story-progress-fill" id="story-progress-fill"></div>
-                </div>
-                <div class="story-user-info">
-                    <div class="avatar-small" id="story-avatar"></div>
-                    <div class="story-user-desc">
-                        <h4 id="story-username">Name</h4>
-                        <p id="story-time">Time</p>
-                    </div>
-                </div>
-                <div class="story-text-content" id="story-text-content">
+<div class="poll-builder-ui" id="poll-builder-ui" style="display: none;">
+<input class="form-control" id="poll-question" placeholder="Poll Question (e.g. Makeup class timing?)" style="margin-bottom: 8px;" type="text"/>
+<div id="poll-options-container">
+<div class="poll-builder-option-row">
+<input class="poll-option-input form-control" placeholder="Option 1" type="text"/>
+</div>
+<div class="poll-builder-option-row">
+<input class="poll-option-input form-control" placeholder="Option 2" type="text"/>
+</div>
+</div>
+<div style="display: flex; justify-content: space-between; margin-top: 8px;">
+<button class="btn btn-primary" id="add-poll-option" style="padding: 6px 12px; font-size: 0.75rem; width: auto; background: var(--uog-blue); margin: 0;" type="button">+ Add Option</button>
+<button class="btn btn-primary" id="remove-poll" style="padding: 6px 12px; font-size: 0.75rem; width: auto; background: #ef4444; margin: 0;" type="button">Remove Poll</button>
+</div>
+</div>
+<div class="add-to-post">
+<span>Attach Document/Setup File</span>
+<div class="add-actions">
+<label class="upload-btn" for="file-upload"><i class="fas fa-cloud-upload-alt"></i> Select Files</label>
+<input accept="image/*,video/*,.pdf,.doc,.docx,.zip,.rar,.exe" class="" id="file-upload" multiple="" style="display:none;" type="file"/>
+</div>
+</div>
+<button class="btn btn-primary" type="submit">Publish Update</button>
+</form>
+</div></div>
+</div>
+<!-- Read Receipts View Modal -->
+<div aria-hidden="true" class="modal fade" id="views-receipts-modal" tabindex="-1">
+<div class="modal-dialog" style="max-width: 450px;"><div class="modal-content">
+<div class="modal-header">
+<h2 style="font-size: 18px;"><i class="fas fa-eye"></i> Read Receipts</h2>
+<button aria-label="Close" class="btn-close" data-bs-dismiss="modal" id="close-views-receipts" type="button"></button>
+</div>
+<div class="modal-body" style="padding-top: 10px;">
+<p style="font-size: 0.85rem; color: #6b7280; margin-bottom: 12px;">The following department members have viewed this shared item:</p>
+<div id="views-receipts-list" style="max-height: 300px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;">
+<!-- Dynamically filled with view receipts -->
+</div>
+</div>
+</div></div>
+</div>
+<!-- Edit Post Modal -->
+<div aria-hidden="true" class="modal fade" id="edit-post-modal" tabindex="-1">
+<div class="modal-dialog" style="max-width: 500px;"><div class="modal-content">
+<div class="modal-header">
+<h2 style="font-size: 18px;"><i class="fas fa-edit"></i> Edit Post</h2>
+<button aria-label="Close" class="btn-close" data-bs-dismiss="modal" id="close-edit-post" type="button"></button>
+</div>
+<div class="modal-body">
+<input class="" id="edit-post-id" type="hidden"/>
+<textarea class="form-control" id="edit-post-text" placeholder="Edit your post text..." style="height: 140px;"></textarea>
+<button class="btn btn-primary" id="save-edit-post">Save Changes</button>
+</div>
+</div></div>
+</div>
+<!-- Edit Profile Modal -->
+<div aria-hidden="true" class="modal fade" id="edit-profile-modal" tabindex="-1">
+<div class="modal-dialog" style="max-width: 450px;"><div class="modal-content">
+<div class="modal-header">
+<div>
+<h2>Edit My Profile</h2>
+<p>Update your public information.</p>
+</div>
+<button aria-label="Close" class="btn-close" data-bs-dismiss="modal" id="close-edit-profile" type="button"></button>
+</div>
+<form class="modal-body" id="edit-profile-form">
+<label style="font-size:0.85rem; font-weight:600; color:#4b5563; margin-bottom:5px; display:block;">Full Name</label>
+<input class="form-control" id="edit-name" placeholder="Full Name" required="" style="margin-bottom:12px;" type="text"/>
+<label style="font-size:0.85rem; font-weight:600; color:#4b5563; margin-bottom:5px; display:block;">Phone Number (Private)</label>
+<input class="form-control" id="edit-phone" placeholder="Phone Number" style="margin-bottom:12px;" type="text"/>
+<label style="font-size:0.85rem; font-weight:600; color:#4b5563; margin-bottom:5px; display:block;">Academic Tagline / Bio</label>
+<input class="form-control" id="edit-tagline" placeholder="e.g. 🚀 Learning Statistics" style="margin-bottom:12px;" type="text"/>
+<!-- Student Specific Profile Fields -->
+<div id="edit-student-fields" style="display: none; border-left: 3px solid var(--uog-orange); padding-left: 10px; margin-bottom: 12px;">
+<label style="font-size:0.85rem; font-weight:600; color:#4b5563; margin-bottom:5px; display:block;">Academic Program</label>
+<select class="form-select" id="edit-program" style="margin-bottom: 12px;">
+<option disabled="" value="">Select Program...</option>
+<option value="BS Statistics">BS Statistics</option>
+<option value="BS Data Analytics">BS Data Analytics</option>
+<option value="M.Phil Statistics">M.Phil Statistics</option>
+<option value="Ph.D Statistics">Ph.D Statistics</option>
+</select>
+<label style="font-size:0.85rem; font-weight:600; color:#4b5563; margin-bottom:5px; display:block;">Academic Batch</label>
+<div style="display: flex; gap: 8px; align-items: center;">
+<select class="form-select" id="edit-batch" style="flex: 1; margin-bottom: 0;">
+<option disabled="" value="">Select Batch...</option>
+</select>
+<button class="add-batch-inline-btn" onclick="triggerAddBatch()" title="Add New Batch" type="button">
+<i class="fas fa-plus"></i>
+</button>
+</div>
+</div>
+<!-- Faculty Specific Profile Fields -->
+<div id="edit-faculty-fields" style="display: none; border-left: 3px solid var(--uog-blue); padding-left: 10px; margin-bottom: 12px;">
+<label style="font-size:0.85rem; font-weight:600; color:#4b5563; margin-bottom:5px; display:block;">Faculty Designation</label>
+<select class="form-select" id="edit-designation" style="margin-bottom: 12px;">
+<option value="Professor">Professor</option>
+<option value="Associate Professor">Associate Professor</option>
+<option value="Assistant Professor">Assistant Professor</option>
+<option value="Lecturer">Lecturer</option>
+</select>
+<label style="font-size:0.85rem; font-weight:600; color:#4b5563; margin-bottom:5px; display:block;">Faculty Education Level</label>
+<select class="form-select" id="edit-faculty-education" style="margin-bottom: 12px;">
+<option value="BS / Master">BS / Master</option>
+<option value="M.Phil">M.Phil</option>
+<option value="Ph.D">Ph.D</option>
+<option value="Post-Doc">Post-Doc</option>
+</select>
+<label style="font-size:0.85rem; font-weight:600; color:#4b5563; margin-bottom:5px; display:block;">Faculty Job Status</label>
+<select class="form-select" id="edit-faculty-status" style="margin-bottom: 12px;">
+<option value="Active">Active</option>
+<option value="On Leave">On Leave</option>
+<option value="Visiting">Visiting</option>
+<option value="Retired">Retired</option>
+</select>
+<label style="font-size:0.85rem; font-weight:600; color:#4b5563; margin-bottom:5px; display:block;">Research Publications Count (Optional)</label>
+<input class="form-control" id="edit-publications" min="0" placeholder="Publications Count (e.g. 15)" style="margin-bottom: 12px;" type="number"/>
+</div>
+<label style="font-size:0.85rem; font-weight:600; color:#4b5563; margin-bottom:5px; display:block;">New Password (leave blank to keep current)</label>
+<input class="form-control" id="edit-password" placeholder="New Password (optional)" style="margin-bottom:20px;" type="password"/>
+<button class="btn btn-primary" type="submit">Save Profile</button>
+</form>
+</div></div>
+</div>
+<!-- Add Batch Modal -->
+<div aria-hidden="true" class="modal fade" id="batch-modal" tabindex="-1">
+<div class="modal-dialog" style="max-width: 380px;"><div class="modal-content">
+<div class="modal-header">
+<h2>Add Academic Batch</h2>
+<button aria-label="Close" class="btn-close" data-bs-dismiss="modal" id="close-batch-modal" type="button"></button>
+</div>
+<form class="modal-body" id="batch-form" onsubmit="submitNewBatch(event)">
+<p style="font-size:0.8rem; color:#6b7280; margin-bottom:12px;">Enter a new batch/session (e.g. 2024-2028):</p>
+<input class="form-control" id="new-batch-name" pattern="\d{4}-\d{4}" placeholder="e.g. 2024-2028" required="" type="text"/>
+<button class="btn btn-primary" style="margin-top:12px;" type="submit">Add Session</button>
+</form>
+</div></div>
+</div>
+<!-- Add Story Modal -->
+<div aria-hidden="true" class="modal fade" id="add-story-modal" tabindex="-1">
+<div class="modal-dialog" style="max-width: 400px;"><div class="modal-content">
+<div class="modal-header">
+<h3>Add Academic Status</h3>
+<button aria-label="Close" class="btn-close" data-bs-dismiss="modal" type="button"></button>
+</div>
+<div class="modal-body">
+<p style="font-size: 0.85rem; color: #64748b; margin-bottom: 12px;">What is your academic status or story for today? (Max 60 chars)</p>
+<input class="form-control" id="story-input-text" maxlength="60" placeholder="e.g. Studying for Midterms..." style="margin-bottom: 16px;" type="text"/>
+<button class="btn btn-primary" onclick="submitUserStory()" type="button">Share Status</button>
+</div>
+</div></div>
+</div>
+<!-- Academic Status Story Viewer Modal -->
+<div aria-hidden="true" class="modal fade" id="story-viewer-modal" onclick="window.closeStoryViewer()" tabindex="-1">
+<div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="story-viewer-card" onclick="event.stopPropagation()">
+<button class="btn-close position-absolute top-0 end-0 m-3" data-bs-dismiss="modal" onclick="window.closeStoryViewer()"></button>
+<div class="story-progress-bar">
+<div class="story-progress-fill" id="story-progress-fill"></div>
+</div>
+<div class="story-user-info">
+<div class="avatar-small" id="story-avatar"></div>
+<div class="story-user-desc">
+<h4 id="story-username">Name</h4>
+<p id="story-time">Time</p>
+</div>
+</div>
+<div class="story-text-content" id="story-text-content">
                     Status text goes here...
                 </div>
-                <button id="story-delete-btn" class="story-delete-btn" style="display: none; width: 100%; margin-top: 15px; padding: 10px; background: #ef4444; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 0.85rem; transition: background 0.2s; align-items: center; justify-content: center; gap: 8px;"><i class="fas fa-trash-alt"></i> Delete My Status</button>
-            </div>
-        </div>
-
-        <!-- Faculty Individual Analytics Modal -->
-        <div id="faculty-analytics-modal" class="edu-modal-overlay" style="display: none; z-index: 4000;" onclick="window.closeFacultyAnalytics()">
-            <div class="edu-modal-content modal-card" style="max-width: 900px; padding: 24px; background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(16px); color: white; border: 1px solid rgba(255,255,255,0.1); width: 95%; max-height: 90vh; overflow-y: auto;" onclick="event.stopPropagation()">
-                <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:16px; margin-bottom: 20px;">
-                    <div style="display:flex; align-items:center; gap: 16px;">
-                        <div id="fa-modal-avatar" class="avatar-large" style="width: 50px; height: 50px; font-size: 1.2rem; background: var(--uog-blue); display:flex; align-items:center; justify-content:center; color:white; border-radius:50%; font-weight:bold;"></div>
-                        <div>
-                            <h2 id="fa-modal-name" style="margin:0; font-size: 1.4rem;">Name</h2>
-                            <p id="fa-modal-role" style="margin:4px 0 0; color:#cbd5e1; font-size: 0.9rem;">Role</p>
-                        </div>
-                    </div>
-                    <button class="modal-close-btn" onclick="window.closeFacultyAnalytics()" style="background:transparent; border:none; color:white; font-size:1.5rem; cursor:pointer;">&times;</button>
-                </div>
-                
-                <div class="charts-grid" style="grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; display: grid;">
-                    <div class="analytics-card" style="background: rgba(255,255,255,0.05); padding: 16px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
-                        <h4 style="text-align:center; margin-bottom:12px; color:#94a3b8; font-size:0.85rem; letter-spacing:1px; text-transform:uppercase;">Research Output</h4>
-                        <canvas id="faChartResearch" height="240"></canvas>
-                    </div>
-                    <div class="analytics-card" style="background: rgba(255,255,255,0.05); padding: 16px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
-                        <h4 style="text-align:center; margin-bottom:12px; color:#94a3b8; font-size:0.85rem; letter-spacing:1px; text-transform:uppercase;">Academic Standing</h4>
-                        <canvas id="faChartStanding" height="240"></canvas>
-                    </div>
-                    <div class="analytics-card" style="background: rgba(255,255,255,0.05); padding: 16px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
-                        <h4 style="text-align:center; margin-bottom:12px; color:#94a3b8; font-size:0.85rem; letter-spacing:1px; text-transform:uppercase;">Department Share</h4>
-                        <canvas id="faChartShare" height="240"></canvas>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Fullscreen Zoom Lightbox Modal -->
-        <div id="lightbox-modal" class="lightbox-modal" style="display:none;" onclick="window.closeLightbox()">
-            <span class="lightbox-close" onclick="window.closeLightbox()">&times;</span>
-            <div class="lightbox-container">
-                <img class="lightbox-content" id="lightbox-img" onclick="event.stopPropagation()">
-                <div id="lightbox-caption"></div>
-            </div>
-        </div>
-
-    </div>
-    <script src="app.js"></script>
+<button class="story-delete-btn" id="story-delete-btn" style="display: none; width: 100%; margin-top: 15px; padding: 10px; background: #ef4444; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 0.85rem; transition: background 0.2s; align-items: center; justify-content: center; gap: 8px;"><i class="fas fa-trash-alt"></i> Delete My Status</button>
+</div></div></div>
+</div>
+<!-- Faculty Individual Analytics Modal -->
+<div aria-hidden="true" class="modal fade" id="faculty-analytics-modal" onclick="window.closeFacultyAnalytics()" style="display: none; z-index: 4000;" tabindex="-1">
+<div class="modal-dialog" style="max-width: 900px; padding: 24px; background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(16px); color: white; border: 1px solid rgba(255,255,255,0.1); width: 95%; max-height: 90vh; overflow-y: auto;"><div class="modal-card modal-content" onclick="event.stopPropagation()">
+<div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:16px; margin-bottom: 20px;">
+<div style="display:flex; align-items:center; gap: 16px;">
+<div class="avatar-large" id="fa-modal-avatar" style="width: 50px; height: 50px; font-size: 1.2rem; background: var(--uog-blue); display:flex; align-items:center; justify-content:center; color:white; border-radius:50%; font-weight:bold;"></div>
+<div>
+<h2 id="fa-modal-name" style="margin:0; font-size: 1.4rem;">Name</h2>
+<p id="fa-modal-role" style="margin:4px 0 0; color:#cbd5e1; font-size: 0.9rem;">Role</p>
+</div>
+</div>
+<button class="modal-close-btn" onclick="window.closeFacultyAnalytics()" style="background:transparent; border:none; color:white; font-size:1.5rem; cursor:pointer;">×</button>
+</div>
+<div class="charts-grid" style="grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; display: grid;">
+<div class="analytics-card" style="background: rgba(255,255,255,0.05); padding: 16px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+<h4 style="text-align:center; margin-bottom:12px; color:#94a3b8; font-size:0.85rem; letter-spacing:1px; text-transform:uppercase;">Research Output</h4>
+<canvas height="240" id="faChartResearch"></canvas>
+</div>
+<div class="analytics-card" style="background: rgba(255,255,255,0.05); padding: 16px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+<h4 style="text-align:center; margin-bottom:12px; color:#94a3b8; font-size:0.85rem; letter-spacing:1px; text-transform:uppercase;">Academic Standing</h4>
+<canvas height="240" id="faChartStanding"></canvas>
+</div>
+<div class="analytics-card" style="background: rgba(255,255,255,0.05); padding: 16px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+<h4 style="text-align:center; margin-bottom:12px; color:#94a3b8; font-size:0.85rem; letter-spacing:1px; text-transform:uppercase;">Department Share</h4>
+<canvas height="240" id="faChartShare"></canvas>
+</div>
+</div>
+</div></div>
+</div>
+<!-- Fullscreen Zoom Lightbox Modal -->
+<div class="lightbox-modal" id="lightbox-modal" onclick="window.closeLightbox()" style="display:none;">
+<span class="lightbox-close" onclick="window.closeLightbox()">×</span>
+<div class="lightbox-container">
+<img class="lightbox-content" id="lightbox-img" onclick="event.stopPropagation()"/>
+<div id="lightbox-caption"></div>
+</div>
+</div>
+</div>
+<script src="app.js"></script>
 </body>
 </html>

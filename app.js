@@ -527,8 +527,8 @@ document.addEventListener('click', (e) => {
 });
 
 // ─── REGISTRATION ─────────────────────────────────────────────────────────────
-document.getElementById('open-signup').addEventListener('click', () => document.getElementById('signup-modal').classList.add('active'));
-document.getElementById('close-signup').addEventListener('click', () => document.getElementById('signup-modal').classList.remove('active'));
+document.getElementById('open-signup').addEventListener('click', () => new bootstrap.Modal(document.getElementById('signup-modal')).show(););
+document.getElementById('close-signup').addEventListener('click', () => bootstrap.Modal.getInstance(document.getElementById('signup-modal'))?.hide(););
 
 const regRole = document.getElementById('reg-role');
 const regUsername = document.getElementById('reg-username');
@@ -601,7 +601,7 @@ document.getElementById('signup-form').addEventListener('submit', async (e) => {
             jobStatus
         });
         showToast('Registration successful! Please login.');
-        document.getElementById('signup-modal').classList.remove('active');
+        bootstrap.Modal.getInstance(document.getElementById('signup-modal'))?.hide();
         document.getElementById('signup-form').reset();
         if (regStudentFields) regStudentFields.style.display = 'none';
     } catch (err) { showToast(err.message, true); }
@@ -728,10 +728,10 @@ document.getElementById('open-edit-profile').addEventListener('click', () => {
         document.getElementById('edit-faculty-status').value = currentUser.jobStatus || 'Active';
     }
     
-    document.getElementById('edit-profile-modal').classList.add('active');
+    new bootstrap.Modal(document.getElementById('edit-profile-modal')).show();
 });
 document.getElementById('close-edit-profile').addEventListener('click', () =>
-    document.getElementById('edit-profile-modal').classList.remove('active'));
+    bootstrap.Modal.getInstance(document.getElementById('edit-profile-modal'))?.hide(););
 
 document.getElementById('edit-profile-form').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -785,7 +785,7 @@ document.getElementById('edit-profile-form').addEventListener('submit', async (e
             document.getElementById('side-role').textContent = `${desig} • ${pubCount} Papers`;
         }
         
-        document.getElementById('edit-profile-modal').classList.remove('active');
+        bootstrap.Modal.getInstance(document.getElementById('edit-profile-modal'))?.hide();
         showToast('Profile updated!');
         
         // Refresh directory if currently active
@@ -1253,17 +1253,17 @@ async function openEditPost(postId) {
     if (!post) return;
     document.getElementById('edit-post-id').value = postId;
     document.getElementById('edit-post-text').value = post.text;
-    document.getElementById('edit-post-modal').classList.add('active');
+    new bootstrap.Modal(document.getElementById('edit-post-modal')).show();
 }
 document.getElementById('close-edit-post').addEventListener('click', () =>
-    document.getElementById('edit-post-modal').classList.remove('active'));
+    bootstrap.Modal.getInstance(document.getElementById('edit-post-modal'))?.hide(););
 document.getElementById('save-edit-post').addEventListener('click', async () => {
     const id = document.getElementById('edit-post-id').value;
     const newText = document.getElementById('edit-post-text').value.trim();
     if (!newText) { showToast('Text cannot be empty.', true); return; }
     try {
         await dbPut(`posts/${id}`, { text: newText, author: currentUser.username });
-        document.getElementById('edit-post-modal').classList.remove('active');
+        bootstrap.Modal.getInstance(document.getElementById('edit-post-modal'))?.hide();
         showToast('Post updated!');
         switchView(currentView); updateStats();
     } catch (err) { showToast(err.message, true); }
@@ -1488,10 +1488,10 @@ const fileUpload         = document.getElementById('file-upload');
 const previewArea        = document.getElementById('preview-area');
 const postAudience       = document.getElementById('post-visibility');
 
-['open-compose','open-compose-text'].forEach(id => document.getElementById(id).addEventListener('click', () => { resetCompose('Feed'); composeModal.classList.add('active'); }));
-document.getElementById('open-compose-doc').addEventListener('click', () => { resetCompose('Records'); composeModal.classList.add('active'); });
-document.getElementById('open-compose-sw').addEventListener('click',  () => { resetCompose('Software'); composeModal.classList.add('active'); });
-document.getElementById('close-compose').addEventListener('click', () => { composeModal.classList.remove('active'); resetCompose('Feed'); });
+['open-compose','open-compose-text'].forEach(id => document.getElementById(id).addEventListener('click', () => { resetCompose('Feed'); new bootstrap.Modal(composeModal).show(); }));
+document.getElementById('open-compose-doc').addEventListener('click', () => { resetCompose('Records'); new bootstrap.Modal(composeModal).show(); });
+document.getElementById('open-compose-sw').addEventListener('click',  () => { resetCompose('Software'); new bootstrap.Modal(composeModal).show(); });
+document.getElementById('close-compose').addEventListener('click', () => { bootstrap.Modal.getInstance(composeModal)?.hide(); resetCompose('Feed'); });
 postCategory.addEventListener('change', toggleSoftwareFields);
 
 // Poll Composer Event Handlers
@@ -1675,7 +1675,7 @@ uploadForm.addEventListener('submit', async (e) => {
             showToast(isAnon ? 'Anonymous update shared securely!' : 'Update shared!');
             document.querySelector(`.sidebar-list li[data-target="${category === 'Feed' ? 'feed' : 'records'}"]`).click();
         }
-        composeModal.classList.remove('active');
+        bootstrap.Modal.getInstance(composeModal)?.hide();
         resetCompose('Feed');
         updateStats();
     } catch (err) { showToast(err.message, true); }
@@ -1711,7 +1711,17 @@ window.addUserStory = async function() {
     const modal = document.getElementById('add-story-modal');
     if (modal) {
         document.getElementById('story-input-text').value = '';
-        modal.classList.add('active');
+        new bootstrap.Modal(modal).show();
+        
+        
+    }
+};
+
+window.closeAddStoryModal = function() {
+    const modal = document.getElementById('add-story-modal');
+    if (modal) {
+        bootstrap.Modal.getInstance(modal)?.hide();
+        
     }
 };
 
@@ -1743,7 +1753,7 @@ window.submitUserStory = async function() {
         logSecurityEvent('Add Story', `Updated personal academic status to: "${cleanTxt}"`, 'success');
         showToast("Academic status updated!");
         
-        document.getElementById('add-story-modal').classList.remove('active');
+        bootstrap.Modal.getInstance(document.getElementById('add-story-modal'))?.hide();
         if (currentView === 'feed') {
             await renderPosts('feed');
         }
@@ -1797,7 +1807,9 @@ window.viewStory = function(storyId) {
     }
     
     // Show modal
-    modal.classList.add('active');
+    new bootstrap.Modal(modal).show();
+    
+    
     
     // Progress bar animation
     if (storyTimeout) clearTimeout(storyTimeout);
@@ -1853,7 +1865,10 @@ window.deleteUserStory = async function(storyId) {
 
 window.closeStoryViewer = function() {
     const modal = document.getElementById('story-viewer-modal');
-    if (modal) modal.classList.remove('active');
+    if (modal) {
+        bootstrap.Modal.getInstance(modal)?.hide();
+        
+    }
     if (storyTimeout) clearTimeout(storyTimeout);
     if (storyProgressInterval) clearInterval(storyProgressInterval);
 };
@@ -2138,7 +2153,7 @@ function populateBatchDropdowns(batches) {
 window.triggerAddBatch = function() {
     const modal = document.getElementById('batch-modal');
     if (modal) {
-        modal.classList.add('active');
+        new bootstrap.Modal(modal).show();
         const input = document.getElementById('new-batch-name');
         if (input) {
             input.value = '';
@@ -2149,7 +2164,7 @@ window.triggerAddBatch = function() {
 
 window.closeBatchModal = function() {
     const modal = document.getElementById('batch-modal');
-    if (modal) modal.classList.remove('active');
+    if (modal) bootstrap.Modal.getInstance(modal)?.hide();
 };
 
 window.submitNewBatch = async function(event) {
@@ -2689,13 +2704,13 @@ window.showViewsReceipts = async function(itemId, type) {
     const list = document.getElementById('views-receipts-list');
     if (!modal || !list) return;
     list.innerHTML = '<div style="padding: 10px; text-align: center; color: #6b7280;"><i class="fas fa-spinner fa-spin"></i> Loading receipts...</div>';
-    modal.classList.add('active');
+    new bootstrap.Modal(modal).show();
     
     const closeBtn = document.getElementById('close-views-receipts');
     if (closeBtn && !closeBtn.dataset.listener) {
         closeBtn.dataset.listener = 'true';
         closeBtn.addEventListener('click', () => {
-            modal.classList.remove('active');
+            bootstrap.Modal.getInstance(modal)?.hide();
         });
     }
 
@@ -2890,18 +2905,18 @@ window.openLightbox = function(imgSrc, captionText) {
     
     img.src = imgSrc;
     caption.textContent = captionText || 'Image Preview';
-    modal.style.display = 'flex';
+    
     setTimeout(() => {
-        modal.classList.add('active');
+        new bootstrap.Modal(modal).show();
     }, 10);
 };
 
 window.closeLightbox = function() {
     const modal = document.getElementById('lightbox-modal');
     if (!modal) return;
-    modal.classList.remove('active');
+    bootstrap.Modal.getInstance(modal)?.hide();
     setTimeout(() => {
-        modal.style.display = 'none';
+        
     }, 300);
 };
 
@@ -3662,10 +3677,10 @@ window.openFacultyAnalytics = async function(username) {
         }
     });
     
-    modal.style.display = 'flex';
+    
 };
 
 window.closeFacultyAnalytics = function() {
     const modal = document.getElementById('faculty-analytics-modal');
-    if (modal) modal.style.display = 'none';
+    if (modal) 
 };
