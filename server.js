@@ -84,6 +84,7 @@ const storySchema = new mongoose.Schema({
     visibility: { type: String, default: 'everyone' },
     timestamp: { type: Number, required: true }
 });
+storySchema.index({ timestamp: -1 });
 const Story = mongoose.model('Story', storySchema);
 
 const batchSchema = new mongoose.Schema({
@@ -142,6 +143,7 @@ const postSchema = new mongoose.Schema({
     },
     views: { type: [String], default: [] }
 });
+postSchema.index({ id: -1 });
 const Post = mongoose.model('Post', postSchema);
 
 const softwareSchema = new mongoose.Schema({
@@ -220,6 +222,7 @@ const messageSchema = new mongoose.Schema({
     read: { type: Boolean, default: false },
     timestamp: { type: Number, required: true, default: Date.now }
 });
+messageSchema.index({ sender: 1, recipient: 1 });
 const Message = mongoose.model('Message', messageSchema);
 
 const transactionSchema = new mongoose.Schema({
@@ -326,6 +329,35 @@ app.get('/api/users', async (req, res) => {
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: 'Error fetching users' });
+    }
+});
+
+// Optimized stats endpoint
+app.get('/api/stats/counts', async (req, res) => {
+    try {
+        const postsCount = await Post.countDocuments({});
+        const swCount = await Software.countDocuments({});
+        const statsStudents = await User.countDocuments({ role: 'Student', $or: [{ program: 'BS Statistics' }, { program: '' }, { program: null }] });
+        const analyticsStudents = await User.countDocuments({ role: 'Student', program: 'BS Data Analytics' });
+        const facultyCount = await User.countDocuments({ role: 'Faculty' });
+        
+        // Get the 3 latest notices
+        const notices = await Post.find({ category: { $regex: 'Update', $options: 'i' } })
+            .sort({ id: -1 })
+            .limit(3)
+            .select('date text');
+            
+        res.json({
+            postsCount,
+            swCount,
+            statsStudents,
+            analyticsStudents,
+            facultyCount,
+            notices
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Error generating stats' });
     }
 });
 

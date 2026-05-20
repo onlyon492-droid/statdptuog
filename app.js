@@ -1058,29 +1058,51 @@ function initApp() {
 
 // ─── STATS ────────────────────────────────────────────────────────────────────
 async function updateStats() {
-    const [posts, sw, users] = await Promise.all([dbGet('posts'), dbGet('software'), dbGet('users')]);
-    document.getElementById('record-count').textContent = posts.length;
-    document.getElementById('sw-count').textContent = sw.length;
-    
-    // Categorize students
-    const statsStudents = users.filter(u => u.role === 'Student' && (u.program === 'BS Statistics' || !u.program)).length;
-    const analyticsStudents = users.filter(u => u.role === 'Student' && u.program === 'BS Data Analytics').length;
-    
-    const statEl = document.getElementById('stat-student-count');
-    const analyticsEl = document.getElementById('analytics-student-count');
-    if (statEl) statEl.textContent = statsStudents;
-    if (analyticsEl) analyticsEl.textContent = analyticsStudents;
+    try {
+        let stats;
+        if (HAS_SERVER) {
+            stats = await dbGet('stats/counts');
+        } else {
+            // Local fallback
+            const [posts, sw, users] = await Promise.all([dbGet('posts'), dbGet('software'), dbGet('users')]);
+            const statsStudents = users.filter(u => u.role === 'Student' && (u.program === 'BS Statistics' || !u.program)).length;
+            const analyticsStudents = users.filter(u => u.role === 'Student' && u.program === 'BS Data Analytics').length;
+            const facultyCount = users.filter(u => u.role === 'Faculty').length;
+            const notices = posts.filter(p => p.category && p.category.includes('Update')).slice(0, 3);
+            
+            stats = {
+                postsCount: posts.length,
+                swCount: sw.length,
+                statsStudents,
+                analyticsStudents,
+                facultyCount,
+                notices
+            };
+        }
+        
+        document.getElementById('record-count').textContent = stats.postsCount;
+        document.getElementById('sw-count').textContent = stats.swCount;
+        
+        const statEl = document.getElementById('stat-student-count');
+        const analyticsEl = document.getElementById('analytics-student-count');
+        if (statEl) statEl.textContent = stats.statsStudents;
+        if (analyticsEl) analyticsEl.textContent = stats.analyticsStudents;
 
-    document.getElementById('faculty-count').textContent = users.filter(u => u.role === 'Faculty').length;
-    const notices = posts.filter(p => p.category && p.category.includes('Update'));
-    const noticeList = document.getElementById('notice-list-container');
-    noticeList.innerHTML = notices.length === 0
-        ? `<li style="text-align:center;color:#6b7280;font-size:0.85rem;padding:15px;">No recent notices.</li>`
-        : notices.slice(0, 3).map(n => `<li><span class="notice-date">${n.date}</span><p>${n.text.substring(0,65)}${n.text.length > 65 ? '...' : ''}</p></li>`).join('');
+        document.getElementById('faculty-count').textContent = stats.facultyCount;
+        
+        const noticeList = document.getElementById('notice-list-container');
+        if (noticeList) {
+            noticeList.innerHTML = stats.notices.length === 0
+                ? `<li style="text-align:center;color:#6b7280;font-size:0.85rem;padding:15px;">No recent notices.</li>`
+                : stats.notices.map(n => `<li><span class="notice-date">${n.date || 'Update'}</span><p>${n.text.substring(0, 65)}${n.text.length > 65 ? '...' : ''}</p></li>`).join('');
+        }
 
-    // Trigger sidebar badge counts update
-    if (window.updateSidebarBadges) {
-        window.updateSidebarBadges();
+        // Trigger sidebar badge counts update
+        if (window.updateSidebarBadges) {
+            window.updateSidebarBadges();
+        }
+    } catch (err) {
+        console.error("Error updating stats", err);
     }
 }
 
@@ -1210,6 +1232,24 @@ function switchView(view) {
         viewDesc.textContent  = 'Configure security features, auto-logout times, data export, and visibility settings.';
         listContainer.className = '';
         renderSettingsView();
+    } else if (view === 'statlab') {
+        composeCard.style.display = 'none';
+        viewTitle.textContent = 'StatLab Playground';
+        viewDesc.textContent  = 'Interactive statistics sandbox — compute descriptive stats and visualize distributions in real time.';
+        listContainer.className = '';
+        renderStatLab();
+    } else if (view === 'gpa-estimator') {
+        composeCard.style.display = 'none';
+        viewTitle.textContent = 'GPACast — Grade Forecast Dashboard';
+        viewDesc.textContent  = 'Add your courses, pick expected grades, and watch your projected GPA update live.';
+        listContainer.className = '';
+        renderGpaEstimator();
+    } else if (view === 'hall-of-fame') {
+        composeCard.style.display = 'none';
+        viewTitle.textContent = 'StatHall — Hall of Fame';
+        viewDesc.textContent  = 'Celebrating outstanding research output and academic stars of the department.';
+        listContainer.className = '';
+        renderHallOfFame();
     }
 }
 
@@ -3315,7 +3355,12 @@ window.closeLightbox = function() {
 // ─── THEME SWITCHER LOGIC ───────────────────────────────────────────────────
 function initTheme() {
     const savedTheme = localStorage.getItem('uog_theme') || 'light';
-    if (savedTheme === 'dark') {
+    const customThemes = ['midnight', 'emerald', 'sapphire', 'uog-royal', 'aurora'];
+    if (customThemes.includes(savedTheme)) {
+        // Apply custom colorway theme
+        document.documentElement.setAttribute('data-theme', savedTheme);
+        updateThemeIcon('light'); // keep icon neutral
+    } else if (savedTheme === 'dark') {
         document.documentElement.setAttribute('data-theme', 'dark');
         updateThemeIcon('dark');
     } else {
@@ -5373,4 +5418,622 @@ window.updateAutoLogoutSetting = async function(minutes) {
         showToast('Error updating preference', true);
     }
 };
+
+// ─── STATLAB PLAYGROUND ────────────────────────────────────────────────────────
+function renderStatLab() {
+    const datasets = {
+        'Student Heights': [160,163,158,172,168,155,175,169,162,171,165,159,178,163,170,167,160,164,173,166],
+        'Exam Scores': [72,85,91,64,78,88,95,69,76,83,90,57,74,82,88,93,61,79,86,70],
+        'Monthly Temps (°C)': [5,7,12,18,24,29,33,32,27,20,12,6],
+        'GPA Distribution': [3.2,2.8,3.7,3.1,2.5,3.9,3.4,2.9,3.6,3.0,2.7,3.5,3.8,3.3,2.6]
+    };
+
+    listContainer.innerHTML = '';
+
+    const card = document.createElement('div');
+    card.className = 'edu-card';
+    card.style.cssText = 'padding:1.5rem;';
+    card.innerHTML = `
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:1.2rem;">
+            <div style="background:linear-gradient(135deg,var(--zai-accent),#6ee7b7);width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;color:#1e1e1e;font-size:1.2rem;box-shadow:0 4px 12px rgba(188,235,117,0.3);">
+                <i class="fas fa-calculator"></i>
+            </div>
+            <div>
+                <h3 style="font-size:1.05rem;font-weight:700;color:var(--text-primary);margin:0;">Live Statistics Sandbox</h3>
+                <p style="font-size:0.8rem;color:var(--text-secondary);margin:0;">Enter comma-separated numbers or pick a template dataset</p>
+            </div>
+        </div>
+
+        <div class="data-chip-container" id="statlab-chips">
+            ${Object.keys(datasets).map(name => `<button class="dataset-chip" onclick="window.loadStatDataset('${name}')">${name}</button>`).join('')}
+        </div>
+
+        <div style="margin-top:15px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+            <textarea id="statlab-input" rows="3" style="flex:1;min-width:220px;padding:12px;border:1px solid var(--border-color);border-radius:10px;background:var(--bg-surface-solid);color:var(--text-primary);font-size:0.9rem;font-family:monospace;resize:vertical;" placeholder="Type values: 72, 85, 91, 64, 78 ..."></textarea>
+            <button onclick="window.computeStatLab()" style="padding:12px 22px;background:var(--zai-accent);color:#1e1e1e;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-size:0.9rem;white-space:nowrap;box-shadow:0 4px 12px rgba(188,235,117,0.3);transition:0.2s;" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform=''">
+                <i class="fas fa-play"></i> Compute
+            </button>
+        </div>
+
+        <div id="statlab-results" style="margin-top:20px;display:none;">
+            <div id="statlab-metrics" class="statlab-layout" style="grid-template-columns:repeat(auto-fill,minmax(140px,1fr));"></div>
+            <div class="statlab-layout" style="margin-top:20px;">
+                <div class="edu-card" style="padding:1rem;">
+                    <h4 style="font-size:0.85rem;font-weight:700;color:var(--text-secondary);text-transform:uppercase;margin-bottom:10px;"><i class="fas fa-chart-bar"></i> Frequency Histogram</h4>
+                    <canvas id="statlab-hist" height="200"></canvas>
+                </div>
+                <div class="edu-card" style="padding:1rem;">
+                    <h4 style="font-size:0.85rem;font-weight:700;color:var(--text-secondary);text-transform:uppercase;margin-bottom:10px;"><i class="fas fa-chart-line"></i> Normal Distribution Curve</h4>
+                    <canvas id="statlab-normal" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    `;
+    listContainer.appendChild(card);
+
+    // Store datasets
+    window._statlabDatasets = datasets;
+}
+
+window.loadStatDataset = function(name) {
+    const data = window._statlabDatasets[name];
+    if (data) {
+        document.getElementById('statlab-input').value = data.join(', ');
+        window.computeStatLab();
+    }
+};
+
+window.computeStatLab = function() {
+    const raw = document.getElementById('statlab-input').value;
+    const vals = raw.split(/[\s,]+/).map(Number).filter(v => !isNaN(v) && v !== 0 || v === 0);
+    if (vals.length < 2) {
+        showToast('Minimum 2 valid numbers required!', true);
+        return;
+    }
+
+    const n = vals.length;
+    const sorted = [...vals].sort((a, b) => a - b);
+    const sum = vals.reduce((a, b) => a + b, 0);
+    const mean = sum / n;
+    const median = n % 2 === 0 ? (sorted[n/2-1] + sorted[n/2]) / 2 : sorted[Math.floor(n/2)];
+
+    // Mode
+    const freq = {};
+    vals.forEach(v => freq[v] = (freq[v] || 0) + 1);
+    const maxFreq = Math.max(...Object.values(freq));
+    const mode = Object.keys(freq).filter(k => freq[k] === maxFreq).map(Number);
+
+    const variance = vals.reduce((a, v) => a + (v - mean) ** 2, 0) / (n - 1);
+    const sd = Math.sqrt(variance);
+    const sem = sd / Math.sqrt(n);
+    const range = sorted[n-1] - sorted[0];
+
+    // Skewness (Pearson)
+    const skew = vals.reduce((a, v) => a + ((v - mean) / sd) ** 3, 0) / n;
+    // Excess Kurtosis
+    const kurt = vals.reduce((a, v) => a + ((v - mean) / sd) ** 4, 0) / n - 3;
+
+    // 95% CI
+    const tCrit = 1.96;
+    const ciLow = (mean - tCrit * sem).toFixed(3);
+    const ciHigh = (mean + tCrit * sem).toFixed(3);
+
+    const metrics = [
+        { label: 'Mean', val: mean.toFixed(3) },
+        { label: 'Median', val: median.toFixed(3) },
+        { label: 'Mode', val: mode.join(', ') },
+        { label: 'Std Dev (s)', val: sd.toFixed(3) },
+        { label: 'Variance', val: variance.toFixed(3) },
+        { label: 'SEM', val: sem.toFixed(3) },
+        { label: 'Range', val: range.toFixed(3) },
+        { label: 'Min', val: sorted[0] },
+        { label: 'Max', val: sorted[n-1] },
+        { label: 'Skewness', val: skew.toFixed(3), badge: Math.abs(skew) < 0.5 ? 'normal' : 'skewed' },
+        { label: 'Kurtosis', val: kurt.toFixed(3) },
+        { label: '95% CI', val: `[${ciLow}, ${ciHigh}]` },
+        { label: 'N', val: n },
+        { label: 'Sum', val: sum.toFixed(3) },
+    ];
+
+    const metricsEl = document.getElementById('statlab-metrics');
+    metricsEl.innerHTML = metrics.map(m => `
+        <div class="stat-metric-card">
+            <div class="stat-metric-val">${m.val}</div>
+            <div class="stat-metric-lbl">${m.label}</div>
+            ${m.badge ? `<span class="stat-metric-badge stat-badge-${m.badge}">${m.badge === 'normal' ? 'Approx Normal' : 'Skewed'}</span>` : ''}
+        </div>
+    `).join('');
+
+    document.getElementById('statlab-results').style.display = 'block';
+
+    // Histogram
+    const bins = 8;
+    const binSize = (sorted[n-1] - sorted[0]) / bins;
+    const binLabels = [];
+    const binCounts = Array(bins).fill(0);
+    for (let i = 0; i < bins; i++) {
+        const lo = sorted[0] + i * binSize;
+        const hi = lo + binSize;
+        binLabels.push(lo.toFixed(1));
+        vals.forEach(v => { if (v >= lo && (v < hi || i === bins-1)) binCounts[i]++; });
+    }
+
+    const histCtx = document.getElementById('statlab-hist');
+    if (histCtx._chart) histCtx._chart.destroy();
+    histCtx._chart = new Chart(histCtx, {
+        type: 'bar',
+        data: {
+            labels: binLabels,
+            datasets: [{
+                label: 'Frequency',
+                data: binCounts,
+                backgroundColor: 'rgba(188, 235, 117, 0.65)',
+                borderColor: '#bceb75',
+                borderWidth: 2,
+                borderRadius: 6,
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: true,
+            plugins: { legend: { display: false } },
+            scales: { x: { grid: { display: false } }, y: { beginAtZero: true, grid: { color: 'rgba(128,128,128,0.1)' } } }
+        }
+    });
+
+    // Normal curve
+    const normalCtx = document.getElementById('statlab-normal');
+    const xMin = mean - 3.5 * sd;
+    const xMax = mean + 3.5 * sd;
+    const steps = 60;
+    const xVals = [], yVals = [];
+    for (let i = 0; i <= steps; i++) {
+        const x = xMin + i * (xMax - xMin) / steps;
+        xVals.push(x.toFixed(2));
+        yVals.push((1 / (sd * Math.sqrt(2 * Math.PI))) * Math.exp(-0.5 * ((x - mean) / sd) ** 2));
+    }
+    if (normalCtx._chart) normalCtx._chart.destroy();
+    normalCtx._chart = new Chart(normalCtx, {
+        type: 'line',
+        data: {
+            labels: xVals,
+            datasets: [{
+                label: 'Normal PDF',
+                data: yVals,
+                borderColor: '#6ee7b7',
+                backgroundColor: 'rgba(110, 231, 183, 0.12)',
+                borderWidth: 2.5,
+                fill: true,
+                tension: 0.4,
+                pointRadius: 0,
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: true,
+            plugins: { legend: { display: false } },
+            scales: { x: { grid: { display: false }, ticks: { maxTicksLimit: 6 } }, y: { grid: { color: 'rgba(128,128,128,0.1)' }, ticks: { maxTicksLimit: 5 } } }
+        }
+    });
+};
+
+// ─── GPACAST — GPA ESTIMATOR ──────────────────────────────────────────────────
+function renderGpaEstimator() {
+    window._gpaCourses = [];
+    window._gpaIdCounter = 0;
+
+    listContainer.innerHTML = '';
+
+    const card = document.createElement('div');
+    card.className = 'edu-card';
+    card.style.cssText = 'padding:1.5rem;';
+    card.innerHTML = `
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:1.2rem;">
+            <div style="background:linear-gradient(135deg,#3b82f6,#6366f1);width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.2rem;box-shadow:0 4px 12px rgba(99,102,241,0.35);">
+                <i class="fas fa-graduation-cap"></i>
+            </div>
+            <div>
+                <h3 style="font-size:1.05rem;font-weight:700;color:var(--text-primary);margin:0;">GPACast Forecast Dashboard</h3>
+                <p style="font-size:0.8rem;color:var(--text-secondary);margin:0;">Add courses, pick expected grades, watch your GPA update live</p>
+            </div>
+        </div>
+
+        <div class="gpa-grid">
+            <div>
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                    <h4 style="font-size:0.9rem;font-weight:700;color:var(--text-primary);">Semester Courses</h4>
+                    <button onclick="window.gpaAddCourse()" style="background:var(--zai-accent);color:#1e1e1e;border:none;padding:7px 14px;border-radius:8px;font-weight:700;font-size:0.82rem;cursor:pointer;transition:0.2s;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
+                        <i class="fas fa-plus"></i> Add Course
+                    </button>
+                </div>
+                <table class="gpa-table">
+                    <thead><tr>
+                        <th>Course Name</th>
+                        <th>Credit Hrs</th>
+                        <th>Grade</th>
+                        <th></th>
+                    </tr></thead>
+                    <tbody id="gpa-course-tbody"></tbody>
+                </table>
+                <div style="margin-top:16px;padding:12px;background:rgba(99,102,241,0.05);border:1px solid rgba(99,102,241,0.15);border-radius:10px;">
+                    <div style="font-size:0.82rem;font-weight:600;color:var(--text-secondary);margin-bottom:6px;">CGPA Target Planner</div>
+                    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+                        <input type="number" id="gpa-target-cgpa" placeholder="Target CGPA (e.g. 3.5)" step="0.01" min="0" max="4" style="flex:1;min-width:150px;padding:8px 12px;border:1px solid var(--border-color);border-radius:8px;background:var(--bg-surface-solid);color:var(--text-primary);font-size:0.88rem;" oninput="window.computeGpaTarget()">
+                        <input type="number" id="gpa-remaining-credits" placeholder="Future credits planned" min="1" style="flex:1;min-width:150px;padding:8px 12px;border:1px solid var(--border-color);border-radius:8px;background:var(--bg-surface-solid);color:var(--text-primary);font-size:0.88rem;" oninput="window.computeGpaTarget()">
+                    </div>
+                    <div id="gpa-target-result" style="margin-top:10px;font-size:0.88rem;"></div>
+                </div>
+            </div>
+            <div class="gpa-gauge-box">
+                <div class="gpa-circle-container">
+                    <svg class="gpa-circle-svg" viewBox="0 0 180 180">
+                        <circle class="gpa-circle-bg" cx="90" cy="90" r="80"/>
+                        <circle class="gpa-circle-val" id="gpa-circle-arc" cx="90" cy="90" r="80"/>
+                    </svg>
+                    <div class="gpa-circle-text">
+                        <div class="gpa-circle-num" id="gpa-circle-num">—</div>
+                        <div class="gpa-circle-lbl">Semester GPA</div>
+                    </div>
+                </div>
+                <div style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:6px;">Total Credits: <strong id="gpa-total-credits" style="color:var(--text-primary);">0</strong></div>
+                <div style="font-size:0.82rem;color:var(--text-secondary);">Quality Points: <strong id="gpa-total-qp" style="color:var(--text-primary);">0</strong></div>
+                <div id="gpa-advice-banner" style="margin-top:14px;width:100%;border-radius:10px;padding:10px 12px;font-size:0.83rem;font-weight:600;display:none;"></div>
+            </div>
+        </div>
+    `;
+    listContainer.appendChild(card);
+
+    // Add first blank course
+    window.gpaAddCourse();
+}
+
+window.gpaAddCourse = function() {
+    if (!window._gpaCourses) window._gpaCourses = [];
+    const id = ++window._gpaIdCounter;
+    window._gpaCourses.push({ id, name: '', credits: 3, grade: 4.0 });
+    window._renderGpaTable();
+};
+
+window._renderGpaTable = function() {
+    const tbody = document.getElementById('gpa-course-tbody');
+    if (!tbody) return;
+    const grades = [
+        { label: 'A+ (4.0)', val: 4.0 }, { label: 'A (4.0)', val: 4.0 }, { label: 'A- (3.7)', val: 3.7 },
+        { label: 'B+ (3.3)', val: 3.3 }, { label: 'B (3.0)', val: 3.0 }, { label: 'B- (2.7)', val: 2.7 },
+        { label: 'C+ (2.3)', val: 2.3 }, { label: 'C (2.0)', val: 2.0 }, { label: 'C- (1.7)', val: 1.7 },
+        { label: 'D (1.0)', val: 1.0 }, { label: 'F (0.0)', val: 0.0 }
+    ];
+    tbody.innerHTML = window._gpaCourses.map(c => `
+        <tr id="gpa-row-${c.id}">
+            <td><input type="text" value="${c.name}" placeholder="e.g. Statistics-I" style="width:100%;border:1px solid var(--border-color);border-radius:6px;padding:6px 10px;background:var(--bg-surface-solid);color:var(--text-primary);font-size:0.85rem;" oninput="window._gpaCourseUpdate(${c.id},'name',this.value)"></td>
+            <td><select style="border:1px solid var(--border-color);border-radius:6px;padding:6px;background:var(--bg-surface-solid);color:var(--text-primary);font-size:0.85rem;" onchange="window._gpaCourseUpdate(${c.id},'credits',+this.value)">
+                ${[1,2,3,4].map(cr => `<option value="${cr}" ${c.credits===cr?'selected':''}>${cr}</option>`).join('')}
+            </select></td>
+            <td><select style="border:1px solid var(--border-color);border-radius:6px;padding:6px;background:var(--bg-surface-solid);color:var(--text-primary);font-size:0.85rem;" onchange="window._gpaCourseUpdate(${c.id},'grade',+this.value)">
+                ${grades.map(g => `<option value="${g.val}" ${c.grade===g.val?'selected':''}>${g.label}</option>`).join('')}
+            </select></td>
+            <td><button class="gpa-row-remove" onclick="window._gpaRemoveCourse(${c.id})"><i class="fas fa-times-circle"></i></button></td>
+        </tr>
+    `).join('');
+    window._updateGpaDial();
+};
+
+window._gpaCourseUpdate = function(id, field, val) {
+    const c = window._gpaCourses.find(x => x.id === id);
+    if (c) c[field] = val;
+    window._updateGpaDial();
+};
+
+window._gpaRemoveCourse = function(id) {
+    window._gpaCourses = window._gpaCourses.filter(c => c.id !== id);
+    window._renderGpaTable();
+};
+
+window._updateGpaDial = function() {
+    const totalCredits = window._gpaCourses.reduce((a, c) => a + c.credits, 0);
+    const totalQP = window._gpaCourses.reduce((a, c) => a + c.credits * c.grade, 0);
+    const gpa = totalCredits > 0 ? totalQP / totalCredits : 0;
+
+    const numEl = document.getElementById('gpa-circle-num');
+    const arc = document.getElementById('gpa-circle-arc');
+    const cEl = document.getElementById('gpa-total-credits');
+    const qpEl = document.getElementById('gpa-total-qp');
+    const banner = document.getElementById('gpa-advice-banner');
+
+    if (numEl) numEl.textContent = totalCredits > 0 ? gpa.toFixed(2) : '—';
+    if (cEl) cEl.textContent = totalCredits;
+    if (qpEl) qpEl.textContent = totalQP.toFixed(1);
+
+    if (arc && totalCredits > 0) {
+        const circumference = 2 * Math.PI * 80;
+        const offset = circumference * (1 - gpa / 4.0);
+        arc.style.strokeDasharray = circumference;
+        arc.style.strokeDashoffset = offset;
+        const color = gpa >= 3.5 ? '#10b981' : gpa >= 2.5 ? '#f59e0b' : '#ef4444';
+        arc.style.stroke = color;
+        arc.style.filter = `drop-shadow(0 0 8px ${color})`;
+    } else if (arc) {
+        arc.style.strokeDashoffset = 2 * Math.PI * 80;
+    }
+
+    if (banner) {
+        if (totalCredits > 0) {
+            banner.style.display = 'block';
+            if (gpa >= 3.7) { banner.style.background='rgba(16,185,129,0.1)';banner.style.border='1px solid rgba(16,185,129,0.3)';banner.style.color='#10b981';banner.innerHTML='<i class="fas fa-star"></i> Excellent! Distinction-level GPA. Keep it up!'; }
+            else if (gpa >= 3.0) { banner.style.background='rgba(59,130,246,0.1)';banner.style.border='1px solid rgba(59,130,246,0.3)';banner.style.color='#3b82f6';banner.innerHTML='<i class="fas fa-thumbs-up"></i> Good standing. Push toward 3.5 for Dean\'s List.'; }
+            else if (gpa >= 2.0) { banner.style.background='rgba(245,158,11,0.1)';banner.style.border='1px solid rgba(245,158,11,0.3)';banner.style.color='#f59e0b';banner.innerHTML='<i class="fas fa-exclamation-triangle"></i> Average. Focus on improving high-credit courses.'; }
+            else { banner.style.background='rgba(239,68,68,0.1)';banner.style.border='1px solid rgba(239,68,68,0.3)';banner.style.color='#ef4444';banner.innerHTML='<i class="fas fa-times-circle"></i> At risk. Seek academic counseling immediately.'; }
+        } else {
+            banner.style.display = 'none';
+        }
+    }
+
+    window.computeGpaTarget();
+};
+
+window.computeGpaTarget = function() {
+    const targetInput = document.getElementById('gpa-target-cgpa');
+    const remCredits = document.getElementById('gpa-remaining-credits');
+    const resultEl = document.getElementById('gpa-target-result');
+    if (!targetInput || !remCredits || !resultEl) return;
+
+    const target = parseFloat(targetInput.value);
+    const rem = parseFloat(remCredits.value);
+    if (isNaN(target) || isNaN(rem) || rem <= 0) { resultEl.innerHTML = ''; return; }
+
+    const totalCredits = window._gpaCourses.reduce((a, c) => a + c.credits, 0);
+    const totalQP = window._gpaCourses.reduce((a, c) => a + c.credits * c.grade, 0);
+
+    const needed = ((target * (totalCredits + rem)) - totalQP) / rem;
+    if (needed > 4.0) {
+        resultEl.innerHTML = `<span style="color:#ef4444;font-weight:700;"><i class="fas fa-ban"></i> Mathematically impossible — required GPA (${needed.toFixed(2)}) exceeds 4.0</span>`;
+    } else if (needed <= 0) {
+        resultEl.innerHTML = `<span style="color:#10b981;font-weight:700;"><i class="fas fa-check-circle"></i> Already achieved! Current trajectory meets your target.</span>`;
+    } else {
+        const color = needed >= 3.7 ? '#f59e0b' : '#10b981';
+        resultEl.innerHTML = `<span style="color:${color};font-weight:700;"><i class="fas fa-bullseye"></i> Need <strong>${needed.toFixed(2)} GPA</strong> in remaining ${rem} credits to reach ${target} CGPA</span>`;
+    }
+};
+
+// ─── STATHALL — HALL OF FAME ──────────────────────────────────────────────────
+async function renderHallOfFame() {
+    listContainer.innerHTML = '<div style="padding:2rem;text-align:center;color:#9ca3af;"><i class="fas fa-spinner fa-spin"></i> Loading Hall of Fame...</div>';
+
+    const users = await dbGet('users') || [];
+    const faculty = users.filter(u => u.role === 'Faculty').map(u => ({
+        ...u,
+        pubs: parseInt(u.publicationsCount) || 0
+    })).sort((a, b) => b.pubs - a.pubs);
+
+    const students = users.filter(u => u.role === 'Student').sort((a, b) => (b.batch || '').localeCompare(a.batch || ''));
+
+    listContainer.innerHTML = '';
+
+    // ── Faculty Podium
+    const podiumCard = document.createElement('div');
+    podiumCard.className = 'edu-card';
+    podiumCard.style.cssText = 'padding:1.5rem;';
+
+    const top3 = faculty.slice(0, 3);
+    // Reorder: 2nd, 1st, 3rd for visual podium
+    const podiumOrder = [top3[1], top3[0], top3[2]].filter(Boolean);
+    const podiumClasses = top3[1] ? ['silver', 'gold', 'bronze'] : ['gold', 'bronze', ''];
+    const crownIcons = ['🥈', '🥇', '🥉'];
+    const rankNums = ['2', '1', '3'];
+
+    function makeAvatar(u) {
+        if (!u) return '';
+        const initials = (u.name || u.username || '?')[0].toUpperCase();
+        if (u.profilePicBase64) return `<img src="${u.profilePicBase64}" style="width:100%;height:100%;object-fit:cover;" alt="">`;
+        return `<span style="font-size:1.4rem;">${initials}</span>`;
+    }
+
+    podiumCard.innerHTML = `
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:1.5rem;">
+            <div style="background:linear-gradient(135deg,#f59e0b,#f97316);width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.2rem;box-shadow:0 4px 12px rgba(245,158,11,0.35);">
+                <i class="fas fa-award"></i>
+            </div>
+            <div>
+                <h3 style="font-size:1.05rem;font-weight:700;color:var(--text-primary);margin:0;">Faculty Research Champions</h3>
+                <p style="font-size:0.8rem;color:var(--text-secondary);margin:0;">Ranked by peer-reviewed publication count</p>
+            </div>
+        </div>
+
+        ${faculty.length === 0 ? `<div style="text-align:center;padding:3rem;color:var(--text-secondary);"><i class="fas fa-trophy" style="font-size:3rem;opacity:0.2;"></i><p style="margin-top:1rem;">No faculty data available yet.</p></div>` : `
+        <div class="hall-podium-container">
+            ${podiumOrder.map((u, i) => `
+                <div class="podium-step ${podiumClasses[i]}" style="cursor:pointer;" onclick="window.openUserProfile && window.openUserProfile('${u.username}')">
+                    <div class="podium-crown ${podiumClasses[i]}">
+                        <i class="fas fa-crown"></i>
+                    </div>
+                    <div class="podium-avatar">${makeAvatar(u)}</div>
+                    <div class="podium-info">
+                        <div class="podium-name">${u.name || u.username}</div>
+                        <div class="podium-stat"><i class="fas fa-file-alt"></i> ${u.pubs} Publications</div>
+                    </div>
+                    <div class="podium-rank">${rankNums[i]}</div>
+                </div>
+            `).join('')}
+        </div>
+
+        <!-- Full leaderboard -->
+        <h4 style="font-size:0.85rem;font-weight:700;color:var(--text-secondary);text-transform:uppercase;margin:1.5rem 0 10px;">Full Research Leaderboard</h4>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+            ${faculty.slice(0, 10).map((u, i) => `
+                <div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--bg-surface-solid);border:1px solid var(--border-color);border-radius:10px;transition:0.2s;cursor:pointer;" onmouseover="this.style.borderColor='var(--zai-accent)'" onmouseout="this.style.borderColor='var(--border-color)'" onclick="window.openUserProfile && window.openUserProfile('${u.username}')">
+                    <div style="font-size:1.1rem;font-weight:800;color:${i<3?'#f59e0b':'var(--text-secondary)'};min-width:26px;text-align:center;">#${i+1}</div>
+                    <div style="width:36px;height:36px;border-radius:50%;background:var(--zai-dark);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:0.9rem;overflow:hidden;flex-shrink:0;">${makeAvatar(u)}</div>
+                    <div style="flex:1;">
+                        <div style="font-weight:700;font-size:0.9rem;color:var(--text-primary);">${u.name || u.username}</div>
+                        <div style="font-size:0.77rem;color:var(--text-secondary);">${u.designation || 'Faculty Member'}</div>
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="font-size:1.1rem;font-weight:800;color:var(--zai-accent);">${u.pubs}</div>
+                        <div style="font-size:0.7rem;color:var(--text-secondary);">papers</div>
+                    </div>
+                    ${i===0?'<span style="background:rgba(245,158,11,0.15);color:#f59e0b;font-size:0.72rem;font-weight:700;padding:3px 8px;border-radius:10px;margin-left:6px;">👑 Top Researcher</span>':''}
+                </div>
+            `).join('')}
+        </div>`}
+    `;
+    listContainer.appendChild(podiumCard);
+
+    // ── Community Stars (active students)
+    if (students.length > 0) {
+        const starsCard = document.createElement('div');
+        starsCard.className = 'edu-card';
+        starsCard.style.cssText = 'padding:1.5rem;margin-top:16px;';
+        starsCard.innerHTML = `
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:1rem;">
+                <div style="background:linear-gradient(135deg,#6366f1,#a855f7);width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.1rem;box-shadow:0 4px 12px rgba(168,85,247,0.35);">
+                    <i class="fas fa-star"></i>
+                </div>
+                <div>
+                    <h3 style="font-size:1.05rem;font-weight:700;color:var(--text-primary);margin:0;">Community Stars</h3>
+                    <p style="font-size:0.8rem;color:var(--text-secondary);margin:0;">Outstanding students and active alumni networkers</p>
+                </div>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;">
+                ${students.slice(0, 8).map((u, i) => `
+                    <div style="background:var(--bg-surface-solid);border:1px solid var(--border-color);border-radius:12px;padding:16px;text-align:center;transition:0.25s;cursor:pointer;" onmouseover="this.style.transform='translateY(-3px)';this.style.borderColor='var(--zai-accent)'" onmouseout="this.style.transform='';this.style.borderColor='var(--border-color)'" onclick="window.openUserProfile && window.openUserProfile('${u.username}')">
+                        <div style="width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,var(--zai-dark),#374151);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:1.2rem;margin:0 auto 10px;overflow:hidden;border:2px solid var(--zai-accent);">
+                            ${u.profilePicBase64 ? `<img src="${u.profilePicBase64}" style="width:100%;height:100%;object-fit:cover;">` : (u.name||u.username||'?')[0].toUpperCase()}
+                        </div>
+                        <div style="font-weight:700;font-size:0.85rem;color:var(--text-primary);">${(u.name||u.username).split(' ')[0]}</div>
+                        <div style="font-size:0.72rem;color:var(--text-secondary);margin-top:3px;">${u.program||'Alumni'} · ${u.batch||''}</div>
+                        <div style="margin-top:8px;background:rgba(99,102,241,0.1);color:#6366f1;font-size:0.7rem;font-weight:700;padding:3px 8px;border-radius:10px;display:inline-block;">⭐ Star</div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+        listContainer.appendChild(starsCard);
+    }
+}
+
+// ─── THEME ENGINE & PERSONALIZATION ───────────────────────────────────────────
+window.setPortalTheme = function(theme) {
+    const root = document.documentElement;
+    if (theme === 'zai') {
+        root.removeAttribute('data-theme');
+    } else {
+        root.setAttribute('data-theme', theme);
+    }
+    localStorage.setItem('uog_theme', theme);
+
+    // Update active card in settings
+    document.querySelectorAll('.theme-card-option').forEach(el => {
+        el.classList.toggle('active', el.dataset.theme === theme);
+    });
+    showToast(`Theme switched to ${theme.charAt(0).toUpperCase() + theme.slice(1)}!`);
+};
+
+window.setBubbleSpeed = function(val) {
+    document.documentElement.style.setProperty('--bubble-speed-multiplier', val);
+    const lbl = document.getElementById('bubble-speed-lbl');
+    if (lbl) lbl.textContent = `${parseFloat(val).toFixed(1)}x`;
+};
+
+window.setBubbleSize = function(val) {
+    document.documentElement.style.setProperty('--bubble-size-multiplier', val);
+    const lbl = document.getElementById('bubble-size-lbl');
+    if (lbl) lbl.textContent = `${parseFloat(val).toFixed(1)}x`;
+};
+
+window.toggleBubbles = function(show) {
+    document.documentElement.style.setProperty('--bubble-display', show ? 'block' : 'none');
+    localStorage.setItem('uog_bubbles', show ? '1' : '0');
+};
+
+// Init bubble setting from storage
+(function initBubbles() {
+    const stored = localStorage.getItem('uog_bubbles');
+    if (stored === '0') {
+        document.documentElement.style.setProperty('--bubble-display', 'none');
+    }
+})();
+
+// ─── ENHANCED renderSettingsView with Theme/Bubble Center ─────────────────────
+// Patch the existing renderSettingsView to also inject the personalization panel
+const _origRenderSettingsView = window.renderSettingsView || (typeof renderSettingsView !== 'undefined' ? renderSettingsView : null);
+function renderSettingsView() {
+    renderPrivacyDashboard();
+
+    setTimeout(() => {
+        // ── Security Card ──
+        const secCard = document.createElement('div');
+        secCard.className = 'edu-card';
+        secCard.style = 'margin-top: 20px; padding: 1.5rem;';
+        secCard.innerHTML = `
+            <h3 style="font-size:1.1rem;font-weight:700;margin-bottom:12px;color:var(--text-primary);"><i class="fas fa-history"></i> Account Security &amp; Logout</h3>
+            <div style="display:flex;flex-direction:column;gap:15px;">
+                <div>
+                    <label style="font-size:0.85rem;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:6px;">Auto Logout Inactivity Trigger</label>
+                    <select class="form-select" id="settings-logout-timer" style="max-width:300px;" onchange="updateAutoLogoutSetting(this.value)">
+                        <option value="0">Never Logout</option>
+                        <option value="5" ${currentUser.autoLogoutTime===5?'selected':''}>5 Minutes</option>
+                        <option value="15" ${currentUser.autoLogoutTime===15?'selected':''}>15 Minutes</option>
+                        <option value="30" ${currentUser.autoLogoutTime===30?'selected':''}>30 Minutes</option>
+                        <option value="60" ${currentUser.autoLogoutTime===60?'selected':''}>60 Minutes</option>
+                    </select>
+                </div>
+            </div>
+        `;
+        listContainer.appendChild(secCard);
+
+        // ── Personalization Card ──
+        const savedTheme = localStorage.getItem('uog_theme') || 'zai';
+        const bubblesOn = localStorage.getItem('uog_bubbles') !== '0';
+        const bubbleSpeed = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--bubble-speed-multiplier') || '1');
+        const bubbleSize = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--bubble-size-multiplier') || '1');
+
+        const personCard = document.createElement('div');
+        personCard.className = 'edu-card';
+        personCard.style = 'margin-top: 20px; padding: 1.5rem;';
+        personCard.innerHTML = `
+            <h3 style="font-size:1.1rem;font-weight:700;margin-bottom:4px;color:var(--text-primary);"><i class="fas fa-palette"></i> Theme &amp; Personalization Center</h3>
+            <p style="font-size:0.8rem;color:var(--text-secondary);margin-bottom:1.2rem;">Choose your portal colorway and fine-tune the animated background</p>
+
+            <h4 style="font-size:0.82rem;font-weight:700;text-transform:uppercase;color:var(--text-secondary);margin-bottom:10px;letter-spacing:0.5px;">Portal Themes</h4>
+            <div class="theme-picker-grid">
+                ${[
+                    { id:'zai', label:'UOG Classic', dot:'zai', desc:'Lime accent' },
+                    { id:'midnight', label:'Midnight Slate', dot:'midnight', desc:'Neon cyan' },
+                    { id:'emerald', label:'Emerald Forest', dot:'emerald', desc:'Gold accent' },
+                    { id:'sapphire', label:'Sapphire Royal', dot:'sapphire', desc:'Violet glow' },
+                    { id:'uog-royal', label:'UOG Prestige', dot:'uog-royal', desc:'Royal & Gold' },
+                    { id:'aurora', label:'Aurora Glass', dot:'aurora', desc:'Glassmorphic Teal' }
+                ].map(t => `
+                    <div class="theme-card-option ${savedTheme===t.id?'active':''}" data-theme="${t.id}" onclick="window.setPortalTheme('${t.id}')">
+                        <div class="theme-preview-dot ${t.dot}"></div>
+                        <div style="text-align:center;">
+                            <div style="font-size:0.82rem;font-weight:700;color:var(--text-primary);">${t.label}</div>
+                            <div style="font-size:0.7rem;color:var(--text-secondary);">${t.desc}</div>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+
+            <h4 style="font-size:0.82rem;font-weight:700;text-transform:uppercase;color:var(--text-secondary);margin:1.5rem 0 12px;letter-spacing:0.5px;">Background Bubble Controls</h4>
+
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
+                <span class="settings-slider-lbl">Show Bubbles</span>
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                    <input type="checkbox" ${bubblesOn?'checked':''} onchange="window.toggleBubbles(this.checked)" style="width:18px;height:18px;accent-color:var(--zai-accent);cursor:pointer;">
+                    <span style="font-size:0.85rem;color:var(--text-primary);">Enabled</span>
+                </label>
+            </div>
+
+            <div class="settings-slider-row">
+                <span class="settings-slider-lbl">Animation Speed</span>
+                <input type="range" class="premium-range-slider" min="0.3" max="3" step="0.1" value="${bubbleSpeed.toFixed(1)}" oninput="window.setBubbleSpeed(this.value)">
+                <span id="bubble-speed-lbl" style="font-size:0.82rem;font-weight:700;color:var(--zai-accent);min-width:32px;">${bubbleSpeed.toFixed(1)}x</span>
+            </div>
+
+            <div class="settings-slider-row">
+                <span class="settings-slider-lbl">Bubble Size</span>
+                <input type="range" class="premium-range-slider" min="0.3" max="2" step="0.1" value="${bubbleSize.toFixed(1)}" oninput="window.setBubbleSize(this.value)">
+                <span id="bubble-size-lbl" style="font-size:0.82rem;font-weight:700;color:var(--zai-accent);min-width:32px;">${bubbleSize.toFixed(1)}x</span>
+            </div>
+        `;
+        listContainer.appendChild(personCard);
+    }, 100);
+}
 
