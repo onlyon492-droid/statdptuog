@@ -754,19 +754,14 @@ input:checked + .slider:before {
     display: flex;
     align-items: center;
     gap: 10px;
-    margin-bottom: 20px;
-    background: rgba(255, 255, 255, 0.7);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    padding: 10px 18px;
-    border-radius: 14px;
-    border: 1px solid rgba(229, 231, 235, 0.7);
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.01);
+    background: transparent;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-color);
 }
 .feed-sort-bar span {
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: var(--text-secondary);
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--text-primary);
     margin-right: auto;
 }
 .sort-btn {
@@ -2031,11 +2026,11 @@ body, nav, aside, main, div, input, select, textarea, button, p, span, h1, h2, h
 .status-stories-container {
     display: flex;
     gap: 16px;
-    padding: 1rem 0.5rem;
+    padding: 16px;
     overflow-x: auto;
     scrollbar-width: none; /* Firefox */
     border-bottom: 1px solid var(--border-color);
-    margin-bottom: 1.5rem;
+    background: var(--bg-surface-solid);
 }
 .status-stories-container::-webkit-scrollbar {
     display: none; /* Safari and Chrome */
@@ -2051,33 +2046,39 @@ body, nav, aside, main, div, input, select, textarea, button, p, span, h1, h2, h
     user-select: none;
 }
 .status-avatar-ring {
-    width: 62px;
-    height: 62px;
+    width: 64px;
+    height: 64px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 3px;
     background: var(--border-color);
-    transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    transition: transform 0.2s ease;
     position: relative;
 }
 .status-bubble.active-story .status-avatar-ring {
-    background: linear-gradient(45deg, var(--uog-blue), var(--uog-orange), #8b5cf6);
-    box-shadow: 0 0 10px rgba(59, 130, 246, 0.3);
+    background: linear-gradient(45deg, #10b981, #3b82f6);
 }
-.status-bubble.active-story .status-avatar-ring::after {
-    content: '';
-    position: absolute;
-    inset: -3px;
+.status-bubble:hover .status-avatar-ring {
+    transform: scale(1.05);
+}
+.status-avatar {
+    width: 100%;
+    height: 100%;
     border-radius: 50%;
-    border: 2px solid var(--uog-blue);
-    animation: story-ring-pulse 2s infinite;
-    opacity: 0.6;
+    border: 2px solid var(--bg-surface-solid);
+    background: var(--bg-surface-solid);
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
-@keyframes story-ring-pulse {
-    0% { transform: scale(1); opacity: 0.6; }
-    50% { transform: scale(1.05); opacity: 0.2; }
+.status-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
     100% { transform: scale(1); opacity: 0.6; }
 }
 .status-bubble:hover .status-avatar-ring {
