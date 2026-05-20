@@ -1255,6 +1255,12 @@ function switchView(view) {
         filterBar.style.display = (view === 'students') ? 'flex' : 'none';
     }
 
+    // Toggle view-header for Messages
+    const viewHeaderEl = document.querySelector('.view-header');
+    if (viewHeaderEl) {
+        viewHeaderEl.style.display = (view === 'messages') ? 'none' : 'block';
+    }
+
     // Toggle Jobs widget in right sidebar (only show on Home/Feed view)
     const rightJobsWidget = document.getElementById('right-jobs-widget');
     if (rightJobsWidget) {

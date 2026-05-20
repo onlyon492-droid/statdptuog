@@ -3149,10 +3149,9 @@ body.forced-mobile-mode .mobile-search-bar {
     display: flex;
     flex-direction: column;
     gap: 12px;
-    background-color: #efeae2;
-    background-image: url("https://i.pinimg.com/originals/8c/98/99/8c98994518b575bfd8c949e91d20548b.jpg");
-    background-size: cover;
-    background-attachment: fixed;
+    background-color: #f8fafc;
+    background-image: radial-gradient(circle at top right, rgba(59,130,246,0.05), transparent),
+                      radial-gradient(circle at bottom left, rgba(16,185,129,0.05), transparent);
 }
 .chat-bubble {
     max-width: 75%;
