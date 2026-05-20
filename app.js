@@ -2950,64 +2950,25 @@ window.renderPrivacyDashboard = function() {
             </div>
         </div>
 
-        <!-- Card 2: Commenting Privacy -->
-        <div class="privacy-card">
+        <!-- Card 5: Do Not Disturb / Zen Mode -->
+        <div class="privacy-card" style="border-color: rgba(16, 185, 129, 0.4); background: linear-gradient(to right, rgba(16, 185, 129, 0.02), rgba(255,255,255,0.8));">
             <div class="privacy-header">
-                <div class="privacy-icon uog-orange-text"><i class="fas fa-comments"></i></div>
+                <div class="privacy-icon" style="color: #10b981; background: rgba(16,185,129,0.1);"><i class="fas fa-leaf"></i></div>
                 <div>
-                    <h3>Post Commenting Policy</h3>
-                    <p>Select who is authorized to comment on the updates, files, and academic resources you upload to the department feed.</p>
-                </div>
-            </div>
-            <div class="privacy-control" style="flex-direction: column; align-items: stretch; gap: 12px;">
-                <div style="display:flex; justify-content:space-between; align-items:center; width: 100%;">
-                    <span>Who can comment on your posts</span>
-                    <select id="privacy-comments-select" class="edu-select" style="width: auto; margin-bottom: 0; padding: 6px 12px;" onchange="window.updatePrivacySetting('allowComments', this.value)">
-                        <option value="everyone" ${allowComments === 'everyone' ? 'selected' : ''}>Everyone (All Members)</option>
-                        <option value="faculty" ${allowComments === 'faculty' ? 'selected' : ''}>Only Faculty Members</option>
-                        <option value="none" ${allowComments === 'none' ? 'selected' : ''}>Disable Commenting Completely</option>
-                    </select>
-                </div>
-            </div>
-        </div>
-
-        <!-- Card 3: File View & Download Locks -->
-        <div class="privacy-card">
-            <div class="privacy-header">
-                <div class="privacy-icon blue-text"><i class="fas fa-file-download"></i></div>
-                <div>
-                    <h3>Attachment Protection</h3>
-                    <p>Restrict downloading and viewing of documents, figures, slides, and videos attached to your posts. When enabled, non-authors will see a lock state and cannot access attachment files.</p>
+                    <h3 style="color: #059669;">Zen & Relaxation Mode</h3>
+                    <p>Silence non-essential notifications, hide all appreciation counts, and mask your online status automatically. Perfect for focused study or taking a mental break.</p>
                 </div>
             </div>
             <div class="privacy-control toggle-control">
-                <span>Allow others to view/download attachments</span>
+                <span>Enable Zen Mode</span>
                 <label class="switch">
-                    <input type="checkbox" id="privacy-downloads-toggle" ${allowDownloads ? 'checked' : ''} onchange="window.updatePrivacySetting('allowDownloads', this.checked)">
-                    <span class="slider"></span>
+                    <input type="checkbox" ${currentUser.zenMode ? 'checked' : ''} onchange="window.updatePrivacySetting('zenMode', this.checked)">
+                    <span class="slider" style="background-color: ${currentUser.zenMode ? '#10b981' : '#cbd5e1'};"></span>
                 </label>
             </div>
         </div>
 
-        <!-- Card 4: Appreciation Visibility -->
-        <div class="privacy-card">
-            <div class="privacy-header">
-                <div class="privacy-icon purple-text"><i class="fas fa-thumbs-up"></i></div>
-                <div>
-                    <h3>Appreciations Visibility</h3>
-                    <p>Choose whether to show the total number of likes (appreciations) your posts receive. When turned off, others will see "Appreciations Private", but you can still view your post stats.</p>
-                </div>
-            </div>
-            <div class="privacy-control toggle-control">
-                <span>Show total appreciation count to others</span>
-                <label class="switch">
-                    <input type="checkbox" id="privacy-likes-toggle" ${showAppreciations ? 'checked' : ''} onchange="window.updatePrivacySetting('showAppreciations', this.checked)">
-                    <span class="slider"></span>
-                </label>
-            </div>
-        </div>
-
-        <!-- Card 5: Anonymous Posting -->
+        <!-- Card 6: Anonymous Posting -->
         <div class="privacy-card" style="border-color: rgba(15, 76, 129, 0.4); background: linear-gradient(to right, rgba(15, 76, 129, 0.02), rgba(255,255,255,0.8));">
             <div class="privacy-header">
                 <div class="privacy-icon" style="color: #374151; background: #e5e7eb;"><i class="fas fa-user-secret"></i></div>
