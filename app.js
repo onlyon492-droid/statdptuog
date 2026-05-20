@@ -14,9 +14,11 @@ async function dbGet(key) {
             if (res.ok) {
                 return await res.json();
             }
-            console.warn(`Server returned error status ${res.status} for ${key}, falling back to localStorage.`);
+            const d = await res.json().catch(() => ({}));
+            throw new Error(d.error || `Server returned error status ${res.status}`);
         } catch (fetchErr) {
-            console.warn(`Fetch failed for ${key}, falling back to localStorage.`, fetchErr);
+            console.warn(`Fetch failed for ${key}`, fetchErr);
+            throw new Error(fetchErr.message || 'Server connection failed');
         }
     }
     const baseKey = key.split('?')[0].split('/')[0];
@@ -65,9 +67,10 @@ async function dbPost(endpoint, body) {
                 return await res.json();
             }
             const d = await res.json().catch(() => ({}));
-            console.warn(`Server returned error for POST ${endpoint}: ${d.error || 'Unknown'}, falling back to localStorage.`);
+            throw new Error(d.error || `Server returned error status ${res.status}`);
         } catch (fetchErr) {
-            console.warn(`POST fetch failed for ${endpoint}, falling back to localStorage.`, fetchErr);
+            console.warn(`POST fetch failed for ${endpoint}`, fetchErr);
+            throw new Error(fetchErr.message || 'Server connection failed');
         }
     }
     // localStorage fallback for each endpoint
@@ -364,6 +367,7 @@ async function dbPost(endpoint, body) {
             localStorage.setItem('uog_elections', JSON.stringify(elections));
             return election;
         }
+    }
     if (baseKey === 'transactions') {
         const txs = JSON.parse(localStorage.getItem('uog_transactions') || '[]');
         const tx = { id: Date.now(), date: new Date().toISOString(), ...body };
@@ -411,9 +415,10 @@ async function dbPut(endpoint, body) {
                 return await res.json();
             }
             const d = await res.json().catch(() => ({}));
-            console.warn(`Server returned error for PUT ${endpoint}: ${d.error || 'Unknown'}, falling back to localStorage.`);
+            throw new Error(d.error || `Server returned error status ${res.status}`);
         } catch (fetchErr) {
-            console.warn(`PUT fetch failed for ${endpoint}, falling back to localStorage.`, fetchErr);
+            console.warn(`PUT fetch failed for ${endpoint}`, fetchErr);
+            throw new Error(fetchErr.message || 'Server connection failed');
         }
     }
     // localStorage fallback
@@ -484,9 +489,11 @@ async function dbDelete(endpoint, body) {
             if (res.ok) {
                 return await res.json();
             }
-            console.warn(`Server returned error for DELETE ${endpoint}, falling back to localStorage.`);
+            const d = await res.json().catch(() => ({}));
+            throw new Error(d.error || `Server returned error status ${res.status}`);
         } catch (fetchErr) {
-            console.warn(`DELETE fetch failed for ${endpoint}, falling back to localStorage.`, fetchErr);
+            console.warn(`DELETE fetch failed for ${endpoint}`, fetchErr);
+            throw new Error(fetchErr.message || 'Server connection failed');
         }
     }
     if (endpoint.startsWith('jobs/')) {
