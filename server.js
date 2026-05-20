@@ -910,7 +910,8 @@ app.post('/api/elections/:id/vote', async (req, res) => {
 // ── MESSAGES ──────────────────────────────────────────────────────────────────
 app.get('/api/messages', async (req, res) => {
     try {
-        const { user1, user2 } = req.query;
+        const user1 = req.query.user1 || req.query.sender;
+        const user2 = req.query.user2 || req.query.receiver || req.query.recipient;
         if (user1 && user2) {
             const msgs = await Message.find({
                 $or: [
@@ -930,7 +931,9 @@ app.get('/api/messages', async (req, res) => {
 
 app.post('/api/messages', async (req, res) => {
     try {
-        const { sender, recipient, text } = req.body;
+        const sender = req.body.sender;
+        const recipient = req.body.recipient || req.body.receiver;
+        const text = req.body.text;
         if (!sender || !recipient || !text) {
             return res.status(400).json({ error: 'Missing sender, recipient, or text' });
         }
@@ -958,30 +961,6 @@ app.get('/api/transactions', async (req, res) => {
             query.username = username;
         }
         const txs = await Transaction.find(query).sort({ id: -1 });
-        if (txs.length === 0 && username) {
-            // Populate defaults for the current user
-            const defaults = [
-                {
-                    id: Date.now() - 86400000 * 2,
-                    username,
-                    amount: 'PKR 1,500',
-                    purpose: 'Alumni Annual Dinner Registration',
-                    status: 'Paid',
-                    date: new Date(Date.now() - 86400000 * 2).toLocaleDateString('en-PK', { day:'numeric', month:'short', year:'numeric' })
-                },
-                {
-                    id: Date.now() - 86400000 * 30,
-                    username,
-                    amount: 'PKR 5,000',
-                    purpose: 'Premium Alumni Membership Activation',
-                    status: 'Paid',
-                    date: new Date(Date.now() - 86400000 * 30).toLocaleDateString('en-PK', { day:'numeric', month:'short', year:'numeric' })
-                }
-            ];
-            await Transaction.insertMany(defaults);
-            const freshTxs = await Transaction.find(query).sort({ id: -1 });
-            return res.json(freshTxs);
-        }
         res.json(txs);
     } catch (err) {
         console.error(err);

@@ -34,6 +34,20 @@ async function dbGet(key) {
         localStorage.setItem('uog_stories', JSON.stringify(freshStories));
         return freshStories;
     }
+    if (key.startsWith('messages')) {
+        const msgs = JSON.parse(localStorage.getItem('uog_messages') || '[]');
+        const queryStr = key.includes('?') ? key.split('?')[1] : '';
+        const urlParams = new URLSearchParams(queryStr);
+        const sender = urlParams.get('sender');
+        const receiver = urlParams.get('receiver');
+        if (sender && receiver) {
+            return msgs.filter(m => 
+                (m.sender === sender && (m.recipient === receiver || m.receiver === receiver)) ||
+                ((m.sender === receiver || m.receiver === receiver) && (m.recipient === sender || m.receiver === sender))
+            );
+        }
+        return msgs;
+    }
     return JSON.parse(localStorage.getItem(`uog_${key}`) || '[]');
 }
 async function dbPost(endpoint, body) {
@@ -202,6 +216,85 @@ async function dbPost(endpoint, body) {
             localStorage.setItem('uog_batches', JSON.stringify(batches));
         }
         return batches.map(b => ({ name: b }));
+    }
+
+    const baseKey = endpoint.split('/')[0];
+    if (baseKey === 'messages') {
+        const msgs = JSON.parse(localStorage.getItem('uog_messages') || '[]');
+        const msg = {
+            id: body.id || Date.now(),
+            sender: body.sender,
+            recipient: body.recipient || body.receiver,
+            text: body.text,
+            timestamp: body.timestamp || Date.now()
+        };
+        msgs.push(msg);
+        localStorage.setItem('uog_messages', JSON.stringify(msgs));
+        return msg;
+    }
+    if (baseKey === 'events') {
+        if (endpoint.endsWith('/register')) {
+            const eventId = endpoint.split('/')[1];
+            const events = JSON.parse(localStorage.getItem('uog_events') || '[]');
+            const idx = events.findIndex(e => String(e.id || e._id) === String(eventId));
+            if (idx !== -1) {
+                if (!events[idx].registeredUsers) events[idx].registeredUsers = [];
+                const userIdx = events[idx].registeredUsers.indexOf(body.username);
+                if (userIdx !== -1) {
+                    events[idx].registeredUsers.splice(userIdx, 1);
+                } else {
+                    events[idx].registeredUsers.push(body.username);
+                }
+                localStorage.setItem('uog_events', JSON.stringify(events));
+                return events[idx];
+            }
+        } else {
+            const events = JSON.parse(localStorage.getItem('uog_events') || '[]');
+            const event = { id: Date.now(), registeredUsers: [], ...body };
+            events.unshift(event);
+            localStorage.setItem('uog_events', JSON.stringify(events));
+            return event;
+        }
+    }
+    if (baseKey === 'jobs') {
+        const jobs = JSON.parse(localStorage.getItem('uog_jobs') || '[]');
+        const job = { id: Date.now(), date: new Date().toLocaleDateString('en-PK', { day: 'numeric', month: 'short' }), ...body };
+        jobs.unshift(job);
+        localStorage.setItem('uog_jobs', JSON.stringify(jobs));
+        return job;
+    }
+    if (baseKey === 'elections') {
+        if (endpoint.endsWith('/vote')) {
+            const elecId = endpoint.split('/')[1];
+            const elections = JSON.parse(localStorage.getItem('uog_elections') || '[]');
+            const idx = elections.findIndex(e => String(e.id || e._id) === String(elecId));
+            if (idx !== -1) {
+                const elec = elections[idx];
+                if (!elec.votedUsers) elec.votedUsers = [];
+                if (!elec.votedUsers.includes(body.username)) {
+                    elec.votedUsers.push(body.username);
+                    const cand = elec.candidates.find(c => c.name === body.candidateName);
+                    if (cand) {
+                        cand.votes = (cand.votes || 0) + 1;
+                    }
+                }
+                localStorage.setItem('uog_elections', JSON.stringify(elections));
+                return elec;
+            }
+        } else {
+            const elections = JSON.parse(localStorage.getItem('uog_elections') || '[]');
+            const election = { id: Date.now(), votedUsers: [], ...body };
+            elections.unshift(election);
+            localStorage.setItem('uog_elections', JSON.stringify(elections));
+            return election;
+        }
+    }
+    if (baseKey === 'transactions') {
+        const txs = JSON.parse(localStorage.getItem('uog_transactions') || '[]');
+        const tx = { id: Date.now(), date: new Date().toISOString(), ...body };
+        txs.unshift(tx);
+        localStorage.setItem('uog_transactions', JSON.stringify(txs));
+        return tx;
     }
 }
 async function dbPut(endpoint, body) {

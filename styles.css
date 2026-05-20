@@ -1616,30 +1616,33 @@ body, nav, aside, main, div, input, select, textarea, button, p, span, h1, h2, h
 .mobile-drawer {
     position: fixed;
     bottom: 0; left: 0; right: 0;
-    background: white;
+    background: linear-gradient(135deg, #182212 0%, #0c1208 100%);
     border-radius: 24px 24px 0 0;
     z-index: 400;
     padding: 12px 20px 32px;
-    box-shadow: 0 -8px 40px rgba(0,0,0,0.15);
+    box-shadow: 0 -8px 40px rgba(0,0,0,0.5);
     transform: translateY(100%);
     transition: transform 0.3s cubic-bezier(0.34, 1.2, 0.64, 1);
+    border: 1px solid rgba(188, 250, 117, 0.15);
+    border-bottom: none;
 }
 .mobile-drawer.active {
-    transform: translateY(0);
+    transform: translateY(0) !important;
 }
 .mobile-drawer-handle {
     width: 40px; height: 4px;
-    background: #e5e7eb;
+    background: rgba(188, 250, 117, 0.3);
     border-radius: 99px;
     margin: 0 auto 16px;
 }
 .mobile-drawer-title {
-    font-size: 1rem;
+    font-size: 1.05rem;
     font-weight: 700;
-    color: var(--text-primary);
+    color: #bcfa75;
     margin-bottom: 20px;
     text-align: center;
-    letter-spacing: 0.01em;
+    letter-spacing: 0.02em;
+    font-family: 'Outfit', sans-serif;
 }
 .mobile-drawer-grid {
     display: grid;
@@ -1659,11 +1662,11 @@ body, nav, aside, main, div, input, select, textarea, button, p, span, h1, h2, h
     transition: background 0.15s;
     font-family: 'Outfit', sans-serif;
 }
-.mob-drawer-item:active { background: #f3f4f6; }
+.mob-drawer-item:active { background: rgba(188, 250, 117, 0.1); }
 .mob-drawer-item span {
     font-size: 0.75rem;
     font-weight: 500;
-    color: var(--text-secondary);
+    color: #e5e7eb;
 }
 .mob-drawer-icon {
     width: 54px; height: 54px;
@@ -1680,7 +1683,7 @@ body, nav, aside, main, div, input, select, textarea, button, p, span, h1, h2, h
     align-items: center;
     gap: 16px;
     padding: 4px 0 20px;
-    border-bottom: 1px solid #f3f4f6;
+    border-bottom: 1px solid rgba(188, 250, 117, 0.1);
     margin-bottom: 16px;
 }
 .mob-profile-avatar {
@@ -1691,11 +1694,11 @@ body, nav, aside, main, div, input, select, textarea, button, p, span, h1, h2, h
 .mob-profile-name {
     font-size: 1.1rem;
     font-weight: 700;
-    color: var(--text-primary);
+    color: #f3f4f6;
 }
 .mob-profile-role {
     font-size: 0.8rem;
-    color: var(--text-secondary);
+    color: #9ca3af;
     margin-top: 2px;
 }
 .mob-profile-actions {
@@ -1709,20 +1712,20 @@ body, nav, aside, main, div, input, select, textarea, button, p, span, h1, h2, h
     gap: 14px;
     width: 100%;
     padding: 14px 16px;
-    background: #f9fafb;
-    border: 1px solid #f3f4f6;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(188, 250, 117, 0.1);
     border-radius: 14px;
     font-family: 'Outfit', sans-serif;
     font-size: 0.95rem;
     font-weight: 500;
-    color: var(--text-primary);
+    color: #e5e7eb;
     cursor: pointer;
     transition: background 0.15s, transform 0.15s;
     text-align: left;
 }
-.mob-profile-btn i { font-size: 1rem; color: var(--uog-blue); width: 20px; text-align: center; }
-.mob-profile-btn:active { background: #f3f4f6; transform: scale(0.98); }
-.mob-profile-btn.danger { color: #ef4444; }
+.mob-profile-btn i { font-size: 1rem; color: #bcfa75; width: 20px; text-align: center; }
+.mob-profile-btn:active { background: rgba(188, 250, 117, 0.15); color: #bcfa75; transform: scale(0.98); }
+.mob-profile-btn.danger { color: #ef4444; border-color: rgba(239, 68, 68, 0.2); }
 .mob-profile-btn.danger i { color: #ef4444; }
 
 .mob-avatar-top {
@@ -1958,11 +1961,12 @@ body, nav, aside, main, div, input, select, textarea, button, p, span, h1, h2, h
         display: flex;
         position: fixed;
         bottom: 0; left: 0; right: 0;
-        background: white;
-        border-top: 1px solid #e5e7eb;
+        background: rgba(17, 26, 12, 0.95);
+        backdrop-filter: blur(12px);
+        border-top: 1px solid rgba(188, 250, 117, 0.15);
         padding: 6px 0 env(safe-area-inset-bottom, 6px);
         z-index: 200;
-        box-shadow: 0 -4px 20px rgba(0,0,0,0.08);
+        box-shadow: 0 -4px 30px rgba(0,0,0,0.5);
         justify-content: space-around;
         align-items: center;
     }
@@ -1985,21 +1989,21 @@ body, nav, aside, main, div, input, select, textarea, button, p, span, h1, h2, h
     }
     .mob-nav-btn i { font-size: 1.3rem; transition: transform 0.2s; }
     .mob-nav-btn:active i { transform: scale(0.88); }
-    .mob-nav-btn.active-mob { color: var(--uog-blue); }
-    .mob-nav-btn.active-mob i { color: var(--uog-blue); }
+    .mob-nav-btn.active-mob { color: #bcfa75; }
+    .mob-nav-btn.active-mob i { color: #bcfa75; }
 
     /* === CENTER "+" COMPOSE BUTTON === */
     .mob-compose-btn {
-        background: linear-gradient(135deg, var(--uog-blue), #2563eb);
-        color: white !important;
+        background: linear-gradient(135deg, #bcfa75, #9ecf56);
+        color: #0c1208 !important;
         border-radius: 50% !important;
         width: 52px; height: 52px;
         padding: 0;
         min-width: 52px;
-        box-shadow: 0 4px 14px rgba(15,76,129,0.35);
+        box-shadow: 0 4px 14px rgba(188,250,117,0.35);
         margin-bottom: 4px;
     }
-    .mob-compose-btn i { font-size: 1.4rem; color: white !important; }
+    .mob-compose-btn i { font-size: 1.4rem; color: #0c1208 !important; }
     .mob-compose-btn span { display: none; }
 }
 
