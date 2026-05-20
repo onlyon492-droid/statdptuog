@@ -677,6 +677,7 @@ function initApp() {
     startHeartbeatLoop();
     initInactivityTracker();
     renderBroadcastTicker();
+    fetchAndRenderRightJobsWidget();
     if (window.location.hash) {
         window.handleAnchorRoute();
     } else {
@@ -857,6 +858,12 @@ function switchView(view) {
         filterBar.style.display = (view === 'students') ? 'flex' : 'none';
     }
 
+    // Toggle Jobs widget in right sidebar (only show on Home/Feed view)
+    const rightJobsWidget = document.getElementById('right-jobs-widget');
+    if (rightJobsWidget) {
+        rightJobsWidget.style.display = (view === 'feed') ? 'block' : 'none';
+    }
+
     if (view === 'feed' || view === 'records') {
         composeCard.style.display = 'block';
         viewTitle.textContent = view === 'feed' ? 'Department Feed' : 'Academic Records';
@@ -871,7 +878,7 @@ function switchView(view) {
         renderSoftware();
     } else if (view === 'students') {
         composeCard.style.display = 'none';
-        viewTitle.textContent = 'Alumni & Student Directory';
+        viewTitle.textContent = 'Alumni Directory';
         viewDesc.textContent  = 'A secure directory of all registered members.';
         listContainer.className = 'directory-grid';
         renderDirectory();
@@ -892,6 +899,60 @@ function switchView(view) {
         viewTitle.textContent = 'Department Analytics';
         viewDesc.textContent  = 'Real-time statistical overview of the department demographics.';
         renderAnalytics();
+    } else if (view === 'events') {
+        composeCard.style.display = 'none';
+        viewTitle.textContent = 'Department Events';
+        viewDesc.textContent  = 'Register and participate in workshops, seminars, and alumni dinners.';
+        listContainer.className = 'events-grid';
+        renderEvents();
+    } else if (view === 'jobs') {
+        composeCard.style.display = 'none';
+        viewTitle.textContent = 'Job Board';
+        viewDesc.textContent  = 'Explore career opportunities and job postings shared by alumni and department.';
+        listContainer.className = 'jobs-board-grid';
+        renderJobsBoard();
+    } else if (view === 'stories-view') {
+        composeCard.style.display = 'none';
+        viewTitle.textContent = 'Member Stories';
+        viewDesc.textContent  = 'View active academic updates and status stories from community members.';
+        listContainer.className = 'stories-view-grid';
+        renderStoriesView();
+    } else if (view === 'membership') {
+        composeCard.style.display = 'none';
+        viewTitle.textContent = 'Alumni Association Membership';
+        viewDesc.textContent  = 'Select a membership level to unlock premium networking tools and badges.';
+        listContainer.className = 'membership-tiers';
+        renderMembership();
+    } else if (view === 'election') {
+        composeCard.style.display = 'none';
+        viewTitle.textContent = 'Department Elections';
+        viewDesc.textContent  = 'Cast your vote for presidential, secretary, or batch representative elections.';
+        listContainer.className = '';
+        renderElection();
+    } else if (view === 'messages') {
+        composeCard.style.display = 'none';
+        viewTitle.textContent = 'Alumni Messenger';
+        viewDesc.textContent  = 'Direct messages and networking chats with stats department members.';
+        listContainer.className = '';
+        renderMessages();
+    } else if (view === 'transactions') {
+        composeCard.style.display = 'none';
+        viewTitle.textContent = 'Transaction History';
+        viewDesc.textContent  = 'Review your paid membership dues, event tickets, and donation receipts.';
+        listContainer.className = '';
+        renderTransactions();
+    } else if (view === 'profile-view') {
+        composeCard.style.display = 'none';
+        viewTitle.textContent = 'My Academic Profile';
+        viewDesc.textContent  = 'Review and update your educational credentials, publications, and contact info.';
+        listContainer.className = '';
+        renderProfileTab();
+    } else if (view === 'settings-view') {
+        composeCard.style.display = 'none';
+        viewTitle.textContent = 'Settings & Privacy Controls';
+        viewDesc.textContent  = 'Configure security features, auto-logout times, data export, and visibility settings.';
+        listContainer.className = '';
+        renderSettingsView();
     }
 }
 
@@ -3687,3 +3748,764 @@ window.closeFacultyAnalytics = function() {
     const modal = document.getElementById('faculty-analytics-modal');
     if (modal) bootstrap.Modal.getInstance(modal)?.hide();
 };
+
+// ─── ZAIALUMNI CUSTOM DYNAMIC RENDERERS & HANDLERS ────────────────────────────
+
+// Right Sidebar Jobs Widget
+async function fetchAndRenderRightJobsWidget() {
+    const container = document.getElementById('right-jobs-list');
+    if (!container) return;
+    try {
+        const jobs = await dbGet('jobs');
+        if (!jobs || jobs.length === 0) {
+            container.innerHTML = '<div style="text-align: center; color: var(--text-secondary); font-size: 0.8rem; padding: 10px 0;">No active job postings.</div>';
+            return;
+        }
+        container.innerHTML = '';
+        // Display top 2 jobs in widget
+        jobs.slice(0, 2).forEach(job => {
+            const item = document.createElement('div');
+            item.className = 'job-widget-item';
+            item.innerHTML = `
+                <div class="job-widget-header">
+                    <div class="job-widget-logo">${job.company[0].toUpperCase()}</div>
+                    <div style="min-width: 0; flex: 1;">
+                        <div class="job-widget-title" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${job.title}</div>
+                        <div style="font-size: 0.72rem; color: var(--text-secondary); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${job.company}</div>
+                    </div>
+                </div>
+                <div class="job-widget-meta" style="margin: 4px 0;">
+                    <i class="far fa-calendar-alt"></i> ${job.date}
+                </div>
+                <div class="job-widget-desc">${job.desc}</div>
+                <div class="job-widget-tags" style="margin-bottom: 8px;">
+                    <span class="job-tag">${job.type}</span>
+                    <span class="job-tag location"><i class="fas fa-map-marker-alt"></i> ${job.location}</span>
+                    <span class="job-tag salary">${job.salary}</span>
+                </div>
+                <a href="${job.link || '#'}" target="_blank" style="font-size: 0.78rem; font-weight: 700; color: #4a7c10; text-decoration: none; display: flex; align-items: center; gap: 4px;">
+                    More Details <i class="fas fa-arrow-right" style="font-size: 0.65rem;"></i>
+                </a>
+            `;
+            container.appendChild(item);
+        });
+    } catch (err) {
+        console.error(err);
+        container.innerHTML = '<div style="text-align: center; color: var(--text-secondary); font-size: 0.8rem; padding: 10px 0;">Error loading jobs.</div>';
+    }
+}
+
+// Events Rendering
+async function renderEvents() {
+    listContainer.innerHTML = '<div style="padding:2rem;text-align:center;color:#9ca3af;"><i class="fas fa-spinner fa-spin"></i> Loading events...</div>';
+    try {
+        const events = await dbGet('events');
+        listContainer.innerHTML = '';
+
+        if (currentUser.role === 'Faculty' || currentUser.role === 'Admin') {
+            const addBtnCard = document.createElement('div');
+            addBtnCard.style = 'grid-column: 1 / -1; display: flex; justify-content: flex-end; margin-bottom: 1rem;';
+            addBtnCard.innerHTML = `
+                <button class="btn" style="background: var(--zai-dark); color: white; padding: 10px 20px; border-radius: 8px; font-weight: 600; display: flex; align-items: center; gap: 8px; border: none; cursor: pointer;" onclick="triggerAddEvent()">
+                    <i class="fas fa-plus"></i> Post Department Event
+                </button>
+            `;
+            listContainer.appendChild(addBtnCard);
+        }
+
+        if (events.length === 0) {
+            listContainer.innerHTML += '<div style="grid-column:1/-1; text-align:center; color: var(--text-secondary); padding: 3rem;">No upcoming department events.</div>';
+            return;
+        }
+
+        events.forEach(evt => {
+            const isRegistered = evt.registeredUsers && evt.registeredUsers.includes(currentUser.username);
+            const count = evt.registeredUsers ? evt.registeredUsers.length : 0;
+            const card = document.createElement('div');
+            card.className = 'event-card';
+            card.innerHTML = `
+                <h3 class="event-title">${evt.title}</h3>
+                <p class="event-desc">${evt.desc}</p>
+                <div class="event-info-row">
+                    <i class="far fa-calendar-alt"></i> <span>${evt.date}</span>
+                </div>
+                <div class="event-info-row">
+                    <i class="fas fa-map-marker-alt"></i> <span>${evt.location}</span>
+                </div>
+                <div class="event-footer">
+                    <span class="event-attendees"><i class="fas fa-users"></i> ${count} Registered</span>
+                    <button class="event-btn ${isRegistered ? 'registered' : 'register'}" onclick="toggleEventRegistration('${evt.id || evt._id}')">
+                        ${isRegistered ? '<i class="fas fa-check"></i> Registered' : '<i class="fas fa-plus"></i> Register'}
+                    </button>
+                </div>
+            `;
+            listContainer.appendChild(card);
+        });
+    } catch (err) {
+        console.error(err);
+        listContainer.innerHTML = '<div style="grid-column:1/-1; text-align:center; color: var(--danger); padding: 3rem;">Failed to load events.</div>';
+    }
+}
+
+window.triggerAddEvent = async function() {
+    const title = prompt('Event Title:');
+    if (!title) return;
+    const desc = prompt('Description:');
+    if (!desc) return;
+    const date = prompt('Date (e.g. June 15, 2026):');
+    if (!date) return;
+    const location = prompt('Location:', 'UOG Stats Block');
+    if (!location) return;
+
+    try {
+        await dbPost('events', { title, desc, date, location, author: currentUser.username });
+        showToast('Event created successfully!');
+        renderEvents();
+    } catch (err) {
+        showToast('Failed to create event', true);
+    }
+};
+
+window.toggleEventRegistration = async function(eventId) {
+    try {
+        await dbPost(`events/${eventId}/register`, { username: currentUser.username });
+        showToast('Registration status updated!');
+        renderEvents();
+    } catch (err) {
+        showToast('Error registering', true);
+    }
+};
+
+// Jobs Board Rendering
+async function renderJobsBoard() {
+    listContainer.innerHTML = '<div style="padding:2rem;text-align:center;color:#9ca3af;"><i class="fas fa-spinner fa-spin"></i> Loading jobs...</div>';
+    try {
+        const jobs = await dbGet('jobs');
+        listContainer.innerHTML = '';
+
+        const headerRow = document.createElement('div');
+        headerRow.style = 'grid-column: 1 / -1; display: flex; justify-content: flex-end; margin-bottom: 1rem;';
+        headerRow.innerHTML = `
+            <button class="btn" style="background: var(--zai-dark); color: white; padding: 10px 20px; border-radius: 8px; font-weight: 600; display: flex; align-items: center; gap: 8px; border: none; cursor: pointer;" onclick="triggerAddJob()">
+                <i class="fas fa-plus"></i> Share Job Opening
+            </button>
+        `;
+        listContainer.appendChild(headerRow);
+
+        if (jobs.length === 0) {
+            listContainer.innerHTML += '<div style="grid-column:1/-1; text-align:center; color: var(--text-secondary); padding: 3rem;">No jobs shared yet.</div>';
+            return;
+        }
+
+        jobs.forEach(job => {
+            const card = document.createElement('div');
+            card.className = 'event-card';
+            card.innerHTML = `
+                <div style="display: flex; gap: 12px; align-items: flex-start; margin-bottom: 10px;">
+                    <div style="background: rgba(188, 235, 117, 0.2); width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #4a7c10; font-size: 1.25rem; font-weight: 700;">
+                        ${job.company[0].toUpperCase()}
+                    </div>
+                    <div style="min-width: 0; flex: 1;">
+                        <h3 class="event-title" style="margin: 0; font-size: 1.05rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${job.title}</h3>
+                        <div style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${job.company}</div>
+                    </div>
+                </div>
+                <p class="event-desc" style="font-size: 0.85rem; line-height: 1.45;">${job.desc}</p>
+                <div class="event-info-row" style="font-size: 0.78rem;">
+                    <i class="far fa-calendar-alt"></i> <span>Shared on ${job.date}</span>
+                </div>
+                <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px;">
+                    <span class="job-tag">${job.type}</span>
+                    <span class="job-tag location"><i class="fas fa-map-marker-alt"></i> ${job.location}</span>
+                    <span class="job-tag salary"><i class="fas fa-money-bill-wave"></i> ${job.salary}</span>
+                </div>
+                <div class="event-footer" style="margin-top: 12px; padding-top: 10px;">
+                    <span style="font-size: 0.72rem; color: var(--text-secondary);">By @${job.author}</span>
+                    <a href="${job.link || '#'}" target="_blank" class="event-btn register" style="text-decoration: none; display: inline-block; text-align: center;">
+                        Apply Now
+                    </a>
+                </div>
+            `;
+            listContainer.appendChild(card);
+        });
+    } catch (err) {
+        console.error(err);
+        listContainer.innerHTML = '<div style="grid-column:1/-1; text-align:center; color: var(--danger); padding: 3rem;">Failed to load jobs.</div>';
+    }
+}
+
+window.triggerAddJob = async function() {
+    const title = prompt('Job Title (e.g. Junior Data Analyst):');
+    if (!title) return;
+    const company = prompt('Company Name:');
+    if (!company) return;
+    const type = prompt('Job Type (Full Time, Part Time, Contractual, Internship):', 'Full Time');
+    if (!type) return;
+    const location = prompt('Location (e.g. Lahore, Pakistan):', 'Lahore, Pakistan');
+    if (!location) return;
+    const salary = prompt('Salary Package (e.g. PKR 80,000/mo):', 'Competitive');
+    if (!salary) return;
+    const desc = prompt('Short Description of Role & Requirements:');
+    if (!desc) return;
+    const link = prompt('Link to Apply (Optional):', 'https://');
+    if (!link) return;
+
+    try {
+        await dbPost('jobs', { title, company, type, location, salary, desc, link, author: currentUser.username });
+        showToast('Job opening posted successfully!');
+        renderJobsBoard();
+        fetchAndRenderRightJobsWidget();
+    } catch (err) {
+        showToast('Error sharing job opening', true);
+    }
+};
+
+// Stories View Rendering
+async function renderStoriesView() {
+    listContainer.innerHTML = '';
+    const stories = getStories() || [];
+    
+    // Add "Create Story" Card
+    const createCard = document.createElement('div');
+    createCard.className = 'create-story-card';
+    createCard.onclick = () => window.addUserStory();
+    createCard.innerHTML = `
+        <div class="create-story-icon"><i class="fas fa-plus"></i></div>
+        <div class="create-story-label">Create Story</div>
+    `;
+    listContainer.appendChild(createCard);
+    
+    stories.forEach(story => {
+        const card = document.createElement('div');
+        card.className = 'story-card-wrapper';
+        card.onclick = () => window.viewStory(story.id);
+        
+        const avatarHtml = story.profilePic 
+            ? `<img src="${story.profilePic}" alt="" style="width:100%;height:100%;object-fit:cover;">` 
+            : `<span>${story.name.charAt(0).toUpperCase()}</span>`;
+            
+        card.innerHTML = `
+            <div class="story-card-overlay">
+                <div class="story-card-user-avatar">${avatarHtml}</div>
+                <div class="story-card-user-name">${story.name}</div>
+            </div>
+            <div class="story-card-bg" style="display: flex; align-items: center; justify-content: center; color: white; padding: 15px; text-align: center; font-size: 0.85rem; font-weight: 500; height: 100%;">
+                "${story.text}"
+            </div>
+        `;
+        listContainer.appendChild(card);
+    });
+}
+
+// Membership Tiers Rendering
+function renderMembership() {
+    listContainer.innerHTML = '';
+    
+    const currentTier = currentUser.membershipTier || 'Free';
+    
+    const tiers = [
+        {
+            name: 'Free Student',
+            price: '$0',
+            period: 'forever',
+            key: 'Free',
+            features: [
+                'View Directory & Profiles',
+                'Download Statistical Software',
+                'Post in Feed & Comments',
+                'Standard Notifications'
+            ],
+            isPopular: false
+        },
+        {
+            name: 'Professional Alumni',
+            price: '$15',
+            period: 'per month',
+            key: 'Professional',
+            features: [
+                'All Free Features',
+                'Alumni Verification Badge',
+                'Secure Direct Messaging',
+                'Election Voting Rights',
+                'Priority Career Support'
+            ],
+            isPopular: true
+        },
+        {
+            name: 'Faculty Elite',
+            price: '$49',
+            period: 'per month',
+            key: 'Faculty Elite',
+            features: [
+                'All Professional Features',
+                'Post Department Events',
+                'Publish Ticker Announcements',
+                'Featured Directory Listing',
+                'Verified Badge on Posts'
+            ],
+            isPopular: false
+        }
+    ];
+
+    tiers.forEach(tier => {
+        const isCurrent = currentTier === tier.key;
+        const card = document.createElement('div');
+        card.className = `tier-card ${tier.isPopular ? 'popular' : ''}`;
+        
+        let featureListHtml = '';
+        tier.features.forEach(f => {
+            featureListHtml += `<li><i class="fas fa-check-circle"></i> ${f}</li>`;
+        });
+
+        card.innerHTML = `
+            <div class="tier-name">${tier.name}</div>
+            <div class="tier-price">${tier.price}<span>/${tier.period}</span></div>
+            <ul class="tier-features">
+                ${featureListHtml}
+            </ul>
+            <button class="tier-btn ${tier.isPopular ? 'primary' : ''}" 
+                onclick="activateMembership('${tier.key}', '${tier.price}')" ${isCurrent ? 'disabled' : ''}>
+                ${isCurrent ? 'Current Tier' : 'Upgrade Now'}
+            </button>
+        `;
+        listContainer.appendChild(card);
+    });
+}
+
+window.activateMembership = async function(tierKey, priceStr) {
+    if (tierKey === 'Free') {
+        showToast('You are already on the Free tier.', true);
+        return;
+    }
+    const priceNum = parseFloat(priceStr.replace('$', ''));
+    
+    try {
+        await dbPost('transactions', {
+            username: currentUser.username,
+            amount: priceNum,
+            description: `Upgrade to ${tierKey} Membership`,
+            status: 'Paid'
+        });
+        
+        await dbPut(`users/${currentUser.username}/profile`, { membershipTier: tierKey });
+        currentUser.membershipTier = tierKey;
+        localStorage.setItem('uog_session', JSON.stringify(currentUser));
+        
+        initApp(); 
+        
+        showToast(`Congratulations! You are now a ${tierKey} member.`);
+        renderMembership();
+    } catch (err) {
+        showToast('Membership upgrade failed', true);
+    }
+};
+
+// Election Dashboard Rendering
+async function renderElection() {
+    listContainer.innerHTML = '<div style="padding:2rem;text-align:center;color:#9ca3af;"><i class="fas fa-spinner fa-spin"></i> Loading active elections...</div>';
+    try {
+        const elections = await dbGet('elections');
+        listContainer.innerHTML = '';
+
+        if (elections.length === 0) {
+            const seedElection = {
+                title: 'Alumni President Election 2026',
+                status: 'Active',
+                candidates: [
+                    { name: 'Dr. Sophia Johnson', votes: 12, role: 'Associate Professor' },
+                    { name: 'Engr. Kamran Khan', votes: 8, role: 'Senior Statistician / Alumnus' },
+                    { name: 'Syeda Fatima', votes: 5, role: 'Ph.D. Scholar' }
+                ]
+            };
+            const seeded = await dbPost('elections', seedElection);
+            elections.push(seeded);
+        }
+
+        elections.forEach(elec => {
+            const card = document.createElement('div');
+            card.className = 'election-card';
+            
+            const totalVotes = elec.candidates.reduce((sum, c) => sum + c.votes, 0) || 1;
+            const hasVoted = elec.votedUsers && elec.votedUsers.includes(currentUser.username);
+            
+            let candidateRowsHtml = '';
+            elec.candidates.forEach(cand => {
+                const pct = Math.round((cand.votes / totalVotes) * 100);
+                candidateRowsHtml += `
+                    <div class="candidate-row">
+                        <div class="candidate-results-bar" style="width: ${pct}%"></div>
+                        <div class="candidate-avatar">${cand.name.charAt(0)}</div>
+                        <div class="candidate-info">
+                            <div class="candidate-name">${cand.name}</div>
+                            <div class="candidate-role">${cand.role}</div>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 15px; z-index: 2;">
+                            <span class="vote-count-label">${pct}% (${cand.votes} votes)</span>
+                            ${!hasVoted ? `
+                                <button class="vote-btn" onclick="castVote('${elec.id || elec._id}', '${cand.name}')">
+                                    Vote
+                                </button>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            });
+
+            card.innerHTML = `
+                <div class="election-header">
+                    <h3 class="election-title"><i class="fas fa-vote-yea"></i> ${elec.title}</h3>
+                    <span class="election-status-badge">${elec.status}</span>
+                </div>
+                <div class="candidates-list">
+                    ${candidateRowsHtml}
+                </div>
+                ${hasVoted ? `
+                    <div style="margin-top: 15px; text-align: center; font-size: 0.85rem; color: #059669; font-weight: 600;">
+                        <i class="fas fa-check-circle"></i> Thank you! Your vote has been recorded.
+                    </div>
+                ` : ''}
+            `;
+            listContainer.appendChild(card);
+        });
+    } catch (err) {
+        console.error(err);
+        listContainer.innerHTML = '<div style="text-align:center; color:var(--danger); padding:3rem;">Failed to load elections.</div>';
+    }
+}
+
+window.castVote = async function(electionId, candidateName) {
+    try {
+        await dbPost(`elections/${electionId}/vote`, { username: currentUser.username, candidateName });
+        showToast('Vote cast successfully!');
+        renderElection();
+    } catch (err) {
+        showToast(err.message || 'Voting failed', true);
+    }
+};
+
+// Direct Messaging (Chat) Logic
+let activeChatPartner = null;
+let chatRefreshInterval = null;
+
+async function renderMessages() {
+    if (chatRefreshInterval) clearInterval(chatRefreshInterval);
+    
+    listContainer.innerHTML = `
+        <div class="chat-layout">
+            <div class="chat-sidebar">
+                <div class="chat-sidebar-header">Members Directory</div>
+                <ul class="chat-users-list" id="chat-users-list">
+                    <li style="padding: 20px; text-align: center; color: var(--text-secondary); font-size: 0.8rem;">Loading members...</li>
+                </ul>
+            </div>
+            <div class="chat-main" id="chat-main-pane">
+                <div style="flex:1; display:flex; flex-direction:column; justify-content:center; align-items:center; color: var(--text-secondary); font-size: 0.9rem; padding: 20px; text-align: center;">
+                    <i class="far fa-comments" style="font-size: 3rem; margin-bottom: 15px; opacity: 0.5;"></i>
+                    Select a member from the left pane to start chatting.
+                </div>
+            </div>
+        </div>
+    `;
+
+    try {
+        const users = await dbGet('users');
+        const usersListEl = document.getElementById('chat-users-list');
+        if (!usersListEl) return;
+        usersListEl.innerHTML = '';
+        
+        const contacts = users.filter(u => u.username !== currentUser.username);
+        
+        if (contacts.length === 0) {
+            usersListEl.innerHTML = '<li style="padding: 20px; text-align: center; color: var(--text-secondary); font-size: 0.8rem;">No other members.</li>';
+            return;
+        }
+
+        contacts.forEach(u => {
+            const li = document.createElement('li');
+            li.className = `chat-user-item ${activeChatPartner === u.username ? 'active' : ''}`;
+            li.onclick = () => {
+                document.querySelectorAll('.chat-user-item').forEach(el => el.classList.remove('active'));
+                li.classList.add('active');
+                selectChatPartner(u);
+            };
+            
+            const avatarChar = u.name.charAt(0).toUpperCase();
+            const avatarHtml = u.profilePic 
+                ? `<img src="${u.profilePic}" alt="" style="width:100%;height:100%;object-fit:cover;">` 
+                : avatarChar;
+
+            li.innerHTML = `
+                <div class="chat-user-avatar">${avatarHtml}</div>
+                <div class="chat-user-info">
+                    <div class="chat-user-name">${u.name}</div>
+                    <div class="chat-user-role">${u.role || 'Member'}</div>
+                </div>
+            `;
+            usersListEl.appendChild(li);
+        });
+
+        if (activeChatPartner) {
+            const partnerUser = contacts.find(u => u.username === activeChatPartner);
+            if (partnerUser) selectChatPartner(partnerUser);
+        }
+
+    } catch (err) {
+        console.error(err);
+    }
+}
+
+window.selectChatPartner = function(partner) {
+    activeChatPartner = partner.username;
+    const mainPane = document.getElementById('chat-main-pane');
+    if (!mainPane) return;
+
+    const partnerAvatarHtml = partner.profilePic 
+        ? `<img src="${partner.profilePic}" alt="" style="width:100%;height:100%;object-fit:cover;">` 
+        : partner.name.charAt(0).toUpperCase();
+
+    mainPane.innerHTML = `
+        <div class="chat-header">
+            <div class="chat-user-avatar">${partnerAvatarHtml}</div>
+            <div>
+                <div style="font-size: 0.9rem; font-weight: 700; color: var(--text-primary);">${partner.name}</div>
+                <div style="font-size: 0.75rem; color: var(--text-secondary);">${partner.role || 'Member'}</div>
+            </div>
+        </div>
+        <div class="chat-body" id="chat-messages-body">
+            <div style="text-align: center; color: var(--text-secondary); font-size: 0.8rem; padding: 20px;">Loading conversation...</div>
+        </div>
+        <form class="chat-input-row" id="chat-send-form" onsubmit="sendChatMessage(event)">
+            <input class="chat-input-field" id="chat-msg-input" placeholder="Type a message..." required autocomplete="off">
+            <button class="chat-send-btn" type="submit"><i class="fas fa-paper-plane"></i></button>
+        </form>
+    `;
+
+    loadChatMessages();
+    if (chatRefreshInterval) clearInterval(chatRefreshInterval);
+    chatRefreshInterval = setInterval(loadChatMessages, 3000);
+};
+
+async function loadChatMessages() {
+    const chatBody = document.getElementById('chat-messages-body');
+    if (!chatBody || !activeChatPartner) return;
+
+    try {
+        const msgs = await dbGet(`messages?sender=${currentUser.username}&receiver=${activeChatPartner}`);
+        chatBody.innerHTML = '';
+        if (msgs.length === 0) {
+            chatBody.innerHTML = '<div style="text-align: center; color: var(--text-secondary); font-size: 0.8rem; padding: 20px;">No messages yet. Say hello!</div>';
+            return;
+        }
+        
+        msgs.forEach(m => {
+            const bubble = document.createElement('div');
+            const isSent = m.sender === currentUser.username;
+            bubble.className = `chat-bubble ${isSent ? 'sent' : 'received'}`;
+            
+            let timeStr = '';
+            if (m.timestamp) {
+                const d = new Date(m.timestamp);
+                timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            }
+            
+            bubble.innerHTML = `
+                <div>${m.text}</div>
+                <div class="chat-bubble-time">${timeStr}</div>
+            `;
+            chatBody.appendChild(bubble);
+        });
+
+        chatBody.scrollTop = chatBody.scrollHeight;
+    } catch (err) {
+        console.error(err);
+    }
+}
+
+window.sendChatMessage = async function(event) {
+    event.preventDefault();
+    const input = document.getElementById('chat-msg-input');
+    if (!input || !input.value.trim() || !activeChatPartner) return;
+    const val = input.value.trim();
+    input.value = '';
+
+    try {
+        await dbPost('messages', {
+            sender: currentUser.username,
+            receiver: activeChatPartner,
+            text: val
+        });
+        loadChatMessages();
+    } catch (err) {
+        showToast('Message send failed', true);
+    }
+};
+
+// Transactions Rendering
+async function renderTransactions() {
+    listContainer.innerHTML = '<div style="padding:2rem;text-align:center;color:#9ca3af;"><i class="fas fa-spinner fa-spin"></i> Loading transactions...</div>';
+    try {
+        const txs = await dbGet(`transactions?username=${currentUser.username}`);
+        listContainer.innerHTML = '';
+
+        if (txs.length === 0) {
+            listContainer.innerHTML = '<div style="text-align:center; color: var(--text-secondary); padding: 3rem;">No payment transactions recorded.</div>';
+            return;
+        }
+
+        let rowsHtml = '';
+        txs.forEach(t => {
+            const dateStr = t.date ? new Date(t.date).toLocaleDateString() : 'N/A';
+            rowsHtml += `
+                <tr>
+                    <td>#${t.id ? t.id.substring(0, 8) : (t._id ? t._id.substring(0, 8) : 'N/A')}</td>
+                    <td>${dateStr}</td>
+                    <td>${t.description}</td>
+                    <td class="tx-amount">$${parseFloat(t.amount).toFixed(2)}</td>
+                    <td><span class="tx-status ${t.status.toLowerCase()}">${t.status}</span></td>
+                </tr>
+            `;
+        });
+
+        listContainer.innerHTML = `
+            <div class="tx-container">
+                <table class="tx-table">
+                    <thead>
+                        <tr>
+                            <th>Receipt ID</th>
+                            <th>Date</th>
+                            <th>Description</th>
+                            <th>Amount</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rowsHtml}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    } catch (err) {
+        console.error(err);
+        listContainer.innerHTML = '<div style="text-align:center; color:var(--danger); padding:3rem;">Failed to load transactions.</div>';
+    }
+}
+
+// Profile Overview Rendering
+function renderProfileTab() {
+    listContainer.innerHTML = '';
+    
+    const bannerStyle = 'height: 120px; background: linear-gradient(135deg, var(--zai-dark) 0%, #111827 100%); border-radius: 12px; margin-bottom: 2rem; position: relative;';
+    const profilePicStyle = 'width: 80px; height: 80px; border-radius: 50%; border: 4px solid white; position: absolute; bottom: -40px; left: 24px; background: #e5e7eb; overflow: hidden; display: flex; align-items: center; justify-content: center;';
+    
+    const avatarChar = currentUser.name.charAt(0).toUpperCase();
+    const avatarHtml = currentUser.profilePic 
+        ? `<img src="${currentUser.profilePic}" alt="" style="width:100%;height:100%;object-fit:cover;">` 
+        : `<span style="font-size: 2rem; font-weight:700; color: #1e1e1e;">${avatarChar}</span>`;
+        
+    const membershipLabel = currentUser.membershipTier || 'Free Student';
+
+    const card = document.createElement('div');
+    card.className = 'event-card';
+    card.style = 'padding: 0 0 1.5rem; overflow: hidden;';
+    card.innerHTML = `
+        <div style="${bannerStyle}">
+            <div style="${profilePicStyle}">
+                ${avatarHtml}
+            </div>
+        </div>
+        <div style="padding: 0 24px;">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-top: 10px;">
+                <div>
+                    <h2 style="font-size: 1.4rem; font-weight:800; color: var(--text-primary); margin:0;">${currentUser.name}</h2>
+                    <p style="color: var(--text-secondary); font-size:0.88rem; margin: 4px 0 0;">@${currentUser.username}</p>
+                </div>
+                <span class="tx-status paid" style="font-size: 0.78rem; font-weight: 700;">${membershipLabel}</span>
+            </div>
+            
+            <div style="margin-top: 1.5rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; border-top: 1px solid var(--border-color); padding-top: 1.5rem;">
+                <div>
+                    <strong style="font-size: 0.78rem; color: var(--text-secondary); text-transform: uppercase;">Role</strong>
+                    <div style="font-size: 0.9rem; font-weight:600; color: var(--text-primary); margin-top: 2px;">${currentUser.role}</div>
+                </div>
+                <div>
+                    <strong style="font-size: 0.78rem; color: var(--text-secondary); text-transform: uppercase;">Mobile Number</strong>
+                    <div style="font-size: 0.9rem; font-weight:600; color: var(--text-primary); margin-top: 2px;">${currentUser.phone || 'Not Provided'}</div>
+                </div>
+                ${currentUser.role === 'Student' ? `
+                    <div>
+                        <strong style="font-size: 0.78rem; color: var(--text-secondary); text-transform: uppercase;">Academic Program</strong>
+                        <div style="font-size: 0.9rem; font-weight:600; color: var(--text-primary); margin-top: 2px;">${currentUser.program || 'N/A'}</div>
+                    </div>
+                    <div>
+                        <strong style="font-size: 0.78rem; color: var(--text-secondary); text-transform: uppercase;">Batch</strong>
+                        <div style="font-size: 0.9rem; font-weight:600; color: var(--text-primary); margin-top: 2px;">${currentUser.batch || 'N/A'}</div>
+                    </div>
+                ` : `
+                    <div>
+                        <strong style="font-size: 0.78rem; color: var(--text-secondary); text-transform: uppercase;">Designation</strong>
+                        <div style="font-size: 0.9rem; font-weight:600; color: var(--text-primary); margin-top: 2px;">${currentUser.designation || 'Faculty Member'}</div>
+                    </div>
+                    <div>
+                        <strong style="font-size: 0.78rem; color: var(--text-secondary); text-transform: uppercase;">Publications</strong>
+                        <div style="font-size: 0.9rem; font-weight:600; color: var(--text-primary); margin-top: 2px;">${currentUser.publicationsCount || 0} Papers</div>
+                    </div>
+                `}
+            </div>
+
+            <div style="margin-top: 1.5rem; border-top: 1px solid var(--border-color); padding-top: 1.5rem;">
+                <strong style="font-size: 0.78rem; color: var(--text-secondary); text-transform: uppercase;">Academic Tagline</strong>
+                <div style="font-style: italic; font-size: 0.9rem; color: var(--text-primary); margin-top: 4px;">
+                    ${currentUser.tagline || '"No academic tagline set yet. Keep studying!"'}
+                </div>
+            </div>
+            
+            <div style="margin-top: 1.5rem; display: flex; gap: 10px;">
+                <button class="btn" style="background: var(--zai-dark); color: white; border: none; padding: 8px 20px; border-radius: 8px; font-weight: 600; cursor: pointer;" onclick="document.getElementById('open-edit-profile').click()">
+                    Edit Profile
+                </button>
+            </div>
+        </div>
+    `;
+    listContainer.appendChild(card);
+}
+
+// Settings and Privacy Dashboard Configuration
+function renderSettingsView() {
+    renderPrivacyDashboard();
+    
+    setTimeout(() => {
+        const settingsCard = document.createElement('div');
+        settingsCard.className = 'edu-card';
+        settingsCard.style = 'margin-top: 20px; padding: 1.5rem;';
+        settingsCard.innerHTML = `
+            <h3 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 12px; color: var(--text-primary);"><i class="fas fa-history"></i> Account Security & Logout</h3>
+            <div style="display: flex; flex-direction: column; gap: 15px;">
+                <div>
+                    <label style="font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); display: block; margin-bottom: 6px;">Auto Logout Inactivity Trigger</label>
+                    <select class="form-select" id="settings-logout-timer" style="max-width: 300px;" onchange="updateAutoLogoutSetting(this.value)">
+                        <option value="0">Never Logout</option>
+                        <option value="5" ${currentUser.autoLogoutTime === 5 ? 'selected' : ''}>5 Minutes</option>
+                        <option value="15" ${currentUser.autoLogoutTime === 15 ? 'selected' : ''}>15 Minutes</option>
+                        <option value="30" ${currentUser.autoLogoutTime === 30 ? 'selected' : ''}>30 Minutes</option>
+                        <option value="60" ${currentUser.autoLogoutTime === 60 ? 'selected' : ''}>60 Minutes</option>
+                    </select>
+                </div>
+            </div>
+        `;
+        listContainer.appendChild(settingsCard);
+    }, 100);
+}
+
+window.updateAutoLogoutSetting = async function(minutes) {
+    try {
+        const val = parseInt(minutes);
+        await dbPut(`users/${currentUser.username}/profile`, { autoLogoutTime: val });
+        currentUser.autoLogoutTime = val;
+        localStorage.setItem('uog_session', JSON.stringify(currentUser));
+        showToast('Auto logout preference updated!');
+        initInactivityTracker();
+    } catch (err) {
+        showToast('Error updating preference', true);
+    }
+};
+

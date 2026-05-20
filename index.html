@@ -154,35 +154,54 @@
 <!-- Main Academic Workspace -->
 <div class="view" id="workspace-view">
 <!-- Top Navbar -->
-<nav class="edu-navbar">
-<div class="nav-left">
-<img alt="UOG" class="nav-logo-img" onerror="this.src='https://via.placeholder.com/40?text=U'" src="https://uog.edu.pk/assets/images/logo.png"/>
-<span class="nav-title">Statistics Dept.</span>
+<nav class="edu-navbar" style="display: flex; justify-content: space-between; align-items: center; height: 64px; border-bottom: 1px solid var(--border-color); background: #ffffff; padding: 0 2rem; position: sticky; top: 0; z-index: 100;">
+<div class="nav-left" style="display: flex; align-items: center; gap: 16px;">
+  <button class="btn" onclick="switchView('students')" style="background-color: var(--zai-accent); color: #1e1e1e; font-weight: 700; padding: 8px 20px; border-radius: 30px; font-size: 0.88rem; border: none; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: 0.2s;">
+    <i class="fas fa-search"></i> Find an Alumni
+  </button>
 </div>
-<div class="nav-middle">
-<button class="btn" style="background-color: var(--zai-accent); color: #111827; font-weight: 600; padding: 6px 16px; border-radius: 8px;">Find an Alumni</button>
+<div class="nav-middle" style="flex: 1; text-align: center;">
+  <span style="font-weight: 700; font-size: 1.15rem; color: var(--zai-dark); letter-spacing: -0.3px;">UOG Statistics Portal</span>
 </div>
-<div class="nav-right">
-<div class="nav-icon" id="notif-btn" title="Notifications">
-<i class="fas fa-bell"></i><span class="badge" id="notif-badge" style="display:none;">0</span>
-<div class="notif-dropdown" id="notif-dropdown">
-<h4>Recent Notifications</h4>
-<ul id="notif-list">
-<li style="text-align:center; color:#6b7280;">No new notifications.</li>
-</ul>
-</div>
-</div>
-<div class="theme-switch-btn" id="theme-toggle-btn" title="Toggle Theme">
-<i class="fas fa-moon"></i>
-</div>
-<div class="theme-switch-btn" id="layout-toggle-btn" style="margin-right: 10px;" title="Toggle Desktop/Mobile View Mode">
-<i class="fas fa-mobile-alt"></i>
-</div>
-<div class="profile-chip" id="profile-chip">
-<div class="avatar-small" id="nav-avatar"></div>
-<span id="nav-name" style="font-weight: 500;">Name</span>
-</div>
-<div class="circle-icon" id="sign-out-btn" title="Secure Logout"><i class="fas fa-power-off"></i></div>
+<div class="nav-right" style="display: flex; align-items: center; gap: 16px;">
+  <!-- Messages Badge Icon -->
+  <div class="nav-icon" id="nav-chat-icon" onclick="switchView('messages')" title="Messages" style="position: relative; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--text-secondary); cursor: pointer; transition: 0.2s;">
+    <i class="fas fa-comment-alt"></i>
+    <span class="badge" style="position: absolute; top: -2px; right: -2px; background: var(--success); color: white; font-size: 0.65rem; padding: 2px 5px; border-radius: 10px; font-weight: bold;">0</span>
+  </div>
+  <!-- Notification Bell Icon -->
+  <div class="nav-icon" id="notif-btn" title="Notifications" style="position: relative; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--text-secondary); cursor: pointer; transition: 0.2s;">
+    <i class="fas fa-bell"></i>
+    <span class="badge" id="notif-badge" style="position: absolute; top: -2px; right: -2px; background: var(--danger); color: white; font-size: 0.65rem; padding: 2px 5px; border-radius: 10px; font-weight: bold;">3</span>
+    <div class="notif-dropdown" id="notif-dropdown">
+      <h4>Recent Notifications</h4>
+      <ul id="notif-list">
+        <li style="padding: 12px 15px; border-bottom: 1px solid var(--border-color); font-size: 0.85rem; color: var(--text-primary); cursor: pointer; transition: 0.2s; line-height: 1.4;">
+          <strong>Admin</strong> posted a new event: Academic Dinner 2026.
+        </li>
+        <li style="padding: 12px 15px; border-bottom: 1px solid var(--border-color); font-size: 0.85rem; color: var(--text-primary); cursor: pointer; transition: 0.2s; line-height: 1.4;">
+          <strong>Alumni Office</strong> updated the Membership program terms.
+        </li>
+        <li style="padding: 12px 15px; border-bottom: 1px solid var(--border-color); font-size: 0.85rem; color: var(--text-primary); cursor: pointer; transition: 0.2s; line-height: 1.4;">
+          Welcome to the new <strong>Zaialumni Statistics</strong> dashboard layout!
+        </li>
+      </ul>
+    </div>
+  </div>
+  <div class="theme-switch-btn" id="theme-toggle-btn" title="Toggle Theme" style="cursor: pointer; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--text-secondary);">
+    <i class="fas fa-moon"></i>
+  </div>
+  <div class="theme-switch-btn" id="layout-toggle-btn" title="Toggle Mode" style="cursor: pointer; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--text-secondary); margin-right: 8px;">
+    <i class="fas fa-mobile-alt"></i>
+  </div>
+  <!-- Profile Dropdown Chip -->
+  <div class="profile-chip" id="profile-chip" style="display: flex; align-items: center; gap: 8px; padding: 5px 12px 5px 5px; border-radius: 24px; border: 1px solid var(--border-color); background: #f9f9f6; cursor: pointer; transition: 0.2s; font-size: 0.9rem;">
+    <div class="avatar-small" id="nav-avatar" style="width: 32px; height: 32px;"></div>
+    <span style="color: var(--text-secondary); font-size: 0.8rem; font-weight: 500;">Welcome,</span>
+    <span id="nav-name" style="font-weight: 700; color: var(--text-primary);">Name</span>
+    <i class="fas fa-chevron-down" style="font-size: 0.75rem; color: var(--text-secondary); margin-left: 2px;"></i>
+  </div>
+  <div class="circle-icon" id="sign-out-btn" title="Secure Logout" style="cursor: pointer; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--text-secondary);"><i class="fas fa-power-off"></i></div>
 </div>
 </nav>
 <!-- Mobile Top Bar (only on mobile) -->
@@ -286,6 +305,12 @@
 <div class="edu-body">
 <!-- Left Sidebar -->
 <aside class="edu-sidebar-left">
+<div class="sidebar-logo" style="display: flex; align-items: center; gap: 10px; padding: 1.5rem 1.5rem 0.5rem; border-bottom: 1px solid rgba(255, 255, 255, 0.08); margin-bottom: 0.5rem;">
+  <div style="background: var(--zai-accent); width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #1e1e1e; font-size: 1.2rem;">
+    <i class="fas fa-handshake"></i>
+  </div>
+  <span style="font-weight: 800; font-size: 1.3rem; color: #ffffff; letter-spacing: -0.5px;">Zaialumni</span>
+</div>
 <div class="profile-summary">
 <div class="profile-cover-banner"></div>
 <!-- Profile Picture Upload Area -->
@@ -302,13 +327,22 @@
 <button class="edit-profile-btn" id="open-edit-profile" style="margin-top: 12px;"><i class="fas fa-user-edit"></i> Edit Profile</button>
 </div>
 <ul class="sidebar-list">
-<li class="active-item" data-target="feed"><i class="fas fa-chalkboard"></i> <span>Department Feed</span></li>
+<li class="active-item" data-target="feed"><i class="fas fa-home"></i> <span>Home</span></li>
+<li data-target="events"><i class="fas fa-calendar-alt"></i> <span>My Event</span> <i class="fas fa-chevron-right chevron-right" style="margin-left: auto; font-size: 0.8rem; opacity: 0.7;"></i></li>
+<li data-target="jobs"><i class="fas fa-briefcase"></i> <span>Job Post</span> <i class="fas fa-chevron-right chevron-right" style="margin-left: auto; font-size: 0.8rem; opacity: 0.7;"></i></li>
+<li data-target="stories-view"><i class="fas fa-book-open"></i> <span>Stories</span> <i class="fas fa-chevron-right chevron-right" style="margin-left: auto; font-size: 0.8rem; opacity: 0.7;"></i></li>
+<li data-target="students"><i class="fas fa-user-graduate"></i> <span>Alumni</span></li>
+<li data-target="membership"><i class="fas fa-id-card"></i> <span>Membership</span> <i class="fas fa-chevron-right chevron-right" style="margin-left: auto; font-size: 0.8rem; opacity: 0.7;"></i></li>
+<li data-target="election" style="color: #ef4444; font-weight: bold;"><i class="fas fa-vote-yea"></i> <span>Election (Addon)</span> <i class="fas fa-chevron-right chevron-right" style="margin-left: auto; font-size: 0.8rem; opacity: 0.7;"></i></li>
+<li data-target="messages"><i class="fas fa-comments"></i> <span>Messages</span></li>
+<li data-target="transactions"><i class="fas fa-receipt"></i> <span>Transaction List</span></li>
+<li data-target="profile-view"><i class="fas fa-user"></i> <span>Profile</span></li>
+<li data-target="settings-view"><i class="fas fa-cog"></i> <span>Settings</span></li>
+<hr style="border: 0; border-top: 1px solid rgba(255, 255, 255, 0.1); margin: 10px 0;">
 <li data-target="records"><i class="fas fa-archive"></i> <span>Academic Records</span> <span class="sidebar-badge" id="badge-records">0</span></li>
 <li data-target="software"><i class="fas fa-laptop-code"></i> <span>Software Repository</span> <span class="sidebar-badge" id="badge-software">0</span></li>
-<li data-target="students"><i class="fas fa-user-graduate"></i> <span>Alumni Directory</span></li>
 <li data-target="analytics"><i class="fas fa-chart-bar"></i> <span>Analytics &amp; Stats</span></li>
 <li data-target="saved"><i class="fas fa-bookmark"></i> <span>Saved Items</span> <span class="sidebar-badge" id="badge-saved">0</span></li>
-<li data-target="privacy" style="margin-top: 20px;"><i class="fas fa-user-shield"></i> <span>Privacy Settings</span></li>
 </ul>
 </aside>
 <main class="edu-main" id="main-content">
@@ -447,6 +481,19 @@
 </main>
 <!-- Right Sidebar -->
 <aside class="edu-sidebar-right">
+<!-- Jobs Widget matching Mockup -->
+<div class="notice-board" id="right-jobs-widget" style="margin-bottom: 20px;">
+  <div class="notice-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding: 12px 15px;">
+    <h4 style="font-size: 0.95rem; font-weight: 700; color: var(--text-primary); margin: 0; display: flex; align-items: center; gap: 8px;">
+      <i class="fas fa-briefcase" style="color: var(--zai-dark);"></i> Jobs
+    </h4>
+    <a href="#" onclick="switchView('jobs'); return false;" style="font-size: 0.85rem; font-weight: 600; color: #4a7c10; text-decoration: none;">See All &rarr;</a>
+  </div>
+  <div id="right-jobs-list" style="padding: 15px; display: flex; flex-direction: column; gap: 15px; background: white;">
+    <!-- Job items loaded dynamically -->
+    <div style="text-align: center; color: var(--text-secondary); font-size: 0.8rem; padding: 10px 0;">Loading jobs...</div>
+  </div>
+</div>
 <div class="notice-board">
 <div class="notice-header">
 <h4><i class="fas fa-bullhorn"></i> Important Notices</h4>

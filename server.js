@@ -165,6 +165,65 @@ const softwareSchema = new mongoose.Schema({
 });
 const Software = mongoose.model('Software', softwareSchema);
 
+const jobSchema = new mongoose.Schema({
+    id: { type: Number, required: true, default: Date.now },
+    title: { type: String, required: true },
+    company: { type: String, required: true },
+    type: { type: String, default: 'Full Time' }, // Contractual, Full Time, Part Time, Internship
+    location: { type: String, default: 'Pakistan' },
+    salary: { type: String, default: 'Competitive' },
+    desc: { type: String, required: true },
+    link: { type: String, default: '' },
+    date: { type: String, required: true },
+    author: { type: String, required: true }
+});
+const Job = mongoose.model('Job', jobSchema);
+
+const eventSchema = new mongoose.Schema({
+    id: { type: Number, required: true, default: Date.now },
+    title: { type: String, required: true },
+    desc: { type: String, required: true },
+    date: { type: String, required: true },
+    location: { type: String, default: 'UOG Campus' },
+    registeredUsers: { type: [String], default: [] }, // array of usernames
+    author: { type: String, required: true }
+});
+const Event = mongoose.model('Event', eventSchema);
+
+const electionSchema = new mongoose.Schema({
+    id: { type: Number, required: true, default: Date.now },
+    title: { type: String, required: true },
+    candidates: [
+        {
+            name: { type: String, required: true },
+            role: { type: String, required: true },
+            photo: { type: String, default: '' }, // base64
+            votes: { type: [String], default: [] } // usernames who voted
+        }
+    ],
+    status: { type: String, default: 'active' } // active, closed
+});
+const Election = mongoose.model('Election', electionSchema);
+
+const messageSchema = new mongoose.Schema({
+    id: { type: Number, required: true, default: Date.now },
+    sender: { type: String, required: true },
+    recipient: { type: String, required: true },
+    text: { type: String, required: true },
+    timestamp: { type: Number, required: true, default: Date.now }
+});
+const Message = mongoose.model('Message', messageSchema);
+
+const transactionSchema = new mongoose.Schema({
+    id: { type: Number, required: true, default: Date.now },
+    username: { type: String, required: true },
+    amount: { type: String, required: true },
+    purpose: { type: String, required: true },
+    status: { type: String, default: 'Paid' }, // Paid, Pending
+    date: { type: String, required: true }
+});
+const Transaction = mongoose.model('Transaction', transactionSchema);
+
 function safeUser(u) {
     if (!u) return null;
     const { password, __v, _id, ...safe } = u;
@@ -682,6 +741,347 @@ app.post('/api/software/:id/view', async (req, res) => {
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: 'Error recording software view' });
+    }
+});
+
+// ── JOBS ──────────────────────────────────────────────────────────────────────
+app.get('/api/jobs', async (req, res) => {
+    try {
+        const jobs = await Job.find({}).sort({ id: -1 });
+        // Populate default demo jobs if none exist
+        if (jobs.length === 0) {
+            const defaults = [
+                {
+                    id: Date.now() - 3600000,
+                    title: 'Marketing Coordinator',
+                    company: 'Dynamic Marketing Solutions',
+                    type: 'Contractual',
+                    location: 'Cityville, CA',
+                    salary: '$2050',
+                    desc: 'Join Dynamic Marketing Solutions, a fast-paced marketing agency specializing in digital and traditional marketing strategies. We are seeking a proactive marketer...',
+                    link: 'https://example.com/apply/marketing',
+                    date: 'Thursday, November 30, 2023',
+                    author: 'system'
+                },
+                {
+                    id: Date.now() - 7200000,
+                    title: 'Senior Marketing Manager',
+                    company: 'XYZ Tech Solutions',
+                    type: 'Full Time',
+                    location: 'Metroville, NY',
+                    salary: '$3000',
+                    desc: 'Our company, XYZ Tech Solutions, is a rapidly growing tech firm specializing in innovative software solutions. We are seeking a highly motivated and experienced manager...',
+                    link: 'https://example.com/apply/senior',
+                    date: 'Friday, November 3, 2023',
+                    author: 'system'
+                }
+            ];
+            await Job.insertMany(defaults);
+            const freshJobs = await Job.find({}).sort({ id: -1 });
+            return res.json(freshJobs);
+        }
+        res.json(jobs);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Error fetching jobs' });
+    }
+});
+
+app.post('/api/jobs', async (req, res) => {
+    try {
+        const { title, company, type, location, salary, desc, link, author } = req.body;
+        if (!title || !company || !desc || !author) {
+            return res.status(400).json({ error: 'Missing required fields' });
+        }
+        const job = new Job({
+            id: Date.now(),
+            title,
+            company,
+            type: type || 'Full Time',
+            location: location || 'Pakistan',
+            salary: salary || 'Competitive',
+            desc,
+            link: link || '',
+            date: new Date().toLocaleDateString('en-PK', { day:'numeric', month:'short', year:'numeric' }),
+            author
+        });
+        await job.save();
+        res.json(job);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Error creating job' });
+    }
+});
+
+// ── EVENTS ────────────────────────────────────────────────────────────────────
+app.get('/api/events', async (req, res) => {
+    try {
+        const events = await Event.find({}).sort({ id: -1 });
+        if (events.length === 0) {
+            const defaults = [
+                {
+                    id: Date.now() - 100000,
+                    title: 'Annual Department Seminar',
+                    desc: 'A seminar on modern statistical methodologies and machine learning tools in data science, featuring guest lecturers from industries.',
+                    date: 'June 15, 2026',
+                    location: 'Main Auditorium, UOG',
+                    registeredUsers: [],
+                    author: 'system'
+                },
+                {
+                    id: Date.now() - 200000,
+                    title: 'Statistical R/Python Workshop',
+                    desc: 'Hands-on training session for BS Statistics students regarding data wrangling, regression modelling, and ggplot plotting using R and Python.',
+                    date: 'May 28, 2026',
+                    location: 'IT Lab 3, Stats Block',
+                    registeredUsers: [],
+                    author: 'system'
+                }
+            ];
+            await Event.insertMany(defaults);
+            const freshEvents = await Event.find({}).sort({ id: -1 });
+            return res.json(freshEvents);
+        }
+        res.json(events);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Error fetching events' });
+    }
+});
+
+app.post('/api/events', async (req, res) => {
+    try {
+        const { title, desc, date, location, author } = req.body;
+        if (!title || !desc || !date || !author) {
+            return res.status(400).json({ error: 'Missing required fields' });
+        }
+        const event = new Event({
+            id: Date.now(),
+            title,
+            desc,
+            date,
+            location: location || 'UOG Stats Department',
+            registeredUsers: [],
+            author
+        });
+        await event.save();
+        res.json(event);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Error creating event' });
+    }
+});
+
+app.post('/api/events/:id/register', async (req, res) => {
+    try {
+        const { username } = req.body;
+        if (!username) return res.status(400).json({ error: 'Missing username' });
+        const event = await Event.findOne({ id: Number(req.params.id) });
+        if (!event) return res.status(404).json({ error: 'Event not found' });
+        
+        const idx = event.registeredUsers.indexOf(username);
+        if (idx !== -1) {
+            event.registeredUsers.splice(idx, 1); // Unregister
+        } else {
+            event.registeredUsers.push(username); // Register
+        }
+        await event.save();
+        res.json(event);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Error modifying event registration' });
+    }
+});
+
+// ── ELECTIONS ─────────────────────────────────────────────────────────────────
+app.get('/api/elections', async (req, res) => {
+    try {
+        const elections = await Election.find({}).sort({ id: -1 });
+        if (elections.length === 0) {
+            const defaults = [
+                {
+                    id: Date.now(),
+                    title: 'UOG Statistics Alumni Association Election 2026',
+                    status: 'active',
+                    candidates: [
+                        { name: 'Dr. Muhammad Aslam', role: 'Presidential Candidate', photo: '', votes: [] },
+                        { name: 'Prof. Sajjad Ahmad', role: 'Presidential Candidate', photo: '', votes: [] },
+                        { name: 'Sarah Khan (Alumna)', role: 'General Secretary Candidate', photo: '', votes: [] }
+                    ]
+                }
+            ];
+            await Election.insertMany(defaults);
+            const freshElections = await Election.find({}).sort({ id: -1 });
+            return res.json(freshElections);
+        }
+        res.json(elections);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Error fetching elections' });
+    }
+});
+
+app.post('/api/elections', async (req, res) => {
+    try {
+        const { title, candidates } = req.body; // candidates array of { name, role, photo }
+        if (!title || !candidates || candidates.length === 0) {
+            return res.status(400).json({ error: 'Election title and candidates are required' });
+        }
+        const election = new Election({
+            id: Date.now(),
+            title,
+            candidates: candidates.map(c => ({
+                name: c.name,
+                role: c.role || 'Candidate',
+                photo: c.photo || '',
+                votes: []
+            })),
+            status: 'active'
+        });
+        await election.save();
+        res.json(election);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Error creating election' });
+    }
+});
+
+app.post('/api/elections/:id/vote', async (req, res) => {
+    try {
+        const { candidateIndex, username } = req.body;
+        if (candidateIndex === undefined || !username) {
+            return res.status(400).json({ error: 'Missing candidateIndex or username' });
+        }
+        const election = await Election.findOne({ id: Number(req.params.id) });
+        if (!election) return res.status(404).json({ error: 'Election not found' });
+        if (election.status !== 'active') return res.status(400).json({ error: 'Election is closed' });
+
+        // Ensure user hasn't voted for ANY candidate in this election
+        let alreadyVoted = false;
+        election.candidates.forEach(cand => {
+            if (cand.votes.includes(username)) {
+                alreadyVoted = true;
+            }
+        });
+
+        if (alreadyVoted) {
+            return res.status(400).json({ error: 'You have already cast your vote in this election' });
+        }
+
+        // Add vote to the chosen candidate
+        if (election.candidates[candidateIndex]) {
+            election.candidates[candidateIndex].votes.push(username);
+        }
+        election.markModified('candidates');
+        await election.save();
+        res.json(election);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Error casting vote' });
+    }
+});
+
+// ── MESSAGES ──────────────────────────────────────────────────────────────────
+app.get('/api/messages', async (req, res) => {
+    try {
+        const { user1, user2 } = req.query;
+        if (user1 && user2) {
+            const msgs = await Message.find({
+                $or: [
+                    { sender: user1, recipient: user2 },
+                    { sender: user2, recipient: user1 }
+                ]
+            }).sort({ timestamp: 1 });
+            return res.json(msgs);
+        }
+        const msgs = await Message.find({}).sort({ timestamp: 1 });
+        res.json(msgs);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Error fetching messages' });
+    }
+});
+
+app.post('/api/messages', async (req, res) => {
+    try {
+        const { sender, recipient, text } = req.body;
+        if (!sender || !recipient || !text) {
+            return res.status(400).json({ error: 'Missing sender, recipient, or text' });
+        }
+        const message = new Message({
+            id: Date.now(),
+            sender,
+            recipient,
+            text,
+            timestamp: Date.now()
+        });
+        await message.save();
+        res.json(message);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Error sending message' });
+    }
+});
+
+// ── TRANSACTIONS ──────────────────────────────────────────────────────────────
+app.get('/api/transactions', async (req, res) => {
+    try {
+        const { username } = req.query;
+        let query = {};
+        if (username) {
+            query.username = username;
+        }
+        const txs = await Transaction.find(query).sort({ id: -1 });
+        if (txs.length === 0 && username) {
+            // Populate defaults for the current user
+            const defaults = [
+                {
+                    id: Date.now() - 86400000 * 2,
+                    username,
+                    amount: 'PKR 1,500',
+                    purpose: 'Alumni Annual Dinner Registration',
+                    status: 'Paid',
+                    date: new Date(Date.now() - 86400000 * 2).toLocaleDateString('en-PK', { day:'numeric', month:'short', year:'numeric' })
+                },
+                {
+                    id: Date.now() - 86400000 * 30,
+                    username,
+                    amount: 'PKR 5,000',
+                    purpose: 'Premium Alumni Membership Activation',
+                    status: 'Paid',
+                    date: new Date(Date.now() - 86400000 * 30).toLocaleDateString('en-PK', { day:'numeric', month:'short', year:'numeric' })
+                }
+            ];
+            await Transaction.insertMany(defaults);
+            const freshTxs = await Transaction.find(query).sort({ id: -1 });
+            return res.json(freshTxs);
+        }
+        res.json(txs);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Error fetching transactions' });
+    }
+});
+
+app.post('/api/transactions', async (req, res) => {
+    try {
+        const { username, amount, purpose, status } = req.body;
+        if (!username || !amount || !purpose) {
+            return res.status(400).json({ error: 'Missing required transaction fields' });
+        }
+        const tx = new Transaction({
+            id: Date.now(),
+            username,
+            amount,
+            purpose,
+            status: status || 'Paid',
+            date: new Date().toLocaleDateString('en-PK', { day:'numeric', month:'short', year:'numeric' })
+        });
+        await tx.save();
+        res.json(tx);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Error creating transaction' });
     }
 });
 
