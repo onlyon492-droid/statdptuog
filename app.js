@@ -5113,6 +5113,9 @@ async function renderMessages() {
             
             contact.latestMsgTime = chatMsgs.length > 0 ? Math.max(...chatMsgs.map(m => m.timestamp)) : 0;
             contact.unreadCount = chatMsgs.filter(m => m.sender === contact.username && !m.read).length;
+            chatMsgs.sort((a,b) => a.timestamp - b.timestamp);
+            contact.lastMessage = chatMsgs.length > 0 ? chatMsgs[chatMsgs.length - 1].content : '';
+            contact.lastMessageSender = chatMsgs.length > 0 ? chatMsgs[chatMsgs.length - 1].sender : '';
         });
 
         // Sort: those with messages first (most recent), then alphabetically
@@ -5142,16 +5145,25 @@ async function renderMessages() {
                 ? `<img src="${u.profilePic}" alt="" style="width:100%;height:100%;object-fit:cover;">` 
                 : avatarChar;
 
-            const badgeHtml = u.unreadCount > 0 ? `<div class="unread-badge">${u.unreadCount}</div>` : '';
+            const badgeHtml = u.unreadCount > 0 ? `<div class="unread-badge" style="background:#25D366; color:white; font-size:0.65rem; padding: 2px 6px; border-radius:10px; font-weight:bold;">${u.unreadCount}</div>` : '';
+            
+            const lastMsgPreview = u.lastMessage 
+                ? `<div style="font-size: 0.8rem; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px;">${u.lastMessageSender === currentUser.username ? '<i class="fas fa-check-double" style="font-size:0.7rem; color:#4b5563;"></i> ' : ''}${u.lastMessage}</div>` 
+                : `<div style="font-size: 0.8rem; color: var(--text-secondary);"><i class="fas fa-user"></i> ${u.role || 'Member'}</div>`;
+            
+            const timeDisplay = u.latestMsgTime ? `<div style="font-size: 0.7rem; color: ${u.unreadCount > 0 ? '#25D366' : 'var(--text-secondary)'}; font-weight: ${u.unreadCount > 0 ? '600' : 'normal'}; margin-bottom: 4px;">${new Date(u.latestMsgTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>` : '';
 
             li.innerHTML = `
-                <div class="chat-user-avatar">${avatarHtml}</div>
-                <div class="chat-user-info" style="flex:1; display:flex; justify-content:space-between; align-items:center;">
-                    <div>
-                        <div class="chat-user-name">${u.name}</div>
-                        <div class="chat-user-role">${u.role || 'Member'}</div>
+                <div class="chat-user-avatar" style="width: 44px; height: 44px; font-size: 1.1rem; margin-right: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border: 1px solid rgba(0,0,0,0.05);">${avatarHtml}</div>
+                <div class="chat-user-info" style="flex:1; display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px;">
+                    <div style="flex:1; min-width:0;">
+                        <div class="chat-user-name" style="font-size: 0.95rem; font-weight: 600; color: var(--text-primary); margin-bottom: 3px;">${u.name}</div>
+                        ${lastMsgPreview}
                     </div>
-                    ${badgeHtml}
+                    <div style="display:flex; flex-direction:column; align-items:flex-end; margin-left: 10px;">
+                        ${timeDisplay}
+                        ${badgeHtml}
+                    </div>
                 </div>
             `;
             usersListEl.appendChild(li);
