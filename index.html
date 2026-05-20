@@ -268,7 +268,10 @@
 <i class="fas fa-plus"></i>
 </button>
 <button class="mob-nav-btn" data-target="messages" onclick="mobileNavClick(this,'messages')">
-<i class="fas fa-comment-dots"></i><span style="font-size: 0.65rem;">Chat</span>
+<i class="fas fa-comment" style="font-size: 1.4rem; position: relative;">
+    <span class="chat-badge" style="display:none; position:absolute; top:-5px; right:-5px; background:#25D366; width:10px; height:10px; border-radius:50%; border:2px solid #fff;"></span>
+</i>
+<span>Chats</span>
 </button>
 <button class="mob-nav-btn" onclick="document.getElementById('mobile-more-drawer').classList.add('active')">
 <i class="fas fa-th"></i><span>More</span>
@@ -300,10 +303,7 @@
 <div class="mob-drawer-icon" style="background:rgba(239,68,68,0.15);"><i class="fas fa-vote-yea" style="color:#ef4444;"></i></div>
 <span style="color:#ef4444;font-weight:700;">Election</span>
 </button>
-<button class="mob-drawer-item" onclick="mobileNavClick(null,'messages');closeMobileDrawers()">
-<div class="mob-drawer-icon" style="background:rgba(59,130,246,0.15);"><i class="far fa-comments" style="color:#3b82f6;"></i></div>
-<span>Messages</span>
-</button>
+
 
 <button class="mob-drawer-item" onclick="mobileNavClick(null,'software');closeMobileDrawers()">
 <div class="mob-drawer-icon" style="background:#f0fdf4;"><i class="fas fa-laptop-code" style="color:#10b981;"></i></div>
