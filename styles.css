@@ -115,7 +115,7 @@ body {
 .notif-dropdown li strong { color: var(--uog-blue); }
 
 /* Body Area */
-.edu-body { display: flex; flex: 1; overflow: hidden; background: var(--bg-main); margin: 0 auto; width: 100%; max-width: 1400px; }
+.edu-body { display: flex; flex: 1; overflow: hidden; background: var(--bg-main); margin: 0; width: 100%; max-width: 100%; }
 .edu-sidebar-left {
     width: 280px;
     padding: 2rem 1.5rem;
@@ -1567,24 +1567,22 @@ body, nav, aside, main, div, input, select, textarea, button, p, span, h1, h2, h
     color: white;
 }
 
-/* Premium Floating Layout Sidebar Tweaks */
+/* Sidebar Tweaks */
 .edu-body {
-    padding: 1.25rem 2rem;
-    gap: 1.5rem;
+    padding: 0;
+    gap: 0;
 }
 
 .edu-sidebar-left {
-    border-radius: 16px;
-    border: 1px solid var(--border-color) !important;
-    backdrop-filter: blur(12px);
-    box-shadow: var(--shadow-md);
+    border-radius: 0;
+    border-right: 1px solid var(--border-color) !important;
+    border: none;
 }
 
 .edu-sidebar-right {
-    border-radius: 16px;
-    border: 1px solid var(--border-color) !important;
-    backdrop-filter: blur(12px);
-    box-shadow: var(--shadow-md);
+    border-radius: 0;
+    border-left: 1px solid var(--border-color) !important;
+    border: none;
     background: var(--bg-surface) !important; /* match left sidebar premium glass container */
 }
 

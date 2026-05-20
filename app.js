@@ -4766,7 +4766,7 @@ async function renderElection() {
     listContainer.innerHTML = '<div style="padding:2rem;text-align:center;color:#9ca3af;"><i class="fas fa-spinner fa-spin"></i> Loading active elections...</div>';
     try {
         let elections = await dbGet('elections');
-        elections = elections.filter(el => el.author !== 'system');
+        elections = elections.filter(el => el.author !== 'system' && !el.title.includes('Alumni Association Election 2026'));
         
         listContainer.innerHTML = '';
 
