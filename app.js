@@ -4108,17 +4108,8 @@ async function renderElection() {
         listContainer.innerHTML = '';
 
         if (elections.length === 0) {
-            const seedElection = {
-                title: 'Alumni President Election 2026',
-                status: 'Active',
-                candidates: [
-                    { name: 'Dr. Sophia Johnson', votes: 12, role: 'Associate Professor' },
-                    { name: 'Engr. Kamran Khan', votes: 8, role: 'Senior Statistician / Alumnus' },
-                    { name: 'Syeda Fatima', votes: 5, role: 'Ph.D. Scholar' }
-                ]
-            };
-            const seeded = await dbPost('elections', seedElection);
-            elections.push(seeded);
+            listContainer.innerHTML = '<div style="text-align:center; color: var(--text-secondary); padding: 3rem;">No active department elections.</div>';
+            return;
         }
 
         elections.forEach(elec => {

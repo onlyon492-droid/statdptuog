@@ -785,31 +785,6 @@ app.post('/api/jobs', async (req, res) => {
 app.get('/api/events', async (req, res) => {
     try {
         const events = await Event.find({}).sort({ id: -1 });
-        if (events.length === 0) {
-            const defaults = [
-                {
-                    id: Date.now() - 100000,
-                    title: 'Annual Department Seminar',
-                    desc: 'A seminar on modern statistical methodologies and machine learning tools in data science, featuring guest lecturers from industries.',
-                    date: 'June 15, 2026',
-                    location: 'Main Auditorium, UOG',
-                    registeredUsers: [],
-                    author: 'system'
-                },
-                {
-                    id: Date.now() - 200000,
-                    title: 'Statistical R/Python Workshop',
-                    desc: 'Hands-on training session for BS Statistics students regarding data wrangling, regression modelling, and ggplot plotting using R and Python.',
-                    date: 'May 28, 2026',
-                    location: 'IT Lab 3, Stats Block',
-                    registeredUsers: [],
-                    author: 'system'
-                }
-            ];
-            await Event.insertMany(defaults);
-            const freshEvents = await Event.find({}).sort({ id: -1 });
-            return res.json(freshEvents);
-        }
         res.json(events);
     } catch (err) {
         console.error(err);
@@ -865,23 +840,6 @@ app.post('/api/events/:id/register', async (req, res) => {
 app.get('/api/elections', async (req, res) => {
     try {
         const elections = await Election.find({}).sort({ id: -1 });
-        if (elections.length === 0) {
-            const defaults = [
-                {
-                    id: Date.now(),
-                    title: 'UOG Statistics Alumni Association Election 2026',
-                    status: 'active',
-                    candidates: [
-                        { name: 'Dr. Muhammad Aslam', role: 'Presidential Candidate', photo: '', votes: [] },
-                        { name: 'Prof. Sajjad Ahmad', role: 'Presidential Candidate', photo: '', votes: [] },
-                        { name: 'Sarah Khan (Alumna)', role: 'General Secretary Candidate', photo: '', votes: [] }
-                    ]
-                }
-            ];
-            await Election.insertMany(defaults);
-            const freshElections = await Election.find({}).sort({ id: -1 });
-            return res.json(freshElections);
-        }
         res.json(elections);
     } catch (err) {
         console.error(err);
