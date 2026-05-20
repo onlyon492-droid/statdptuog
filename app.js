@@ -517,18 +517,21 @@ window.eraseUserAccount = async function() {
 // ─── NOTIFICATIONS ────────────────────────────────────────────────────────────
 const notifBtn = document.getElementById('notif-btn');
 const notifDropdown = document.getElementById('notif-dropdown');
-notifBtn.addEventListener('click', (e) => {
-    notifDropdown.classList.toggle('active');
-    document.getElementById('notif-badge').style.display = 'none';
-    e.stopPropagation();
-});
-document.addEventListener('click', (e) => {
-    if (!notifBtn.contains(e.target)) notifDropdown.classList.remove('active');
-});
+if (notifBtn && notifDropdown) {
+    notifBtn.addEventListener('click', (e) => {
+        notifDropdown.classList.toggle('active');
+        const notifBadge = document.getElementById('notif-badge');
+        if (notifBadge) notifBadge.style.display = 'none';
+        e.stopPropagation();
+    });
+    document.addEventListener('click', (e) => {
+        if (!notifBtn.contains(e.target)) notifDropdown.classList.remove('active');
+    });
+}
 
 // ─── REGISTRATION ─────────────────────────────────────────────────────────────
-document.getElementById('open-signup').addEventListener('click', () => new bootstrap.Modal(document.getElementById('signup-modal')).show());
-document.getElementById('close-signup').addEventListener('click', () => bootstrap.Modal.getInstance(document.getElementById('signup-modal'))?.hide());
+(document.getElementById('open-signup')||{addEventListener:()=>{}}).addEventListener('click', () => new bootstrap.Modal(document.getElementById('signup-modal')).show());
+(document.getElementById('close-signup')||{addEventListener:()=>{}}).addEventListener('click', () => bootstrap.Modal.getInstance(document.getElementById('signup-modal'))?.hide());
 
 const regRole = document.getElementById('reg-role');
 const regUsername = document.getElementById('reg-username');
@@ -559,7 +562,7 @@ regRole.addEventListener('change', () => {
     }
 });
 
-document.getElementById('signup-form').addEventListener('submit', async (e) => {
+(document.getElementById('signup-form')||{addEventListener:()=>{}}).addEventListener('submit', async (e) => {
     e.preventDefault();
     const role = regRole.value;
     const username = regUsername.value.trim().toLowerCase();
@@ -609,7 +612,7 @@ document.getElementById('signup-form').addEventListener('submit', async (e) => {
 });
 
 // ─── LOGIN ────────────────────────────────────────────────────────────────────
-document.getElementById('login-form').addEventListener('submit', async (e) => {
+(document.getElementById('login-form')||{addEventListener:()=>{}}).addEventListener('submit', async (e) => {
     e.preventDefault();
     const usernameInput = document.getElementById('login-username').value.trim();
     const btn = e.target.querySelector('button[type=submit]');
@@ -646,7 +649,7 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
     finally { btn.textContent = 'Access Portal'; btn.disabled = false; }
 });
 
-document.getElementById('sign-out-btn').addEventListener('click', () => {
+(document.getElementById('sign-out-btn')||{addEventListener:()=>{}}).addEventListener('click', () => {
     logoutUser(false);
 });
 
@@ -684,7 +687,7 @@ function initApp() {
 }
 
 // ─── PROFILE PIC ──────────────────────────────────────────────────────────────
-document.getElementById('profile-pic-input').addEventListener('change', (e) => {
+(document.getElementById('profile-pic-input')||{addEventListener:()=>{}}).addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (!file || !file.type.startsWith('image/')) { showToast('Please choose an image.', true); return; }
     if (file.size > 1500000) { showToast('Image too large (max 1.5MB).', true); return; }
@@ -702,7 +705,7 @@ document.getElementById('profile-pic-input').addEventListener('change', (e) => {
 });
 
 // ─── EDIT PROFILE ─────────────────────────────────────────────────────────────
-document.getElementById('open-edit-profile').addEventListener('click', () => {
+(document.getElementById('open-edit-profile')||{addEventListener:()=>{}}).addEventListener('click', () => {
     document.getElementById('edit-name').value = currentUser.name;
     document.getElementById('edit-phone').value = currentUser.phone || '';
     document.getElementById('edit-password').value = '';
@@ -730,10 +733,10 @@ document.getElementById('open-edit-profile').addEventListener('click', () => {
     
     new bootstrap.Modal(document.getElementById('edit-profile-modal')).show();
 });
-document.getElementById('close-edit-profile').addEventListener('click', () =>
+(document.getElementById('close-edit-profile')||{addEventListener:()=>{}}).addEventListener('click', () =>
     bootstrap.Modal.getInstance(document.getElementById('edit-profile-modal'))?.hide());
 
-document.getElementById('edit-profile-form').addEventListener('submit', async (e) => {
+(document.getElementById('edit-profile-form')||{addEventListener:()=>{}}).addEventListener('submit', async (e) => {
     e.preventDefault();
     const body = { name: document.getElementById('edit-name').value.trim(), phone: document.getElementById('edit-phone').value.trim() };
     const pw = document.getElementById('edit-password').value;
@@ -1255,9 +1258,9 @@ async function openEditPost(postId) {
     document.getElementById('edit-post-text').value = post.text;
     new bootstrap.Modal(document.getElementById('edit-post-modal')).show();
 }
-document.getElementById('close-edit-post').addEventListener('click', () =>
+(document.getElementById('close-edit-post')||{addEventListener:()=>{}}).addEventListener('click', () =>
     bootstrap.Modal.getInstance(document.getElementById('edit-post-modal'))?.hide());
-document.getElementById('save-edit-post').addEventListener('click', async () => {
+(document.getElementById('save-edit-post')||{addEventListener:()=>{}}).addEventListener('click', async () => {
     const id = document.getElementById('edit-post-id').value;
     const newText = document.getElementById('edit-post-text').value.trim();
     if (!newText) { showToast('Text cannot be empty.', true); return; }
@@ -1489,18 +1492,18 @@ const previewArea        = document.getElementById('preview-area');
 const postAudience       = document.getElementById('post-visibility');
 
 ['open-compose','open-compose-text'].forEach(id => document.getElementById(id).addEventListener('click', () => { resetCompose('Feed'); new bootstrap.Modal(composeModal).show(); }));
-document.getElementById('open-compose-doc').addEventListener('click', () => { resetCompose('Records'); new bootstrap.Modal(composeModal).show(); });
-document.getElementById('open-compose-sw').addEventListener('click',  () => { resetCompose('Software'); new bootstrap.Modal(composeModal).show(); });
-document.getElementById('close-compose').addEventListener('click', () => { bootstrap.Modal.getInstance(composeModal)?.hide(); resetCompose('Feed'); });
+(document.getElementById('open-compose-doc')||{addEventListener:()=>{}}).addEventListener('click', () => { resetCompose('Records'); new bootstrap.Modal(composeModal).show(); });
+(document.getElementById('open-compose-sw')||{addEventListener:()=>{}}).addEventListener('click',  () => { resetCompose('Software'); new bootstrap.Modal(composeModal).show(); });
+(document.getElementById('close-compose')||{addEventListener:()=>{}}).addEventListener('click', () => { bootstrap.Modal.getInstance(composeModal)?.hide(); resetCompose('Feed'); });
 postCategory.addEventListener('change', toggleSoftwareFields);
 
 // Poll Composer Event Handlers
-document.getElementById('poll-compose-trigger').addEventListener('click', () => {
+(document.getElementById('poll-compose-trigger')||{addEventListener:()=>{}}).addEventListener('click', () => {
     document.getElementById('poll-builder-ui').style.display = 'block';
     document.getElementById('poll-compose-trigger').style.display = 'none';
 });
 
-document.getElementById('remove-poll').addEventListener('click', () => {
+(document.getElementById('remove-poll')||{addEventListener:()=>{}}).addEventListener('click', () => {
     document.getElementById('poll-builder-ui').style.display = 'none';
     document.getElementById('poll-compose-trigger').style.display = 'block';
     document.getElementById('poll-question').value = '';
@@ -1515,7 +1518,7 @@ document.getElementById('remove-poll').addEventListener('click', () => {
     `;
 });
 
-document.getElementById('add-poll-option').addEventListener('click', () => {
+(document.getElementById('add-poll-option')||{addEventListener:()=>{}}).addEventListener('click', () => {
     const container = document.getElementById('poll-options-container');
     const existingCount = container.querySelectorAll('.poll-builder-option-row').length;
     if (existingCount >= 5) {
@@ -3682,5 +3685,5 @@ window.openFacultyAnalytics = async function(username) {
 
 window.closeFacultyAnalytics = function() {
     const modal = document.getElementById('faculty-analytics-modal');
-    if (modal) 
+    if (modal) bootstrap.Modal.getInstance(modal)?.hide();
 };
