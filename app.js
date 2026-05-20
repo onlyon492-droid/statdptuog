@@ -176,7 +176,22 @@ async function dbPost(endpoint, body) {
         localStorage.setItem('uog_stories', JSON.stringify(filtered));
         return story;
     }
+    if (endpoint === 'register/send-otp') {
+        const users = JSON.parse(localStorage.getItem('uog_users') || '[]');
+        if (users.find(u => u.username === body.username.toLowerCase()))
+            throw new Error('Account already exists');
+        const email = body.role === 'Student' ? (body.username.includes('@') ? body.username : `${body.username}@uog.edu.pk`) : body.username;
+        return {
+            message: 'Dev Mode: OTP logged to server console',
+            email: email,
+            devMode: true,
+            otp: '123456'
+        };
+    }
     if (endpoint === 'register') {
+        if (!body.otp || body.otp.trim() !== '123456') {
+            throw new Error('Invalid or expired OTP');
+        }
         const users = JSON.parse(localStorage.getItem('uog_users') || '[]');
         if (users.find(u => u.username === body.username.toLowerCase()))
             throw new Error('Account already exists');
@@ -826,46 +841,154 @@ regRole.addEventListener('change', () => {
     if (role === 'Student' && !username.includes('uog')) { showToast("Roll Number must contain 'UOG'", true); return; }
     if (role === 'Faculty' && !username.endsWith('@uog.edu.pk')) { showToast("Faculty must use @uog.edu.pk email", true); return; }
     
-    const program = role === 'Student' ? document.getElementById('reg-program').value : '';
-    const batch = role === 'Student' ? document.getElementById('reg-batch').value : '';
-    const tagline = document.getElementById('reg-tagline') ? document.getElementById('reg-tagline').value.trim() : '';
-    const gender = document.getElementById('reg-gender').value;
-    const area = role === 'Student' ? document.getElementById('reg-area').value.trim() : '';
-    const age = role === 'Student' ? document.getElementById('reg-age').value : '';
-    const semester = role === 'Student' ? document.getElementById('reg-semester').value : '';
-    
-    const designation = role === 'Faculty' ? document.getElementById('reg-designation').value : '';
-    const publicationsCount = role === 'Faculty' ? (parseInt(document.getElementById('reg-publications').value) || 0) : 0;
-    const education = role === 'Faculty' ? document.getElementById('reg-faculty-education').value : '';
-    const jobStatus = role === 'Faculty' ? document.getElementById('reg-faculty-status').value : '';
-    
     const btn = e.target.querySelector('button[type=submit]');
-    btn.textContent = 'Registering...'; btn.disabled = true;
+    btn.textContent = 'Sending OTP...'; btn.disabled = true;
+    
     try {
-        await dbPost('register', {
-            username,
-            password: document.getElementById('reg-password').value,
-            name: `${document.getElementById('reg-firstname').value.trim()} ${document.getElementById('reg-lastname').value.trim()}`,
-            role,
-            phone: document.getElementById('reg-phone').value.trim(),
-            program,
-            batch,
-            tagline,
-            gender,
-            area,
-            age,
-            semester,
-            designation,
-            publicationsCount,
-            education,
-            jobStatus
+        const res = await dbPost('register/send-otp', { username, role });
+        showToast(res.message || 'OTP sent successfully!');
+        
+        // Hide fields and show OTP section
+        document.getElementById('signup-fields-container').style.display = 'none';
+        const otpSection = document.getElementById('signup-otp-section');
+        otpSection.style.display = 'block';
+        
+        document.getElementById('otp-message-text').innerHTML = `A 6-digit verification code has been sent to:<br><strong>${res.email}</strong>`;
+        
+        const devHelper = document.getElementById('otp-dev-helper');
+        if (res.devMode) {
+            devHelper.style.display = 'flex';
+            document.getElementById('otp-dev-code').textContent = res.otp || '123456';
+        } else {
+            devHelper.style.display = 'none';
+        }
+    } catch (err) { 
+        showToast(err.message, true); 
+    } finally {
+        btn.textContent = 'Complete Registration'; 
+        btn.disabled = false; 
+    }
+});
+
+// OTP Actions Setup
+document.addEventListener('DOMContentLoaded', () => {
+    const btnVerifySignup = document.getElementById('btn-verify-signup');
+    const btnCancelOtp = document.getElementById('btn-cancel-otp');
+    const btnResendOtp = document.getElementById('btn-resend-otp');
+    const regOtp = document.getElementById('reg-otp');
+    
+    if (btnCancelOtp) {
+        btnCancelOtp.addEventListener('click', () => {
+            document.getElementById('signup-otp-section').style.display = 'none';
+            document.getElementById('signup-fields-container').style.display = 'block';
+            const signupSubmitBtn = document.querySelector('#signup-form button[type=submit]');
+            if (signupSubmitBtn) {
+                signupSubmitBtn.textContent = 'Complete Registration';
+                signupSubmitBtn.disabled = false;
+            }
         });
-        showToast('Registration successful! Please login.');
-        bootstrap.Modal.getInstance(document.getElementById('signup-modal'))?.hide();
-        document.getElementById('signup-form').reset();
-        if (regStudentFields) regStudentFields.style.display = 'none';
-    } catch (err) { showToast(err.message, true); }
-    finally { btn.textContent = 'Complete Registration'; btn.disabled = false; }
+    }
+    
+    if (btnResendOtp) {
+        btnResendOtp.addEventListener('click', async () => {
+            const role = regRole.value;
+            const username = regUsername.value.trim().toLowerCase();
+            if (!username || !role) {
+                showToast('Please enter your username and role first.', true);
+                return;
+            }
+            btnResendOtp.textContent = 'Resending...';
+            btnResendOtp.disabled = true;
+            try {
+                const res = await dbPost('register/send-otp', { username, role });
+                showToast(res.message || 'OTP resent successfully!');
+                document.getElementById('otp-message-text').innerHTML = `A fresh 6-digit verification code has been sent to:<br><strong>${res.email}</strong>`;
+                
+                const devHelper = document.getElementById('otp-dev-helper');
+                if (res.devMode) {
+                    devHelper.style.display = 'flex';
+                    document.getElementById('otp-dev-code').textContent = res.otp || '123456';
+                } else {
+                    devHelper.style.display = 'none';
+                }
+            } catch (err) {
+                showToast(err.message, true);
+            } finally {
+                btnResendOtp.textContent = 'Resend OTP';
+                btnResendOtp.disabled = false;
+            }
+        });
+    }
+    
+    if (btnVerifySignup) {
+        btnVerifySignup.addEventListener('click', async () => {
+            const otpVal = regOtp.value.trim();
+            if (!otpVal || otpVal.length !== 6) {
+                showToast('Please enter a valid 6-digit OTP code.', true);
+                return;
+            }
+            
+            const role = regRole.value;
+            const username = regUsername.value.trim().toLowerCase();
+            const program = role === 'Student' ? document.getElementById('reg-program').value : '';
+            const batch = role === 'Student' ? document.getElementById('reg-batch').value : '';
+            const tagline = document.getElementById('reg-tagline') ? document.getElementById('reg-tagline').value.trim() : '';
+            const gender = document.getElementById('reg-gender').value;
+            const area = role === 'Student' ? document.getElementById('reg-area').value.trim() : '';
+            const age = role === 'Student' ? document.getElementById('reg-age').value : '';
+            const semester = role === 'Student' ? document.getElementById('reg-semester').value : '';
+            
+            const designation = role === 'Faculty' ? document.getElementById('reg-designation').value : '';
+            const publicationsCount = role === 'Faculty' ? (parseInt(document.getElementById('reg-publications').value) || 0) : 0;
+            const education = role === 'Faculty' ? document.getElementById('reg-faculty-education').value : '';
+            const jobStatus = role === 'Faculty' ? document.getElementById('reg-faculty-status').value : '';
+            
+            btnVerifySignup.textContent = 'Verifying & Registering...';
+            btnVerifySignup.disabled = true;
+            
+            try {
+                await dbPost('register', {
+                    username,
+                    password: document.getElementById('reg-password').value,
+                    name: `${document.getElementById('reg-firstname').value.trim()} ${document.getElementById('reg-lastname').value.trim()}`,
+                    role,
+                    phone: document.getElementById('reg-phone').value.trim(),
+                    program,
+                    batch,
+                    tagline,
+                    gender,
+                    area,
+                    age,
+                    semester,
+                    designation,
+                    publicationsCount,
+                    education,
+                    jobStatus,
+                    otp: otpVal
+                });
+                showToast('Registration successful! Please login.');
+                
+                // Hide modal and clean up form
+                bootstrap.Modal.getInstance(document.getElementById('signup-modal'))?.hide();
+                document.getElementById('signup-form').reset();
+                if (regStudentFields) regStudentFields.style.display = 'none';
+                
+                // Reset state back to first step for future opens
+                document.getElementById('signup-otp-section').style.display = 'none';
+                document.getElementById('signup-fields-container').style.display = 'block';
+                const signupSubmitBtn = document.querySelector('#signup-form button[type=submit]');
+                if (signupSubmitBtn) {
+                    signupSubmitBtn.textContent = 'Complete Registration';
+                    signupSubmitBtn.disabled = false;
+                }
+            } catch (err) {
+                showToast(err.message, true);
+            } finally {
+                btnVerifySignup.textContent = 'Verify & Complete Registration';
+                btnVerifySignup.disabled = false;
+            }
+        });
+    }
 });
 
 // ─── LOGIN ────────────────────────────────────────────────────────────────────
@@ -914,7 +1037,7 @@ regRole.addEventListener('change', () => {
 
 // ─── APP INIT ─────────────────────────────────────────────────────────────────
 function initApp() {
-    document.getElementById('nav-name').textContent = currentUser.name.split(' ')[0];
+    document.getElementById('nav-name').textContent = currentUser.name;
     document.getElementById('side-name').textContent = currentUser.name;
     
     if (currentUser.role === 'Student') {
@@ -1028,7 +1151,7 @@ function initApp() {
         localStorage.setItem('uog_session', JSON.stringify(currentUser)); // Keep session fresh
         
         document.getElementById('side-name').textContent = currentUser.name;
-        document.getElementById('nav-name').textContent = currentUser.name.split(' ')[0];
+        document.getElementById('nav-name').textContent = currentUser.name;
         document.getElementById('compose-name').textContent = currentUser.name;
         
         const sideTaglineElem = document.getElementById('side-tagline');
@@ -4716,19 +4839,6 @@ function renderMembership() {
     const currentTier = currentUser.membershipTier || 'Free';
     
     const tiers = [
-        {
-            name: 'Free Student',
-            price: '$0',
-            period: 'forever',
-            key: 'Free',
-            features: [
-                'View Directory & Profiles',
-                'Download Statistical Software',
-                'Post in Feed & Comments',
-                'Standard Notifications'
-            ],
-            isPopular: false
-        },
         {
             name: 'Professional Alumni',
             price: '$15',

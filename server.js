@@ -3,6 +3,7 @@ const express = require('express');
 const cors    = require('cors');
 const path    = require('path');
 const mongoose = require('mongoose');
+const nodemailer = require('nodemailer');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -235,6 +236,72 @@ const transactionSchema = new mongoose.Schema({
 });
 const Transaction = mongoose.model('Transaction', transactionSchema);
 
+const otpSchema = new mongoose.Schema({
+    username: { type: String, required: true, lowercase: true, trim: true },
+    email: { type: String, required: true, lowercase: true, trim: true },
+    otp: { type: String, required: true },
+    createdAt: { type: Date, default: Date.now, expires: 600 } // expires in 10 minutes
+});
+const Otp = mongoose.model('Otp', otpSchema);
+
+const createTransporter = () => {
+    return nodemailer.createTransport({
+        host: process.env.EMAIL_HOST || 'smtp.gmail.com',
+        port: parseInt(process.env.EMAIL_PORT || '587'),
+        secure: process.env.EMAIL_SECURE === 'true',
+        auth: {
+            user: process.env.EMAIL_USER,
+            pass: process.env.EMAIL_PASS
+        }
+    });
+};
+
+async function sendOtpEmail(email, otp) {
+    const emailUser = process.env.EMAIL_USER;
+    const emailPass = process.env.EMAIL_PASS;
+
+    if (!emailUser || !emailPass) {
+        console.log(`\n---------------------------------------------\n[DEV MODE] OTP for ${email}: ${otp}\n---------------------------------------------\n`);
+        return { success: true, devMode: true };
+    }
+
+    const transporter = createTransporter();
+    const mailOptions = {
+        from: process.env.EMAIL_FROM || `"UOG Statistics Department" <${emailUser}>`,
+        to: email,
+        subject: 'Email Verification OTP - UOG Statistics Portal',
+        html: `
+            <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 550px; margin: 0 auto; padding: 30px; border: 1px solid #e0e0e0; border-radius: 12px; background-color: #ffffff;">
+                <div style="text-align: center; margin-bottom: 25px;">
+                    <h2 style="color: #0f4c81; margin: 0; font-size: 24px; font-weight: 700; letter-spacing: -0.5px;">UOG Statistics Portal</h2>
+                    <p style="color: #6b7280; font-size: 14px; margin: 5px 0 0 0;">Secure Academic Network</p>
+                </div>
+                <div style="border-top: 1px solid #f3f4f6; padding-top: 25px;">
+                    <p style="font-size: 16px; color: #1f2937; line-height: 1.5; margin: 0 0 15px 0;">Dear Student / Member,</p>
+                    <p style="font-size: 15px; color: #4b5563; line-height: 1.5; margin: 0 0 25px 0;">To complete your registration on the Department of Statistics portal, please verify your email address using the One-Time Password (OTP) below:</p>
+                    <div style="background-color: #f0fdf4; border: 1px dashed #10b981; border-radius: 8px; padding: 18px; text-align: center; margin-bottom: 25px;">
+                        <span style="font-size: 32px; font-weight: 800; letter-spacing: 6px; color: #10b981; font-family: 'Courier New', Courier, monospace;">${otp}</span>
+                        <div style="font-size: 12px; color: #6b7280; margin-top: 8px;">Valid for 10 minutes • Do not share this code</div>
+                    </div>
+                    <p style="font-size: 14px; color: #9ca3af; line-height: 1.5; margin: 0;">If you did not initiate this registration request, you can safely ignore this email.</p>
+                </div>
+                <div style="margin-top: 35px; border-top: 1px solid #f3f4f6; padding-top: 15px; text-align: center; font-size: 12px; color: #9ca3af;">
+                    © ${new Date().getFullYear()} Department of Statistics, University of Gujrat. All rights reserved.
+                </div>
+            </div>
+        `
+    };
+
+    try {
+        await transporter.sendMail(mailOptions);
+        console.log("✅ OTP email sent successfully to " + email);
+        return { success: true, devMode: false };
+    } catch (err) {
+        console.error('Nodemailer Error:', err);
+        throw new Error('Could not send verification email. Please try again or contact support.');
+    }
+}
+
 function safeUser(u) {
     if (!u) return null;
     const { password, __v, _id, ...safe } = u;
@@ -260,10 +327,12 @@ app.use('/api', async (req, res, next) => {
 
 
 // ── USERS ─────────────────────────────────────────────────────────────────────
-app.post('/api/register', async (req, res) => {
+app.post('/api/register/send-otp', async (req, res) => {
     try {
-        const { username, password, name, role, phone, program, batch, designation, publicationsCount, education, jobStatus } = req.body;
-        if (!username || !password || !name || !role) return res.status(400).json({ error: 'Missing fields' });
+        const { username, role } = req.body;
+        if (!username || !role) {
+            return res.status(400).json({ error: 'Username and Role are required' });
+        }
 
         const normalizedUsername = username.toLowerCase().trim();
         // Validation
@@ -271,6 +340,57 @@ app.post('/api/register', async (req, res) => {
             return res.status(400).json({ error: "Roll Number must contain 'UOG'" });
         if (role === 'Faculty' && !normalizedUsername.endsWith('@uog.edu.pk'))
             return res.status(400).json({ error: "Faculty must use @uog.edu.pk email" });
+
+        // Check if user already exists
+        const existingUser = await User.findOne({ username: normalizedUsername });
+        if (existingUser)
+            return res.status(409).json({ error: 'Account already exists' });
+
+        // Determine email
+        const email = role === 'Student' ? (normalizedUsername.includes('@') ? normalizedUsername : `${normalizedUsername}@uog.edu.pk`) : normalizedUsername;
+
+        // Generate 6-digit OTP
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+        // Save OTP to database (upsert)
+        await Otp.findOneAndUpdate(
+            { username: normalizedUsername },
+            { username: normalizedUsername, email, otp, createdAt: new Date() },
+            { upsert: true, new: true }
+        );
+
+        // Send OTP
+        const result = await sendOtpEmail(email, otp);
+
+        res.json({
+            message: result.devMode ? 'Dev Mode: OTP logged to server console' : 'OTP sent successfully to your official email',
+            email,
+            devMode: result.devMode,
+            otp: result.devMode ? otp : undefined
+        });
+    } catch (err) {
+        console.error('Error in send-otp:', err);
+        res.status(500).json({ error: err.message || 'Error sending OTP' });
+    }
+});
+
+app.post('/api/register', async (req, res) => {
+    try {
+        const { username, password, name, role, phone, program, batch, designation, publicationsCount, education, jobStatus, otp } = req.body;
+        if (!username || !password || !name || !role || !otp) return res.status(400).json({ error: 'Missing fields' });
+
+        const normalizedUsername = username.toLowerCase().trim();
+        // Validation
+        if (role === 'Student' && !normalizedUsername.includes('uog'))
+            return res.status(400).json({ error: "Roll Number must contain 'UOG'" });
+        if (role === 'Faculty' && !normalizedUsername.endsWith('@uog.edu.pk'))
+            return res.status(400).json({ error: "Faculty must use @uog.edu.pk email" });
+
+        // Verify OTP
+        const otpRecord = await Otp.findOne({ username: normalizedUsername });
+        if (!otpRecord || otpRecord.otp !== otp.trim()) {
+            return res.status(400).json({ error: 'Invalid or expired OTP' });
+        }
 
         const existingUser = await User.findOne({ username: normalizedUsername });
         if (existingUser)
@@ -301,6 +421,7 @@ app.post('/api/register', async (req, res) => {
             lastActive: new Date()
         });
         await user.save();
+        await Otp.deleteOne({ username: normalizedUsername });
         res.json({ message: 'Registered successfully', user: safeUser(user.toObject()) });
     } catch (err) {
         console.error(err);
