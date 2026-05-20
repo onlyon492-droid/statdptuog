@@ -749,38 +749,107 @@
 </div></div>
 </div>
 <!-- Add Story Modal -->
+<!-- Add Story Modal -->
 <div aria-hidden="true" class="modal fade" id="add-story-modal" tabindex="-1">
-<div class="modal-dialog" style="max-width: 400px;"><div class="modal-content">
-<div class="modal-header">
-<h3>Add Academic Status</h3>
-<button aria-label="Close" class="btn-close" data-bs-dismiss="modal" type="button"></button>
-</div>
-<div class="modal-body">
-<p style="font-size: 0.85rem; color: #64748b; margin-bottom: 12px;">What is your academic status or story for today? (Max 60 chars)</p>
-<input class="form-control" id="story-input-text" maxlength="60" placeholder="e.g. Studying for Midterms..." style="margin-bottom: 16px;" type="text"/>
-<button class="btn btn-primary" onclick="submitUserStory()" type="button">Share Status</button>
-</div>
-</div></div>
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 450px;">
+        <div class="modal-content premium-modal-content">
+            <div class="modal-header premium-modal-header">
+                <h3 class="modal-title" id="story-modal-title">
+                    <i class="fas fa-magic"></i> Create a Story
+                </h3>
+                <button aria-label="Close" class="btn-close btn-close-white" data-bs-dismiss="modal" type="button"></button>
+            </div>
+            <div class="modal-body premium-modal-body">
+                <form id="story-modal-form" onsubmit="event.preventDefault(); window.submitUserStory();">
+                    <input type="hidden" id="story-modal-id" value="" />
+                    
+                    <div class="mb-3">
+                        <label class="form-label" for="story-input-text">Story Text / Caption</label>
+                        <textarea class="form-control premium-input" id="story-input-text" rows="3" placeholder="What's on your mind? Share your story..." required></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Add Story Photo</label>
+                        <input type="file" id="story-input-image" accept="image/*" style="display: none;" onchange="window.handleStoryImageChange(this)" />
+                        <div id="story-image-uploader" class="text-center p-4 border border-dashed rounded-3" style="cursor: pointer; border-color: rgba(188, 250, 117, 0.3) !important; background: rgba(255, 255, 255, 0.02); transition: all 0.25s ease;" onclick="document.getElementById('story-input-image').click();">
+                            <i class="fas fa-image fa-2x mb-2" style="color: #bcfa75;"></i>
+                            <p class="mb-0 text-muted" style="font-size: 0.85rem;">Click to upload a picture</p>
+                        </div>
+                        <div id="story-image-preview-wrapper" style="display: none; position: relative; margin-top: 12px; border-radius: 12px; overflow: hidden; height: 180px; border: 1px solid rgba(188, 250, 117, 0.2);">
+                            <img id="story-image-preview-img" src="" alt="Story Preview" style="width: 100%; height: 100%; object-fit: cover;" />
+                            <button type="button" class="btn btn-danger btn-sm" style="position: absolute; top: 10px; right: 10px; border-radius: 50%; width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center;" onclick="event.stopPropagation(); window.removeStoryImage();">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label" for="story-input-visibility">Who can see this?</label>
+                        <select class="form-select premium-input" id="story-input-visibility">
+                            <option value="everyone">Everyone (Public)</option>
+                            <option value="alumni">Alumni Only</option>
+                            <option value="students">Students Only</option>
+                            <option value="faculty">Faculty Only</option>
+                        </select>
+                    </div>
+                    
+                    <div class="premium-modal-footer pt-3">
+                        <button class="btn-secondary-premium" data-bs-dismiss="modal" type="button">Cancel</button>
+                        <button class="btn-primary-premium" id="story-modal-submit-btn" type="submit">Share Story</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 </div>
 <!-- Academic Status Story Viewer Modal -->
 <div aria-hidden="true" class="modal fade" id="story-viewer-modal" onclick="window.closeStoryViewer()" tabindex="-1">
-<div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="story-viewer-card" onclick="event.stopPropagation()">
-<button class="btn-close position-absolute top-0 end-0 m-3" data-bs-dismiss="modal" onclick="window.closeStoryViewer()"></button>
-<div class="story-progress-bar">
-<div class="story-progress-fill" id="story-progress-fill"></div>
-</div>
-<div class="story-user-info">
-<div class="avatar-small" id="story-avatar"></div>
-<div class="story-user-desc">
-<h4 id="story-username">Name</h4>
-<p id="story-time">Time</p>
-</div>
-</div>
-<div class="story-text-content" id="story-text-content">
-                    Status text goes here...
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 400px;">
+        <div class="modal-content" style="background: transparent; border: none;">
+            <div class="story-viewer-card" id="story-viewer-card-container" onclick="event.stopPropagation()" style="position: relative; overflow: hidden; border-radius: 20px; min-height: 500px; width: 100%; background: #0a0f08; border: 1px solid rgba(188, 250, 117, 0.25); box-shadow: 0 25px 60px rgba(0,0,0,0.85);">
+                <!-- Background Image Layer -->
+                <div id="story-viewer-img-bg" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-size: cover; background-position: center; transition: all 0.3s ease; z-index: 1;"></div>
+                
+                <!-- Content Layer -->
+                <div class="story-viewer-content" style="position: relative; z-index: 2; display: flex; flex-direction: column; justify-content: space-between; height: 100%; min-height: 500px; padding: 20px; background: linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.2) 30%, rgba(0,0,0,0.2) 70%, rgba(0,0,0,0.9) 100%);">
+                    
+                    <div>
+                        <!-- Progress Bar -->
+                        <div class="story-progress-bar" style="margin-bottom: 15px;">
+                            <div class="story-progress-fill" id="story-progress-fill"></div>
+                        </div>
+                        
+                        <!-- User Details & Close button -->
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="story-user-info" style="margin-bottom: 0; gap: 10px;">
+                                <div class="avatar-small" id="story-avatar" style="border: 2px solid #bcfa75;"></div>
+                                <div class="story-user-desc">
+                                    <h4 id="story-username" style="margin: 0; font-size: 0.95rem; font-weight: 700; color: #ffffff;">Name</h4>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <span id="story-time" style="font-size: 0.72rem; color: #cbd5e1;">Time</span>
+                                        <span id="story-visibility-badge" class="badge bg-secondary" style="font-size: 0.6rem; padding: 3px 6px; text-transform: uppercase; border-radius: 4px; background-color: rgba(255, 255, 255, 0.15) !important;">Public</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <button class="btn-close btn-close-white" data-bs-dismiss="modal" onclick="window.closeStoryViewer()" style="opacity: 0.8; box-shadow: none;"></button>
+                        </div>
+                    </div>
+                    
+                    <!-- Caption/Text Content -->
+                    <div id="story-text-content" style="text-align: center; font-size: 1.2rem; font-weight: 600; color: #ffffff; line-height: 1.5; text-shadow: 0 2px 10px rgba(0,0,0,0.9); word-break: break-word; padding: 20px; background: rgba(0,0,0,0.4); border-radius: 12px; margin: 15px 0; border: 1px solid rgba(255,255,255,0.05); backdrop-filter: blur(4px);">
+                        Status text goes here...
+                    </div>
+                    
+                    <!-- Delete Trigger -->
+                    <div>
+                        <button class="story-delete-btn" id="story-delete-btn" style="display: none; width: 100%; padding: 10px; background: rgba(239, 68, 68, 0.9); color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: 700; font-size: 0.82rem; transition: all 0.2s; align-items: center; justify-content: center; gap: 8px; border: 1px solid rgba(239, 68, 68, 0.3);" onmouseover="this.style.background='#ef4444'" onmouseout="this.style.background='rgba(239, 68, 68, 0.9)'">
+                            <i class="fas fa-trash-alt"></i> Delete My Story
+                        </button>
+                    </div>
                 </div>
-<button class="story-delete-btn" id="story-delete-btn" style="display: none; width: 100%; margin-top: 15px; padding: 10px; background: #ef4444; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 0.85rem; transition: background 0.2s; align-items: center; justify-content: center; gap: 8px;"><i class="fas fa-trash-alt"></i> Delete My Status</button>
-</div></div></div>
+            </div>
+        </div>
+    </div>
 </div>
 <!-- Faculty Individual Analytics Modal -->
 <div aria-hidden="true" class="modal fade" id="faculty-analytics-modal" onclick="window.closeFacultyAnalytics()" style="display: none; z-index: 4000;" tabindex="-1">

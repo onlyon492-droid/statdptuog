@@ -161,6 +161,8 @@ async function dbPost(endpoint, body) {
             name: body.name,
             profilePic: body.profilePic || '',
             text: body.text,
+            image: body.image || '',
+            visibility: body.visibility || 'everyone',
             timestamp: body.timestamp || Date.now()
         };
         filtered.push(story);
@@ -1981,37 +1983,80 @@ function getStories() {
     return activeStories || [];
 }
 
-window.addUserStory = async function() {
+function getVisibleStories() {
+    const stories = getStories();
+    if (!currentUser) return [];
+    return stories.filter(story => {
+        if (story.username === currentUser.username) return true;
+        const visibility = story.visibility || 'everyone';
+        if (visibility === 'everyone') return true;
+        if (visibility === 'alumni') {
+            return currentUser.role === 'Alumni' || currentUser.role === 'Admin' || currentUser.role === 'Faculty';
+        }
+        if (visibility === 'students') {
+            return currentUser.role === 'Student' || currentUser.role === 'Admin' || currentUser.role === 'Faculty';
+        }
+        if (visibility === 'faculty') {
+            return currentUser.role === 'Faculty' || currentUser.role === 'Admin';
+        }
+        return false;
+    });
+}
+
+let storyBase64Image = '';
+
+window.handleStoryImageChange = function(input) {
+    const file = input.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        storyBase64Image = e.target.result;
+        document.getElementById('story-image-preview-img').src = storyBase64Image;
+        document.getElementById('story-image-uploader').style.display = 'none';
+        document.getElementById('story-image-preview-wrapper').style.display = 'block';
+    };
+    reader.readAsDataURL(file);
+};
+
+window.removeStoryImage = function() {
+    storyBase64Image = '';
+    const fileInput = document.getElementById('story-input-image');
+    if (fileInput) fileInput.value = '';
+    const previewImg = document.getElementById('story-image-preview-img');
+    if (previewImg) previewImg.src = '';
+    const uploader = document.getElementById('story-image-uploader');
+    if (uploader) uploader.style.display = 'block';
+    const wrapper = document.getElementById('story-image-preview-wrapper');
+    if (wrapper) wrapper.style.display = 'none';
+};
+
+window.addUserStory = function() {
     if (!currentUser) return;
-    const modal = document.getElementById('add-story-modal');
-    if (modal) {
-        document.getElementById('story-input-text').value = '';
-        new bootstrap.Modal(modal).show();
-        
-        
-    }
+    const form = document.getElementById('story-modal-form');
+    if (form) form.reset();
+    window.removeStoryImage();
+    
+    const modalEl = document.getElementById('add-story-modal');
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    modal.show();
 };
 
 window.closeAddStoryModal = function() {
-    const modal = document.getElementById('add-story-modal');
-    if (modal) {
-        bootstrap.Modal.getInstance(modal)?.hide();
-        
-    }
+    const modalEl = document.getElementById('add-story-modal');
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    modal.hide();
 };
 
 window.submitUserStory = async function() {
     if (!currentUser) return;
-    const inputEl = document.getElementById('story-input-text');
-    if (!inputEl) return;
+    const textEl = document.getElementById('story-input-text');
+    if (!textEl) return;
+    const text = textEl.value.trim();
+    const visibility = document.getElementById('story-input-visibility').value || 'everyone';
     
-    const cleanTxt = inputEl.value.trim();
-    if (!cleanTxt) {
-        showToast("Status cannot be empty.", true);
-        return;
-    }
-    if (cleanTxt.length > 60) {
-        showToast("Status must be 60 characters or less.", true);
+    if (!text) {
+        showToast("Story caption cannot be empty.", true);
         return;
     }
     
@@ -2021,19 +2066,30 @@ window.submitUserStory = async function() {
             username: currentUser.username,
             name: currentUser.name,
             profilePic: currentUser.profilePic || '',
-            text: cleanTxt,
+            text: text,
+            image: storyBase64Image || '',
+            visibility: visibility,
             timestamp: Date.now()
         });
         
-        logSecurityEvent('Add Story', `Updated personal academic status to: "${cleanTxt}"`, 'success');
-        showToast("Academic status updated!");
+        logSecurityEvent('Add Story', `Shared a new story: "${text.substring(0, 30)}..."`, 'success');
+        showToast("Story posted successfully!");
         
-        bootstrap.Modal.getInstance(document.getElementById('add-story-modal'))?.hide();
+        const modalEl = document.getElementById('add-story-modal');
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        modal.hide();
+        
+        // Reload activeStories
+        const updatedStories = await dbGet('stories');
+        activeStories = updatedStories;
+        
         if (currentView === 'feed') {
             await renderPosts('feed');
+        } else if (currentView === 'stories-view') {
+            renderStoriesView();
         }
     } catch (err) {
-        showToast("Could not update status: " + err.message, true);
+        showToast("Could not post story: " + err.message, true);
     }
 };
 
@@ -2045,15 +2101,31 @@ window.viewStory = function(storyId) {
     const story = stories.find(s => String(s.id) === String(storyId));
     if (!story) return;
     
-    const modal = document.getElementById('story-viewer-modal');
-    if (!modal) return;
+    const modalEl = document.getElementById('story-viewer-modal');
+    if (!modalEl) return;
     
     // Set content
     const avatarContainer = document.getElementById('story-avatar');
     const nameEl = document.getElementById('story-username');
     const timeEl = document.getElementById('story-time');
-    const textEl = document.getElementById('story-text-content'); // matches index.html: id="story-text-content"
+    const textEl = document.getElementById('story-text-content');
     const progressFill = document.getElementById('story-progress-fill');
+    
+    const bgEl = document.getElementById('story-viewer-img-bg');
+    if (bgEl) {
+        if (story.image) {
+            bgEl.style.backgroundImage = `url(${story.image})`;
+            bgEl.style.display = 'block';
+        } else {
+            bgEl.style.backgroundImage = 'none';
+            bgEl.style.display = 'none';
+        }
+    }
+    
+    const visBadge = document.getElementById('story-visibility-badge');
+    if (visBadge) {
+        visBadge.textContent = story.visibility || 'everyone';
+    }
     
     renderAvatar(avatarContainer, { name: story.name, profilePic: story.profilePic });
     nameEl.textContent = story.name;
@@ -2082,7 +2154,8 @@ window.viewStory = function(storyId) {
     }
     
     // Show modal
-    new bootstrap.Modal(modal).show();
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    modal.show();
     
     
     
@@ -2150,7 +2223,7 @@ window.closeStoryViewer = function() {
 
 function renderStatusStories(container) {
     if (!container) return;
-    const stories = getStories();
+    const stories = getVisibleStories();
     const myStory = stories.find(s => s.username === currentUser.username);
     
     const storiesWrapper = document.createElement('div');
@@ -4495,7 +4568,7 @@ window.toggleCommentsCollapse = function(id) {
 // Stories View Rendering
 async function renderStoriesView() {
     listContainer.innerHTML = '';
-    const stories = getStories() || [];
+    const stories = getVisibleStories() || [];
     
     // Add "Create Story" Card
     const createCard = document.createElement('div');
@@ -4516,13 +4589,31 @@ async function renderStoriesView() {
             ? `<img src="${story.profilePic}" alt="" style="width:100%;height:100%;object-fit:cover;">` 
             : `<span>${story.name.charAt(0).toUpperCase()}</span>`;
             
+        const visibilityLabel = (story.visibility || 'everyone').toUpperCase();
+        
+        let bgStyle = '';
+        if (story.image) {
+            bgStyle = `background: linear-gradient(180deg, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.7) 100%), url(${story.image}) center/cover no-repeat;`;
+        } else {
+            bgStyle = `background: radial-gradient(circle at top right, rgba(188, 250, 117, 0.15), rgba(15, 76, 129, 0.2)), #121b10;`;
+        }
+        
+        card.setAttribute('style', bgStyle + ' border-radius: 12px; border: 1px solid rgba(188, 250, 117, 0.15); box-shadow: 0 4px 15px rgba(0,0,0,0.25); height: 200px; display: flex; flex-direction: column; justify-content: space-between; padding: 15px; position: relative; cursor: pointer; overflow: hidden; transition: transform 0.2s;');
+        
         card.innerHTML = `
-            <div class="story-card-overlay">
-                <div class="story-card-user-avatar">${avatarHtml}</div>
-                <div class="story-card-user-name">${story.name}</div>
+            <div class="d-flex justify-content-between align-items-start" style="position: relative; z-index: 2; width: 100%;">
+                <div class="story-card-user-avatar" style="border: 2px solid #bcfa75; width: 36px; height: 36px; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; background: #2a3b25;">
+                    ${avatarHtml}
+                </div>
+                <span class="badge" style="background: rgba(188, 250, 117, 0.2); color: #bcfa75; font-size: 0.65rem; border: 1px solid rgba(188, 250, 117, 0.35); text-transform: uppercase;">
+                    ${visibilityLabel === 'EVERYONE' ? 'Public' : visibilityLabel}
+                </span>
             </div>
-            <div class="story-card-bg" style="display: flex; align-items: center; justify-content: center; color: white; padding: 15px; text-align: center; font-size: 0.85rem; font-weight: 500; height: 100%;">
+            <div style="position: relative; z-index: 2; text-align: center; color: white; font-size: 0.8rem; font-weight: 600; text-shadow: 0 2px 4px rgba(0,0,0,0.8); line-height: 1.4; max-height: 80px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical;">
                 "${story.text}"
+            </div>
+            <div class="story-card-user-name" style="position: relative; z-index: 2; font-size: 0.72rem; color: #bcfa75; font-weight: 700; width: 100%; text-shadow: 0 1px 3px rgba(0,0,0,0.8);">
+                ${story.name}
             </div>
         `;
         listContainer.appendChild(card);

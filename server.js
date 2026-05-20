@@ -80,6 +80,8 @@ const storySchema = new mongoose.Schema({
     name: { type: String, required: true },
     profilePic: { type: String, default: '' },
     text: { type: String, required: true },
+    image: { type: String, default: '' },
+    visibility: { type: String, default: 'everyone' },
     timestamp: { type: Number, required: true }
 });
 const Story = mongoose.model('Story', storySchema);
@@ -589,7 +591,7 @@ app.get('/api/stories', async (req, res) => {
 
 app.post('/api/stories', async (req, res) => {
     try {
-        const { id, username, name, profilePic, text, timestamp } = req.body;
+        const { id, username, name, profilePic, text, image, visibility, timestamp } = req.body;
         if (!text || !username) return res.status(400).json({ error: 'Missing fields' });
         
         // Remove previous story from same user if any
@@ -601,6 +603,8 @@ app.post('/api/stories', async (req, res) => {
             name,
             profilePic: profilePic || '',
             text,
+            image: image || '',
+            visibility: visibility || 'everyone',
             timestamp: timestamp || Date.now()
         });
         await story.save();
