@@ -361,6 +361,9 @@
                         </div>
                     </div>
 
+                    <!-- Glassmorphic Broadcast Ticker -->
+                    <div id="broadcast-ticker-container" style="display: none; margin-bottom: 16px;"></div>
+
                     <!-- Dynamic Content Container -->
                     <div id="list-container">
                         <!-- Content populated via JS -->
@@ -593,6 +596,22 @@
                     
                     <button type="submit" class="edu-btn-post">Publish Update</button>
                 </form>
+            </div>
+        </div>
+
+        <!-- Read Receipts View Modal -->
+        <div class="edu-modal-overlay" id="views-receipts-modal">
+            <div class="edu-modal-content" style="max-width: 450px;">
+                <div class="edu-modal-header">
+                    <h2 style="font-size: 18px;"><i class="fas fa-eye"></i> Read Receipts</h2>
+                    <i class="fas fa-times close-modal" id="close-views-receipts"></i>
+                </div>
+                <div class="edu-modal-body" style="padding-top: 10px;">
+                    <p style="font-size: 0.85rem; color: #6b7280; margin-bottom: 12px;">The following department members have viewed this shared item:</p>
+                    <div id="views-receipts-list" style="max-height: 300px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;">
+                        <!-- Dynamically filled with view receipts -->
+                    </div>
+                </div>
             </div>
         </div>
 

@@ -17,7 +17,9 @@ function connectToDatabase() {
     }
     if (!cachedConnectionPromise) {
         console.log('Initiating MongoDB connection...');
-        cachedConnectionPromise = mongoose.connect(MONGODB_URI)
+        cachedConnectionPromise = mongoose.connect(MONGODB_URI, {
+            serverSelectionTimeoutMS: 3000 // Fail fast within 3s if MongoDB is down
+        })
             .then(() => {
                 console.log(`\n✅ Connected to MongoDB successfully! [URI: ${MONGODB_URI.startsWith('mongodb://127.0.0.1') ? 'Local Database' : 'Cloud Database'}]\n`);
             })
@@ -129,7 +131,8 @@ const postSchema = new mongoose.Schema({
                 votes: { type: [String], default: [] }
             }
         ]
-    }
+    },
+    views: { type: [String], default: [] }
 });
 const Post = mongoose.model('Post', postSchema);
 
@@ -147,7 +150,12 @@ const softwareSchema = new mongoose.Schema({
             data: { type: String },
             name: { type: String }
         }
-    ]
+    ],
+    visibility: { type: String, default: 'everyone' },
+    targetProgram: { type: String, default: 'all' },
+    targetBatch: { type: String, default: 'all' },
+    targetSemester: { type: String, default: 'all' },
+    views: { type: [String], default: [] }
 });
 const Software = mongoose.model('Software', softwareSchema);
 
@@ -598,7 +606,7 @@ app.get('/api/software', async (req, res) => {
 
 app.post('/api/software', async (req, res) => {
     try {
-        const { author, name, title, desc, link, files } = req.body;
+        const { author, name, title, desc, link, files, visibility, targetProgram, targetBatch, targetSemester } = req.body;
         if (!title || !desc) return res.status(400).json({ error: 'Missing fields' });
         
         const sw = new Software({
@@ -609,13 +617,54 @@ app.post('/api/software', async (req, res) => {
             desc,
             link: link || '',
             date: new Date().toLocaleDateString('en-PK', { day:'numeric', month:'short', year:'numeric' }),
-            files: files || []
+            files: files || [],
+            visibility: visibility || 'everyone',
+            targetProgram: targetProgram || 'all',
+            targetBatch: targetBatch || 'all',
+            targetSemester: targetSemester || 'all',
+            views: []
         });
         await sw.save();
         res.json(sw);
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: 'Error creating software entry' });
+    }
+});
+
+app.post('/api/posts/:id/view', async (req, res) => {
+    try {
+        const { username } = req.body;
+        if (!username) return res.status(400).json({ error: 'Missing username' });
+        const post = await Post.findOne({ id: Number(req.params.id) });
+        if (!post) return res.status(404).json({ error: 'Post not found' });
+        if (!post.views) post.views = [];
+        if (!post.views.includes(username)) {
+            post.views.push(username);
+            await post.save();
+        }
+        res.json({ views: post.views });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Error recording post view' });
+    }
+});
+
+app.post('/api/software/:id/view', async (req, res) => {
+    try {
+        const { username } = req.body;
+        if (!username) return res.status(400).json({ error: 'Missing username' });
+        const sw = await Software.findOne({ id: Number(req.params.id) });
+        if (!sw) return res.status(404).json({ error: 'Software not found' });
+        if (!sw.views) sw.views = [];
+        if (!sw.views.includes(username)) {
+            sw.views.push(username);
+            await sw.save();
+        }
+        res.json({ views: sw.views });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Error recording software view' });
     }
 });
 

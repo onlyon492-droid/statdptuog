@@ -9,9 +9,15 @@ const HAS_SERVER = window.location.protocol !== 'file:';
 // If server is running → use API. Otherwise → use localStorage.
 async function dbGet(key) {
     if (HAS_SERVER) {
-        const res = await fetch(`/api/${key}`);
-        if (!res.ok) throw new Error('Server error');
-        return res.json();
+        try {
+            const res = await fetch(`/api/${key}`);
+            if (res.ok) {
+                return await res.json();
+            }
+            console.warn(`Server returned error status ${res.status} for ${key}, falling back to localStorage.`);
+        } catch (fetchErr) {
+            console.warn(`Fetch failed for ${key}, falling back to localStorage.`, fetchErr);
+        }
     }
     if (key === 'batches') {
         let batches = JSON.parse(localStorage.getItem('uog_batches') || '[]');
@@ -32,13 +38,19 @@ async function dbGet(key) {
 }
 async function dbPost(endpoint, body) {
     if (HAS_SERVER) {
-        const res = await fetch(`/api/${endpoint}`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body)
-        });
-        const d = await res.json();
-        if (!res.ok) throw new Error(d.error || 'Error');
-        return d;
+        try {
+            const res = await fetch(`/api/${endpoint}`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            if (res.ok) {
+                return await res.json();
+            }
+            const d = await res.json().catch(() => ({}));
+            console.warn(`Server returned error for POST ${endpoint}: ${d.error || 'Unknown'}, falling back to localStorage.`);
+        } catch (fetchErr) {
+            console.warn(`POST fetch failed for ${endpoint}, falling back to localStorage.`, fetchErr);
+        }
     }
     // localStorage fallback for each endpoint
     if (endpoint.includes('/react')) {
@@ -194,13 +206,19 @@ async function dbPost(endpoint, body) {
 }
 async function dbPut(endpoint, body) {
     if (HAS_SERVER) {
-        const res = await fetch(`/api/${endpoint}`, {
-            method: 'PUT', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body)
-        });
-        const d = await res.json();
-        if (!res.ok) throw new Error(d.error || 'Error');
-        return d;
+        try {
+            const res = await fetch(`/api/${endpoint}`, {
+                method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            if (res.ok) {
+                return await res.json();
+            }
+            const d = await res.json().catch(() => ({}));
+            console.warn(`Server returned error for PUT ${endpoint}: ${d.error || 'Unknown'}, falling back to localStorage.`);
+        } catch (fetchErr) {
+            console.warn(`PUT fetch failed for ${endpoint}, falling back to localStorage.`, fetchErr);
+        }
     }
     // localStorage fallback
     if (endpoint.startsWith('posts/')) {
@@ -242,11 +260,18 @@ async function dbPut(endpoint, body) {
 }
 async function dbDelete(endpoint, body) {
     if (HAS_SERVER) {
-        const res = await fetch(`/api/${endpoint}`, {
-            method: 'DELETE', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body)
-        });
-        return res.json();
+        try {
+            const res = await fetch(`/api/${endpoint}`, {
+                method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            if (res.ok) {
+                return await res.json();
+            }
+            console.warn(`Server returned error for DELETE ${endpoint}, falling back to localStorage.`);
+        } catch (fetchErr) {
+            console.warn(`DELETE fetch failed for ${endpoint}, falling back to localStorage.`, fetchErr);
+        }
     }
     if (endpoint.startsWith('posts/')) {
         const id = endpoint.split('/')[1];
@@ -643,7 +668,12 @@ function initApp() {
     updateStats();
     startHeartbeatLoop();
     initInactivityTracker();
-    switchView('feed');
+    renderBroadcastTicker();
+    if (window.location.hash) {
+        window.handleAnchorRoute();
+    } else {
+        switchView('feed');
+    }
     // Populate mobile profile sheet & avatar
     if (typeof updateMobileProfileSheet === 'function') updateMobileProfileSheet();
 }
@@ -882,8 +912,8 @@ async function renderPosts(filterView) {
                 }
             }
             
-            // Targeted records visibility (e.g. BS program, batches, semesters)
-            if (p.category.includes('Record') && currentUser.role !== 'Faculty' && p.author !== currentUser.username && p.originalAuthor !== currentUser.username) {
+            // Universal targeted visibility filtering (BS program, sessions/batches, semesters)
+            if (currentUser.role !== 'Faculty' && p.author !== currentUser.username && p.originalAuthor !== currentUser.username) {
                 const targetProg = p.targetProgram || 'all';
                 const targetBat = p.targetBatch || 'all';
                 const targetSem = p.targetSemester || 'all';
@@ -1061,8 +1091,12 @@ async function renderPosts(filterView) {
         const reactionLabel = hasReacted ? myReaction.type.charAt(0).toUpperCase() + myReaction.type.slice(1) : 'Appreciate';
         const isBookmarked = getBookmarks().includes(String(post.id));
 
-        // Simulated reach views based on ID and metrics
-        const mockViews = Math.floor((post.id % 880) + 24) + (reactions.length * 4) + (commentsArr.length * 6);
+        // Register view tracker for posts
+        registerView('posts', post.id, post.author);
+        const actualViews = (post.views || []).length;
+        const viewsDisplayHtml = (currentUser && currentUser.role === 'Faculty')
+            ? `<span class="post-views-badge" onclick="showViewsReceipts('${post.id}', 'posts')" title="View Read Receipts" style="cursor:pointer;color:var(--uog-blue);font-weight:600;"><i class="fas fa-eye"></i> ${actualViews} Views</span>`
+            : `<span style="color:#6b7280;"><i class="fas fa-eye"></i> ${actualViews} Views</span>`;
 
         // Appreciation counts respects privacy setting of the author
         const authorShowLikes = postUser && postUser.showAppreciations !== false;
@@ -1140,13 +1174,14 @@ async function renderPosts(filterView) {
 
         const card = document.createElement('div');
         card.className = 'edu-card post';
+        card.id = `post-card-${post.id}`;
         card.innerHTML = `
             <div class="post-header">
                 <div class="post-user-info">
                     <div class="avatar-small">${avatarWrapper}</div>
                     <div>
                         <div class="post-name">${post.name}</div>
-                        <div class="post-meta">${post.date} • <i class="fas fa-eye" style="font-size:0.75rem;margin-left:2px;"></i> ${mockViews} Views</div>
+                        <div class="post-meta">${post.date} • ${viewsDisplayHtml}</div>
                     </div>
                 </div>
                 <div style="display:flex;align-items:center;gap:8px;">
@@ -1244,7 +1279,8 @@ async function renderSoftware() {
     const filteredSw = swList.filter(sw => {
         if (sw.visibility === 'faculty') {
             if (currentUser.role !== 'Faculty' && sw.author !== currentUser.username) return false;
-        } else if (sw.visibility === 'batch_faculty') {
+        } else {
+            // Universal student targeting filter
             if (currentUser.role !== 'Faculty' && sw.author !== currentUser.username) {
                 const targetProg = sw.targetProgram || 'all';
                 const targetBat = sw.targetBatch || 'all';
@@ -1263,18 +1299,30 @@ async function renderSoftware() {
         return;
     }
     filteredSw.forEach(sw => {
+        registerView('software', sw.id, sw.author);
         const hasFile = sw.files && sw.files.length > 0;
         let actionsHtml = '';
         if (sw.link) actionsHtml += `<a href="${sw.link}" target="_blank" class="sw-btn" style="background:#0f4c81;"><i class="fas fa-external-link-alt"></i> Official Link</a>`;
         if (hasFile) actionsHtml += `<button class="sw-btn"><i class="fas fa-download"></i> Download</button>`;
+        
+        actionsHtml += `<button class="sw-btn" onclick="window.shareSoftware('${sw.id}')" style="background:#0f4c81;margin-left:4px;"><i class="fas fa-share-nodes"></i> Share</button>`;
+        
         if (!actionsHtml) actionsHtml = `<button class="sw-btn" disabled style="background:#9ca3af;">No Source</button>`;
+        
+        const actualSwViews = (sw.views || []).length;
+        const swViewsHtml = (currentUser && currentUser.role === 'Faculty')
+            ? `<span class="sw-views-badge" onclick="showViewsReceipts('${sw.id}', 'software')" title="View Read Receipts" style="cursor:pointer;color:var(--uog-blue);font-weight:600;font-size:0.8rem;margin-top:4px;display:inline-block;"><i class="fas fa-eye"></i> ${actualSwViews} Views</span>`
+            : `<span style="font-size:0.8rem;color:#6b7280;margin-top:4px;display:inline-block;"><i class="fas fa-eye"></i> ${actualSwViews} Views</span>`;
+
         const card = document.createElement('div');
         card.className = 'sw-card';
+        card.id = `sw-card-${sw.id}`;
         card.innerHTML = `
             <div class="sw-header">
                 <div class="sw-icon"><i class="fas fa-laptop-code"></i></div>
                 <div class="sw-info"><h3>${sw.title}</h3><p>By ${sw.name} • ${sw.date}</p>
-                ${hasFile ? `<p style="color:#10b981;font-weight:600;"><i class="fas fa-paperclip"></i> ${sw.files.length} File(s)</p>` : ''}</div>
+                ${swViewsHtml}
+                ${hasFile ? `<p style="color:#10b981;font-weight:600;margin-top:4px;"><i class="fas fa-paperclip"></i> ${sw.files.length} File(s)</p>` : ''}</div>
             </div>
             <div class="sw-desc">${sw.desc}</div>
             <div class="sw-footer">${actionsHtml}</div>`;
@@ -1433,6 +1481,7 @@ const softwareTitleInput = document.getElementById('software-title');
 const softwareLinkInput  = document.getElementById('software-link');
 const fileUpload         = document.getElementById('file-upload');
 const previewArea        = document.getElementById('preview-area');
+const postAudience       = document.getElementById('post-visibility');
 
 ['open-compose','open-compose-text'].forEach(id => document.getElementById(id).addEventListener('click', () => { resetCompose('Feed'); composeModal.classList.add('active'); }));
 document.getElementById('open-compose-doc').addEventListener('click', () => { resetCompose('Records'); composeModal.classList.add('active'); });
@@ -1498,18 +1547,26 @@ function resetCompose(cat) {
 }
 function toggleSoftwareFields() {
     const isSW = postCategory.value === 'Software';
-    softwareTitleInput.style.display = isSW ? 'block' : 'none';
-    softwareLinkInput.style.display  = isSW ? 'block' : 'none';
-    isSW ? softwareTitleInput.setAttribute('required','true') : softwareTitleInput.removeAttribute('required');
+    if (softwareTitleInput) {
+        softwareTitleInput.style.display = isSW ? 'block' : 'none';
+        isSW ? softwareTitleInput.setAttribute('required','true') : softwareTitleInput.removeAttribute('required');
+    }
+    if (softwareLinkInput) {
+        softwareLinkInput.style.display  = isSW ? 'block' : 'none';
+    }
     
-    const isRecordOrSW = postCategory.value === 'Records' || postCategory.value === 'Software';
-    const isTargetedAudience = postAudience.value === 'batch_faculty';
     const recordTargeting = document.getElementById('record-targeting-container');
     if (recordTargeting) {
-        recordTargeting.style.display = (isRecordOrSW && isTargetedAudience) ? 'block' : 'none';
+        if (currentUser && currentUser.role === 'Faculty') {
+            recordTargeting.style.display = 'block';
+        } else {
+            const isRecordOrSW = postCategory.value === 'Records' || postCategory.value === 'Software';
+            const isTargetedAudience = postAudience && postAudience.value === 'batch_faculty';
+            recordTargeting.style.display = (isRecordOrSW && isTargetedAudience) ? 'block' : 'none';
+        }
     }
 }
-postAudience.addEventListener('change', toggleSoftwareFields);
+if (postAudience) postAudience.addEventListener('change', toggleSoftwareFields);
 
 fileUpload.addEventListener('change', (e) => {
     Array.from(e.target.files).forEach(file => {
@@ -1541,7 +1598,7 @@ uploadForm.addEventListener('submit', async (e) => {
     btn.textContent = 'Publishing...'; btn.disabled = true;
     try {
         if (category === 'Software') {
-            const visibility = document.getElementById('post-audience') ? document.getElementById('post-audience').value : 'everyone';
+            const visibility = postAudience ? postAudience.value : 'everyone';
             const targetProgram = document.getElementById('target-program') ? document.getElementById('target-program').value : 'all';
             const targetBatch = document.getElementById('target-batch') ? document.getElementById('target-batch').value : 'all';
             const targetSemester = document.getElementById('target-semester') ? document.getElementById('target-semester').value : 'all';
@@ -1568,7 +1625,7 @@ uploadForm.addEventListener('submit', async (e) => {
             const postAuthor = isAnon ? 'anonymous_ghost' : currentUser.username;
             const postName = isAnon ? 'Anonymous Member' : currentUser.name;
             const postRole = isAnon ? 'Hidden' : currentUser.role;
-            const visibility = document.getElementById('post-visibility') ? document.getElementById('post-visibility').value : 'everyone';
+            const visibility = postAudience ? postAudience.value : 'everyone';
             
             // Extract Poll details if built
             let poll = null;
@@ -1590,10 +1647,10 @@ uploadForm.addEventListener('submit', async (e) => {
                 }
             }
             
-            const isTargeted = category === 'Records' || category === 'Software';
-            const targetProgram = isTargeted ? document.getElementById('target-program').value : 'all';
-            const targetBatch = isTargeted ? document.getElementById('target-batch').value : 'all';
-            const targetSemester = isTargeted ? document.getElementById('target-semester').value : 'all';
+            const isTargeted = (currentUser && currentUser.role === 'Faculty') || category === 'Records' || category === 'Software';
+            const targetProgram = isTargeted ? (document.getElementById('target-program') ? document.getElementById('target-program').value : 'all') : 'all';
+            const targetBatch = isTargeted ? (document.getElementById('target-batch') ? document.getElementById('target-batch').value : 'all') : 'all';
+            const targetSemester = isTargeted ? (document.getElementById('target-semester') ? document.getElementById('target-semester').value : 'all') : 'all';
 
             await dbPost('posts', {
                 author: postAuthor,
@@ -2572,15 +2629,215 @@ window.toggleBookmark = function(postId) {
     }
 };
 
+window.viewedIds = window.viewedIds || new Set();
+async function registerView(type, id, author) {
+    if (!currentUser) return;
+    if (author === currentUser.username) return;
+    const key = `${type}_${id}`;
+    if (window.viewedIds.has(key)) return;
+    window.viewedIds.add(key);
+    try {
+        await dbPost(`${type}/${id}/view`, { username: currentUser.username });
+    } catch(err) { console.error('Failed to register view:', err); }
+}
+
+window.showViewsReceipts = async function(itemId, type) {
+    const modal = document.getElementById('views-receipts-modal');
+    const list = document.getElementById('views-receipts-list');
+    if (!modal || !list) return;
+    list.innerHTML = '<div style="padding: 10px; text-align: center; color: #6b7280;"><i class="fas fa-spinner fa-spin"></i> Loading receipts...</div>';
+    modal.classList.add('active');
+    
+    const closeBtn = document.getElementById('close-views-receipts');
+    if (closeBtn && !closeBtn.dataset.listener) {
+        closeBtn.dataset.listener = 'true';
+        closeBtn.addEventListener('click', () => {
+            modal.classList.remove('active');
+        });
+    }
+
+    try {
+        const items = await dbGet(type);
+        const item = items.find(i => String(i.id) === String(itemId));
+        if (!item) {
+            list.innerHTML = '<div style="padding: 10px; text-align: center; color: #ef4444;">Item not found.</div>';
+            return;
+        }
+        const viewUsernames = item.views || [];
+        if (viewUsernames.length === 0) {
+            list.innerHTML = '<div style="padding: 15px; text-align: center; color: #9ca3af; font-style: italic;">No views registered yet.</div>';
+            return;
+        }
+        const allUsers = await dbGet('users');
+        list.innerHTML = '';
+        viewUsernames.forEach(username => {
+            const u = allUsers.find(user => user.username === username);
+            const name = u ? u.name : username;
+            const role = u ? u.role : 'Student';
+            const program = u ? (u.program || '') : '';
+            const batch = u ? (u.batch || '') : '';
+            const semester = u ? (u.semester ? `${u.semester} Semester` : '') : '';
+            const avatarVal = u ? (u.profilePic || '') : '';
+            
+            const avatarStyle = avatarVal 
+                ? `background-image: url(${avatarVal}); background-size: cover; background-position: center;` 
+                : `background: var(--uog-blue); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold;`;
+            const avatarInner = avatarVal ? '' : name.charAt(0).toUpperCase();
+
+            const detailStr = role === 'Faculty' ? 'Faculty Member' : `${program} • Session ${batch} ${semester ? `• ${semester}` : ''}`;
+
+            const itemDiv = document.createElement('div');
+            itemDiv.className = 'receipt-user-row';
+            itemDiv.style = 'display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 8px; background: rgba(0,0,0,0.02); border: 1px solid rgba(0,0,0,0.04); margin-bottom: 6px;';
+            itemDiv.innerHTML = `
+                <div class="avatar-small" style="${avatarStyle} width: 34px; height: 34px; border-radius: 50%;">${avatarInner}</div>
+                <div style="flex: 1;">
+                    <div style="font-weight: 600; font-size: 0.9rem; color: var(--text-primary);">${name}</div>
+                    <div style="font-size: 0.75rem; color: var(--text-secondary);">${detailStr}</div>
+                </div>
+                <div style="font-size: 0.7rem; color: #10b981; font-weight: 600;"><i class="fas fa-check-circle"></i> Seen</div>
+            `;
+            list.appendChild(itemDiv);
+        });
+    } catch (err) {
+        list.innerHTML = `<div style="padding: 10px; text-align: center; color: #ef4444;">Error: ${err.message}</div>`;
+    }
+};
+
+async function renderBroadcastTicker() {
+    const tickerContainer = document.getElementById('broadcast-ticker-container');
+    if (!tickerContainer) return;
+    
+    if (!currentUser) {
+        tickerContainer.style.display = 'none';
+        return;
+    }
+    
+    try {
+        const posts = await dbGet('posts');
+        const now = Date.now();
+        const oneWeek = 7 * 24 * 60 * 60 * 1000;
+        
+        const targetedNotices = posts.filter(p => {
+            if (!p.category || !p.category.includes('Update')) return false;
+            
+            const postAge = now - Number(p.id);
+            if (postAge > oneWeek) return false;
+            
+            if (currentUser.role !== 'Faculty' && p.author !== currentUser.username && p.originalAuthor !== currentUser.username) {
+                const targetProg = p.targetProgram || 'all';
+                const targetBat = p.targetBatch || 'all';
+                const targetSem = p.targetSemester || 'all';
+                
+                if (targetProg !== 'all' && currentUser.program !== targetProg) return false;
+                if (targetBat !== 'all' && currentUser.batch !== targetBat) return false;
+                if (targetSem !== 'all' && currentUser.semester !== targetSem) return false;
+            }
+            return true;
+        });
+        
+        if (targetedNotices.length === 0) {
+            tickerContainer.style.display = 'none';
+            return;
+        }
+        
+        tickerContainer.style.display = 'block';
+        tickerContainer.innerHTML = `
+            <div class="ticker-container">
+                <span class="ticker-badge"><i class="fas fa-bullhorn"></i> Announcement</span>
+                <div class="ticker-wrapper">
+                    <div class="ticker-content" id="ticker-scroll-content"></div>
+                </div>
+            </div>
+        `;
+        
+        const scrollContent = document.getElementById('ticker-scroll-content');
+        scrollContent.innerHTML = '';
+        targetedNotices.forEach((p, idx) => {
+            const span = document.createElement('span');
+            let textPreview = p.text.replace(/<[^>]*>/g, '').substring(0, 100);
+            if (p.text.length > 100) textPreview += '...';
+            
+            span.innerHTML = `<span style="font-weight: 700; color: var(--uog-orange);">${p.name}:</span> ${textPreview}`;
+            span.style.cursor = 'pointer';
+            span.style.marginRight = '50px';
+            span.addEventListener('click', () => {
+                window.location.hash = `#post-${p.id}`;
+            });
+            scrollContent.appendChild(span);
+        });
+        
+    } catch (err) {
+        console.error('Error rendering ticker:', err);
+        tickerContainer.style.display = 'none';
+    }
+}
+
 window.sharePost = function(postId) {
-    // Generate simulated deep link
-    const link = `${window.location.origin}/post/${postId}`;
+    const link = window.location.origin + window.location.pathname + '#post-' + postId;
     navigator.clipboard.writeText(link).then(() => {
         showToast('Post direct link copied to clipboard!');
     }).catch(() => {
         showToast('Failed to copy link.', true);
     });
 };
+
+window.shareSoftware = function(swId) {
+    const link = window.location.origin + window.location.pathname + '#software-' + swId;
+    navigator.clipboard.writeText(link).then(() => {
+        showToast('Software direct link copied to clipboard!');
+    }).catch(() => {
+        showToast('Failed to copy link.', true);
+    });
+};
+
+window.handleAnchorRoute = async function() {
+    const hash = window.location.hash;
+    if (!hash) return;
+
+    if (hash.startsWith('#post-')) {
+        const postId = hash.split('-')[1];
+        try {
+            const posts = await dbGet('posts');
+            const post = posts.find(p => String(p.id) === String(postId));
+            if (!post) return;
+            
+            const targetView = post.category && post.category.includes('Record') ? 'records' : 'feed';
+            switchView(targetView);
+            
+            setTimeout(() => {
+                const card = document.getElementById(`post-card-${postId}`);
+                if (card) {
+                    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    card.classList.add('post-highlight-pulse');
+                    const commentsSection = document.getElementById(`comments-section-${postId}`);
+                    if (commentsSection && commentsSection.style.display === 'none') {
+                        toggleCommentsSection(postId);
+                    }
+                    setTimeout(() => {
+                        card.classList.remove('post-highlight-pulse');
+                    }, 4000);
+                }
+            }, 300);
+        } catch (err) { console.error(err); }
+    } else if (hash.startsWith('#software-')) {
+        const swId = hash.split('-')[1];
+        try {
+            switchView('software');
+            setTimeout(() => {
+                const card = document.getElementById(`sw-card-${swId}`);
+                if (card) {
+                    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    card.classList.add('post-highlight-pulse');
+                    setTimeout(() => {
+                        card.classList.remove('post-highlight-pulse');
+                    }, 4000);
+                }
+            }, 300);
+        } catch (err) { console.error(err); }
+    }
+};
+window.addEventListener('hashchange', window.handleAnchorRoute);
 
 window.openLightbox = function(imgSrc, captionText) {
     const modal = document.getElementById('lightbox-modal');
