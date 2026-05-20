@@ -748,38 +748,6 @@ app.post('/api/software/:id/view', async (req, res) => {
 app.get('/api/jobs', async (req, res) => {
     try {
         const jobs = await Job.find({}).sort({ id: -1 });
-        // Populate default demo jobs if none exist
-        if (jobs.length === 0) {
-            const defaults = [
-                {
-                    id: Date.now() - 3600000,
-                    title: 'Marketing Coordinator',
-                    company: 'Dynamic Marketing Solutions',
-                    type: 'Contractual',
-                    location: 'Cityville, CA',
-                    salary: '$2050',
-                    desc: 'Join Dynamic Marketing Solutions, a fast-paced marketing agency specializing in digital and traditional marketing strategies. We are seeking a proactive marketer...',
-                    link: 'https://example.com/apply/marketing',
-                    date: 'Thursday, November 30, 2023',
-                    author: 'system'
-                },
-                {
-                    id: Date.now() - 7200000,
-                    title: 'Senior Marketing Manager',
-                    company: 'XYZ Tech Solutions',
-                    type: 'Full Time',
-                    location: 'Metroville, NY',
-                    salary: '$3000',
-                    desc: 'Our company, XYZ Tech Solutions, is a rapidly growing tech firm specializing in innovative software solutions. We are seeking a highly motivated and experienced manager...',
-                    link: 'https://example.com/apply/senior',
-                    date: 'Friday, November 3, 2023',
-                    author: 'system'
-                }
-            ];
-            await Job.insertMany(defaults);
-            const freshJobs = await Job.find({}).sort({ id: -1 });
-            return res.json(freshJobs);
-        }
         res.json(jobs);
     } catch (err) {
         console.error(err);
